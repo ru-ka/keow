@@ -1,1 +1,1 @@
-Release\KernelEmulationOnWindows debug=1 root=bootstrap\linux init=/bin/bash
+KernelEmulationOnWindows debug=1 root=linux init=/bin/bash
