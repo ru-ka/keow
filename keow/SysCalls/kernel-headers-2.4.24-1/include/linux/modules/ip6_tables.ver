@@ -1,0 +1,16 @@
+#define __ver_ip6t_register_table	smp_1e64c835
+#define ip6t_register_table	_set_ver(ip6t_register_table)
+#define __ver_ip6t_unregister_table	smp_a6396b8a
+#define ip6t_unregister_table	_set_ver(ip6t_unregister_table)
+#define __ver_ip6t_do_table	smp_ee461037
+#define ip6t_do_table	_set_ver(ip6t_do_table)
+#define __ver_ip6t_register_match	smp_8acaae0d
+#define ip6t_register_match	_set_ver(ip6t_register_match)
+#define __ver_ip6t_unregister_match	smp_59652a39
+#define ip6t_unregister_match	_set_ver(ip6t_unregister_match)
+#define __ver_ip6t_register_target	smp_213b0711
+#define ip6t_register_target	_set_ver(ip6t_register_target)
+#define __ver_ip6t_unregister_target	smp_344aa6de
+#define ip6t_unregister_target	_set_ver(ip6t_unregister_target)
+#define __ver_ip6t_ext_hdr	smp_b8bddf33
+#define ip6t_ext_hdr	_set_ver(ip6t_ext_hdr)

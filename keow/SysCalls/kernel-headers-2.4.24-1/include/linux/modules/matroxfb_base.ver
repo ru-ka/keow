@@ -1,0 +1,10 @@
+#define __ver_matroxfb_register_driver	smp_e375247e
+#define matroxfb_register_driver	_set_ver(matroxfb_register_driver)
+#define __ver_matroxfb_unregister_driver	smp_586b0d68
+#define matroxfb_unregister_driver	_set_ver(matroxfb_unregister_driver)
+#define __ver_matroxfb_switch	smp_89d041ea
+#define matroxfb_switch	_set_ver(matroxfb_switch)
+#define __ver_matroxfb_wait_for_sync	smp_cb4007cb
+#define matroxfb_wait_for_sync	_set_ver(matroxfb_wait_for_sync)
+#define __ver_matroxfb_enable_irq	smp_beb4e5e1
+#define matroxfb_enable_irq	_set_ver(matroxfb_enable_irq)
