@@ -391,8 +391,9 @@ void ForkChildCopyFromParent()
 			len4k = (MemAlloc.len+0xFFF) & 0xFFFFF000;
 			if(!ReadMemory(MemAlloc.addr, hParent, MemAlloc.addr, len4k))
 			{
-				ktrace("fork() child copy data from parent failed\n");
-//				ExitProcess((UINT)-SIGSEGV);
+				ktrace("fork() child copy data from parent failed: err %ld\n", GetLastError());
+				//TODO: do we fail on part memory read - what is actually going on?
+				//ExitProcess((UINT)-SIGSEGV);
 			}
 			break;
 		case MemoryAllocRecord::RecType::MMap:
@@ -550,7 +551,7 @@ DWORD DoFork(CONTEXT *pCtx)
 
 
 	//initial process data
-	*p = *pProcessData;
+	*p = *pProcessData; //clone, then fix up
 
 	p->in_setup = true; //setting up the child
 

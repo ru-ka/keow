@@ -169,6 +169,21 @@ struct TerminalDeviceDataStruct {
 
 
 //
+// mount point information
+//
+#define MAX_MOUNTS 16
+#define MAX_MOUNT_DATA 256
+
+struct MountPointDataStruct {
+	char Source[MAX_PATH];
+	char Destination[MAX_PATH];
+	const char * pType;
+	DWORD Flags;
+	BYTE Data[MAX_MOUNT_DATA]; //typically options
+};
+
+
+//
 //shared kernel data
 //this will be in shared memory across all processes
 //
@@ -186,6 +201,9 @@ struct KernelSharedDataStruct {
 	char ProcessStubFilename[MAX_PATH];
 
 	TerminalDeviceDataStruct TerminalDeviceData[MAX_TERMINALS];
+
+	MountPointDataStruct MountPoints[MAX_MOUNTS];
+	int NumCurrentMounts;
 };
 
 extern KernelSharedDataStruct* pKernelSharedData;

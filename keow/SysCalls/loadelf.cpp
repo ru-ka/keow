@@ -50,11 +50,12 @@ int LoadELFHeader(FILE * fElf, PELF_Data pElf)
 		ktrace("not a 32bit LSB ELF file\n");
 		return -1;
 	}
-/*	if(pElf->hdr.e_type != ET_EXEC)
+	if(pElf->hdr.e_type != ET_EXEC
+	&& pElf->hdr.e_type != ET_DYN)
 	{
 		ktrace("not an ELF executable type\n");
 		return -1;
-	} */
+	} 
 	if(pElf->hdr.e_machine != EM_386)
 	{
 		ktrace("not for Intel 386 architecture (needed for syscall interception)\n");
@@ -128,6 +129,7 @@ int LoadProgram(FILE * fElf, PELF_Data pElf, bool LoadAsLibrary)
 	if(pElf->hdr.e_phoff == 0)
 		return -1; //no header
 
+	//what about these??
 	if(LoadAsLibrary || pElf->hdr.e_type==ET_DYN)
 	{
 		if(pElf->last_lib_addr == 0)
@@ -226,7 +228,7 @@ int LoadProgram(FILE * fElf, PELF_Data pElf, bool LoadAsLibrary)
 	}
 
 	//align brk to a page boundary
-	//pElf->brk = (void*)( ((DWORD)pElf->brk + (SIZE4k-1)) & (~(SIZE4k-1)) ); 
+	//NO!! //pElf->brk = (void*)( ((DWORD)pElf->brk + (SIZE4k-1)) & (~(SIZE4k-1)) ); 
 
 	//load interpreter?
 	if(Interpreter[0]!=0)
@@ -323,6 +325,46 @@ _declspec(dllexport) int LoadELFFile(PELF_Data pElf, const char * filename, bool
 		rc = LoadELFHeader(fElf, pElf);
 	if(rc==0)
 		rc = LoadProgram(fElf, pElf, LoadAsLibrary);
+	else
+	{
+		//may be a shell script - try that
+		char buf[MAX_COMMANDLINE_LEN+MAX_PATH];
+		fseek(fElf, 0, SEEK_SET);
+		fread(buf, 1, sizeof(buf), fElf);
+		if(strncmp(buf,"#!",2)==0)
+		{
+			//yes - it is a shell script with a header
+			// eg: #!/bin/sh
+			//Use that program as the process and give it the args we specified
+			char * space = strchr(buf, ' ');
+			char * nl = strchr(buf, 0x0a);
+			if(nl==NULL)
+			{
+				buf[sizeof(buf)-1] = NULL;
+				space = NULL;
+			}
+			else
+			{
+				*nl = NULL; //line ends here
+
+				char * args;
+				if(space==NULL || space>nl)
+					args = NULL;
+				else
+					args = space+1;
+
+				//skip #! and any whitespace
+				char * interp = buf+2;
+				while(*interp == ' ')
+					interp++;
+
+				rc = LoadELFFile(pElf, interp, LoadAsLibrary);
+
+				if(args)
+					strncpy(pElf->InterpreterCommandLine, args, MAX_COMMANDLINE_LEN);
+			}
+		}
+	}
 	
 
 	fclose(fElf);

@@ -435,9 +435,9 @@ DWORD HandleExceptionInELF(DWORD ExceptionCode, LPEXCEPTION_POINTERS pEP)
 		}
 		else
 		{
-			//unhandled instruction type
-			ktrace("Unhandled instruction exception x%08lx @ 0x%08lx\n", instruction->dword, pEP->ExceptionRecord->ExceptionAddress);
-			return EXCEPTION_EXECUTE_HANDLER;
+			//just a regular exception, pass the the elf code
+			SendSignal(pProcessData->PID, SIGSEGV);
+			return EXCEPTION_CONTINUE_EXECUTION;
 		}
 	}
 

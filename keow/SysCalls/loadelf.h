@@ -27,6 +27,8 @@
 #include "linux_includes.h"
 typedef unsigned char* ADDR;
 
+#define MAX_COMMANDLINE_LEN 1024
+
 struct ELF_Data 
 {
 	struct linux::elf32_hdr hdr; //ELF header
@@ -40,6 +42,7 @@ struct ELF_Data
 	ADDR interpreter_start;
 	ADDR bss_start, brk;
 	ADDR last_lib_addr;
+	char InterpreterCommandLine[MAX_COMMANDLINE_LEN];
 };
 typedef struct ELF_Data * PELF_Data;
 

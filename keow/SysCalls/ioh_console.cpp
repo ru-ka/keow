@@ -275,6 +275,7 @@ retry:
 					goto retry;
 				} else {
 					c = buf.Event.KeyEvent.uChar.AsciiChar;
+					ktrace("keu %d %c\n", c,c);
 				}
 				break;
 			}
@@ -364,6 +365,7 @@ bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 		//#define IEXTEN	0100000
 		if((m_DeviceData.TermIOs.c_lflag & ISIG)==0)
 		{
+ktrace("sig? %d [intr %d]\n", *p, m_DeviceData.TermIOs.c_cc[VINTR]);
 			if(*p==m_DeviceData.TermIOs.c_cc[VINTR])
 				SendSignal(pProcessData->PID, SIGINT);
 			//others?
@@ -798,12 +800,15 @@ ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 
 bool ConsoleIOHandler::Write(const void* address, DWORD size, DWORD *pWritten)
 {
-	const char *p = (const char*)address;
-	const char *pEnd = p+size;
-	for(; p<pEnd; ++p)
-		WriteChar(*p);
+	if(size!=0)
+	{
+		const char *p = (const char*)address;
+		const char *pEnd = p+size;
+		for(; p<pEnd; ++p)
+			WriteChar(*p);
+	}
 	if(pWritten)
-		*pWritten+=size;
+		*pWritten=size;
 	return true;
 }
 
