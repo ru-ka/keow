@@ -23,6 +23,13 @@
 #define DEL 0x7f 
 
 
+//based on FOREGROUND_* BACKGROUND_* COMMON_LVB_*
+#define FOREGROUND_MASK 0x000F
+#define BACKGROUND_MASK 0x00F0
+#define COMMON_LVB_MASK 0xFF00
+
+//////////////////////////////////////////////////////////////////////////////////
+
 
 ConsoleIOHandler::ConsoleIOHandler(int nDeviceNum, bool initialise)
 : IOHandler(sizeof(ConsoleIOHandler))
@@ -468,7 +475,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 				moveRect.Bottom=info.dwCursorPosition.Y;
 				newPos.X = moveRect.Left + cnt;
 				newPos.Y = moveRect.Top;
-				fill.Attributes=0;
+				fill.Attributes=info.wAttributes;
 				fill.Char.AsciiChar=' '; //space
 				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, newPos, &fill);
 			}
@@ -538,7 +545,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 				COORD newPos;
 				CONSOLE_SCREEN_BUFFER_INFO info;
 				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				newPos.X = info.dwCursorPosition.X = 1;
+				newPos.X = info.dwCursorPosition.X = 0;
 				newPos.Y = info.dwCursorPosition.Y + cnt;
 				SetConsoleCursorPosition(m_HandleOut, newPos);
 			}
@@ -552,7 +559,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 				COORD newPos;
 				CONSOLE_SCREEN_BUFFER_INFO info;
 				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				newPos.X = info.dwCursorPosition.X = 1;
+				newPos.X = info.dwCursorPosition.X = 0;
 				newPos.Y = info.dwCursorPosition.Y - cnt;
 				SetConsoleCursorPosition(m_HandleOut, newPos);
 			}
@@ -577,8 +584,8 @@ bool ConsoleIOHandler::WriteChar(char c)
 			{
 				//move cursor to row,col
 				COORD newPos;
-				newPos.X = m_DeviceData.OutputStateData[2];
-				newPos.Y = m_DeviceData.OutputStateData[1];
+				newPos.X = m_DeviceData.OutputStateData[2] - 1;
+				newPos.Y = m_DeviceData.OutputStateData[1] - 1;
 				SetConsoleCursorPosition(m_HandleOut, newPos);
 			}
 			m_DeviceData.OutputState = 0;
@@ -662,7 +669,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 				moveRect.Bottom=info.dwMaximumWindowSize.Y;
 				newPos.X = 1;
 				newPos.Y = info.dwCursorPosition.Y + cnt;
-				fill.Attributes=0;
+				fill.Attributes=info.wAttributes;
 				fill.Char.AsciiChar=' '; //space
 				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, newPos, &fill);
 			}
@@ -685,7 +692,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 				moveRect.Bottom=info.dwMaximumWindowSize.Y;
 				newPos.X = 1;
 				newPos.Y = info.dwCursorPosition.Y;
-				fill.Attributes=0;
+				fill.Attributes=info.wAttributes;
 				fill.Char.AsciiChar=' '; //space
 				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, newPos, &fill);
 			}
@@ -708,7 +715,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 				moveRect.Bottom=info.dwCursorPosition.Y;
 				newPos.X = moveRect.Left;
 				newPos.Y = moveRect.Top;
-				fill.Attributes=0;
+				fill.Attributes=info.wAttributes;
 				fill.Char.AsciiChar=' '; //space
 				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, newPos, &fill);
 			}
@@ -764,7 +771,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 				GetConsoleScreenBufferInfo(m_HandleOut, &info);
 
 				pos = info.dwCursorPosition;
-				pos.Y  = row;
+				pos.Y  = row-1;
 				SetConsoleCursorPosition(m_HandleOut, pos);
 			}
 			m_DeviceData.OutputState = 0;
@@ -799,38 +806,127 @@ bool ConsoleIOHandler::WriteChar(char c)
 					switch(attr)
 					{
 					case 0: //     reset all attributes to their defaults
+						//white text, balack background
+						info.wAttributes &= ~FOREGROUND_MASK;
+						info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE|FOREGROUND_GREEN;
+						break;
+
 					case 1: //     set bold
+						info.wAttributes |= FOREGROUND_INTENSITY;
+						break;
+
 					case 2: //     set half-bright (simulated with color on a color display)
+						info.wAttributes &= ~FOREGROUND_INTENSITY;
+						break;
+
 					case 4: //     set underscore (simulated with color on a color display)      (the colors used to simulate dim or underline are set using ESC ] ...)
+						info.wAttributes |= COMMON_LVB_UNDERSCORE;
+						break;
+
 					case 5: //     set blink
+						break;
+
 					case 7: //     set reverse video
+						info.wAttributes |= COMMON_LVB_REVERSE_VIDEO;
+						break;
+
 					case 10: //    reset selected mapping, display control flag, and toggle meta flag.
 					case 11: //    select null mapping, set display control flag, reset toggle meta flag.
 					case 12: //    select null mapping, set display control flag, set toggle meta flag. (The toggle meta flag  causes the high bit of a byte to be toggled before the mapping table translation is done.)
+						break;
+
 					case 21: //    set normal intensity (this is not compatible with ECMA-48)
 					case 22: //    set normal intensity
+						info.wAttributes &= ~FOREGROUND_INTENSITY;
+						break;
+
 					case 24: //    underline off
+						info.wAttributes &= ~COMMON_LVB_UNDERSCORE;
+						break;
+
 					case 25: //    blink off
+						break;
+
 					case 27: //    reverse video off
+						info.wAttributes &= ~COMMON_LVB_REVERSE_VIDEO;
+						break;
+
 					case 30: //    set black foreground
+						info.wAttributes &= ~FOREGROUND_MASK;
+						break;
 					case 31: //    set red foreground
+						info.wAttributes &= ~FOREGROUND_MASK;
+						info.wAttributes |= FOREGROUND_RED;
+						break;
 					case 32: //    set green foreground
+						info.wAttributes &= ~FOREGROUND_MASK;
+						info.wAttributes |= FOREGROUND_GREEN;
+						break;
 					case 33: //    set brown foreground
+						info.wAttributes &= ~FOREGROUND_MASK;
+						info.wAttributes |= FOREGROUND_RED|FOREGROUND_GREEN;
+						break;
 					case 34: //    set blue foreground
+						info.wAttributes &= ~FOREGROUND_MASK;
+						info.wAttributes |= FOREGROUND_BLUE;
+						break;
 					case 35: //    set magenta foreground
+						info.wAttributes &= ~FOREGROUND_MASK;
+						info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE;
+						break;
 					case 36: //    set cyan foreground
+						info.wAttributes &= ~FOREGROUND_MASK;
+						info.wAttributes |= FOREGROUND_GREEN|FOREGROUND_BLUE;
+						break;
 					case 37: //    set white foreground
+						info.wAttributes &= ~FOREGROUND_MASK;
+						info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE|FOREGROUND_GREEN;
+						break;
+
 					case 38: //    set underscore on, set default foreground color
+						info.wAttributes &= ~COMMON_LVB_UNDERSCORE;
+						info.wAttributes &= ~FOREGROUND_MASK;
+						info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE|FOREGROUND_GREEN;
+						break;
 					case 39: //    set underscore off, set default foreground color
+						info.wAttributes &= ~FOREGROUND_MASK;
+						info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE|FOREGROUND_GREEN;
+						info.wAttributes |= COMMON_LVB_UNDERSCORE;
+						break;
+
 					case 40: //    set black background
+						info.wAttributes &= ~BACKGROUND_MASK;
+						break;
 					case 41: //    set red background
+						info.wAttributes &= ~BACKGROUND_MASK;
+						info.wAttributes |= BACKGROUND_RED;
+						break;
 					case 42: //    set green background
+						info.wAttributes &= ~BACKGROUND_MASK;
+						info.wAttributes |= BACKGROUND_GREEN;
+						break;
 					case 43: //    set brown background
+						info.wAttributes &= ~BACKGROUND_MASK;
+						info.wAttributes |= BACKGROUND_RED|BACKGROUND_GREEN;
+						break;
 					case 44: //    set blue background
+						info.wAttributes &= ~BACKGROUND_MASK;
+						info.wAttributes |= BACKGROUND_BLUE;
+						break;
 					case 45: //    set magenta background
+						info.wAttributes &= ~BACKGROUND_MASK;
+						info.wAttributes |= BACKGROUND_RED|BACKGROUND_BLUE;
+						break;
 					case 46: //    set cyan background
+						info.wAttributes &= ~BACKGROUND_MASK;
+						info.wAttributes |= BACKGROUND_BLUE|BACKGROUND_GREEN;
+						break;
 					case 47: //    set white background
+						info.wAttributes &= ~BACKGROUND_MASK;
+						info.wAttributes |= BACKGROUND_RED|BACKGROUND_BLUE|BACKGROUND_GREEN;
+						break;
 					case 49: //    set default background color
+						info.wAttributes &= ~BACKGROUND_MASK;
 						break;
 					}
 				}//for each attr 
@@ -856,7 +952,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 
 						GetConsoleScreenBufferInfo(m_HandleOut, &info);
 
-						wsprintf(buf, "\x1b[%d;%dR", info.dwCursorPosition.Y, info.dwCursorPosition.X);
+						StringCbPrintf(buf, sizeof(buf), "\x1b[%d;%dR", info.dwCursorPosition.Y, info.dwCursorPosition.X);
 						PushForNextRead(buf);
 					}
 					break;
