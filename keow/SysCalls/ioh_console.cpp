@@ -1,5 +1,10 @@
 /*
- * and IO handler for console windows
+ * an IO handler for console windows
+ *
+ * escape codes to match TERM=ansi80x25
+ * which is a FreeBSD console and is simpler than TERM=linux
+ * but still has most features we want.
+ *
  */
 #include "kernel.h"
 #include "iohandler.h"
@@ -41,7 +46,7 @@ ConsoleIOHandler::ConsoleIOHandler(int nDeviceNum, bool initialise)
 	//open console
 
 	//one value must be set for all handles (why?)
-	DWORD dwConsoleMode = ENABLE_PROCESSED_OUTPUT;
+	DWORD dwConsoleMode = ENABLE_PROCESSED_OUTPUT|ENABLE_WRAP_AT_EOL_OUTPUT;
 
 	HANDLE h = CreateFile("CONIN$", GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
 	//can inherit handle....
@@ -139,10 +144,13 @@ bool ConsoleIOHandler::ReadChar(bool canblock, char &c)
 	while(canblock) 
 	{
 retry:
-		if(!PeekConsoleInput(m_Handle, &buf, 1, &dwRead))
-			continue;
-		if(dwRead==0)
-			continue;
+		if(!canblock)
+		{
+			if(!PeekConsoleInput(m_Handle, &buf, 1, &dwRead))
+				continue;
+			if(dwRead==0)
+				continue;
+		}
 
 		if(!ReadConsoleInput(m_Handle, &buf, 1, &dwRead))
 			continue;
@@ -152,6 +160,8 @@ retry:
 		if(buf.EventType==KEY_EVENT
 		&& buf.Event.KeyEvent.bKeyDown!=0 )
 		{
+			//some keys require a different code than NT uses, translate them
+
 			switch(buf.Event.KeyEvent.wVirtualKeyCode)
 			{
 			case VK_RETURN:
@@ -175,13 +185,63 @@ retry:
 				PushForNextRead("[C");
 				break;
 
-			case VK_F1: // ESC [[ A
+			case VK_HOME: // ESC [ H
 				c=ESC;
-				PushForNextRead("[[A");
+				PushForNextRead("[H");
 				break;
-			case VK_F2: // ESC [[ E
+			case VK_END: // ESC [ F
 				c=ESC;
-				PushForNextRead("[[E");
+				PushForNextRead("[F");
+				break;
+
+			case VK_NEXT: // ESC [ G
+				c=ESC;
+				PushForNextRead("[G");
+				break;
+			case VK_PRIOR: // ESC [ I
+				c=ESC;
+				PushForNextRead("[I");
+				break;
+
+			case VK_DELETE: // \177
+				c='\177';
+				break;
+			case VK_INSERT: // ESC [ L
+				c=ESC;
+				PushForNextRead("[L");
+				break;
+
+			case VK_F1: // ESC [ M
+			case VK_F2: // ESC [ N
+			case VK_F3: // ESC [ O
+			case VK_F4: // ESC [ P
+			case VK_F5: // ESC [ Q
+			case VK_F6: // ESC [ R
+			case VK_F7: // ESC [ N
+			case VK_F8: // ESC [ N
+			case VK_F9: // ESC [ N
+			case VK_F10: // ESC [ N
+			case VK_F11: // ESC [ M
+			case VK_F12: // ESC [ N
+			case VK_F13: // ESC [ N
+			case VK_F14: // ESC [ N
+			case VK_F15: // ESC [ N
+			case VK_F16: // ESC [ N
+			case VK_F17: // ESC [ N
+			case VK_F18: // ESC [ N
+			case VK_F19: // ESC [ N
+			case VK_F20: // ESC [ N
+			case VK_F21: // ESC [ N
+			case VK_F22: // ESC [ N
+			case VK_F23: // ESC [ N
+			case VK_F24: // ESC [ N
+				{
+					char extra[] = "[M";
+					int fn = c - VK_F1;
+					extra[1] = "-MNOPQRSTUVWXYZabcdefghij"[fn];
+					PushForNextRead(extra);
+					c=ESC;
+				}
 				break;
 
 			//TODO: more key codes
@@ -325,7 +385,9 @@ bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 bool ConsoleIOHandler::WriteChar(char c)
 {
 	DWORD dwWritten;
-	const int ignore_next_char = 0xFFF;
+	CONSOLE_SCREEN_BUFFER_INFO info;
+	COORD pos;
+	int firstY, screenWidth, screenHeight;
 
 	//some characters are always special
 	switch(c)
@@ -344,11 +406,6 @@ bool ConsoleIOHandler::WriteChar(char c)
 		WriteConsole(m_HandleOut, &c, 1, &dwWritten, NULL);
 		return true;
 
-	case SO:
-	case SI:
-	case DEL:
-		//ignore
-		return true;
 	}
 
 	//state machine
@@ -358,12 +415,6 @@ bool ConsoleIOHandler::WriteChar(char c)
 		if(c==ESC)
 		{
 			m_DeviceData.OutputState = ESC;
-		}
-		else
-		if(c==0x9B) //CSI
-		{
-			m_DeviceData.OutputState = ESC<<8 | '[';
-			memset(m_DeviceData.OutputStateData, 0, sizeof(m_DeviceData.OutputStateData));
 		}
 		else
 		{
@@ -389,31 +440,6 @@ bool ConsoleIOHandler::WriteChar(char c)
 			m_DeviceData.OutputState = ESC<<8 | '[';
 			memset(m_DeviceData.OutputStateData, 0, sizeof(m_DeviceData.OutputStateData));
 			break;
-		case 'c':
-			//ESC c  = reset
-			m_DeviceData.OutputState = 0;
-			break;
-		case 'D':
-			//ESC D  = linefeed
-			c=LF;
-			WriteConsole(m_HandleOut, &c, 1, &dwWritten, NULL);
-			m_DeviceData.OutputState = 0;
-			break;
-		case 'E':
-			//ESC E  = newline
-			c=NL;
-			WriteConsole(m_HandleOut, &c, 1, &dwWritten, NULL);
-			m_DeviceData.OutputState = 0;
-			break;
-		case ESC:
-			//resets state
-			m_DeviceData.OutputState = ESC;
-			break;
-		case CAN:
-		case SUB:
-			//abort esc sequence
-			m_DeviceData.OutputState = 0;
-			break;
 		default:
 			//unknown value - end esc sequence
 			ktrace("Implement console code: ESC %c\n", c);
@@ -423,25 +449,20 @@ bool ConsoleIOHandler::WriteChar(char c)
 		break;
 
 	case ESC<<8 | '[':
+		//lots of sequences want this, so do it first
+		GetConsoleScreenBufferInfo(m_HandleOut, &info);
+		screenWidth = info.srWindow.Right - info.srWindow.Left + 1;
+		screenHeight = info.srWindow.Bottom - info.srWindow.Top + 1;
+		firstY = info.dwMaximumWindowSize.Y - info.dwSize.Y; //first visible row
+		//ktrace("ESC [  .... %c   %d\n", c,m_DeviceData.OutputStateData[0]);
+
 		switch(c)
 		{
-		case '?':
-			//ignore: ESC [ xxx  and  ESC [ ? xxx  are quivalent
+		case '=':
+			m_DeviceData.OutputState = '['<<8 | '=';
 			break;
-		case '[':
-			//ignore: ESC [ [ x
-			m_DeviceData.OutputState = ignore_next_char;
-			break;
-		case ESC:
-			//resets state
-			m_DeviceData.OutputState = ESC;
-			break;
-		case CAN:
-		case SUB:
-			//abort esc sequence
-			m_DeviceData.OutputState = 0;
-			break;
-		case '0':
+
+		case '0': //collect numeric parameters
 		case '1':
 		case '2':
 		case '3':
@@ -453,513 +474,238 @@ bool ConsoleIOHandler::WriteChar(char c)
 		case '9':
 			{
 				int cnt = m_DeviceData.OutputStateData[0];
+				//add this digit to what we have
+				m_DeviceData.OutputStateData[cnt+1] *= 10;
 				m_DeviceData.OutputStateData[cnt+1] += c-'0';
 			}
 			break;
-		case ';':
-			++m_DeviceData.OutputStateData[0];
+		case ';': //number seperator
+			++m_DeviceData.OutputStateData[0]; //next parameter
 			break;
-		case '@': // ESC [ n @
-			{
-				//insert n blanks at current pos
-				int cnt = m_DeviceData.OutputStateData[1];
-				//move line contents right
-				SMALL_RECT moveRect;
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				CHAR_INFO fill;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				moveRect.Left=info.dwCursorPosition.X;
-				moveRect.Right=info.dwMaximumWindowSize.X;
-				moveRect.Top=info.dwCursorPosition.Y;
-				moveRect.Bottom=info.dwCursorPosition.Y;
-				newPos.X = moveRect.Left + cnt;
-				newPos.Y = moveRect.Top;
-				fill.Attributes=info.wAttributes;
-				fill.Char.AsciiChar=' '; //space
-				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, newPos, &fill);
-			}
-			m_DeviceData.OutputState = 0;
-			break;
-		case 'A': // ESC [ n A
-			{
-				//move cursor up n rows
-				int cnt = m_DeviceData.OutputStateData[1];
 
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				newPos.X = info.dwCursorPosition.X;
-				newPos.Y = info.dwCursorPosition.Y - cnt;
-				SetConsoleCursorPosition(m_HandleOut, newPos);
-			}
-			m_DeviceData.OutputState = 0;
-			break;
-		case 'B': // ESC [ n B
+		case 'J': // ESC [ J
 			{
-				//move cursor down n rows
-				int cnt = m_DeviceData.OutputStateData[1];
+				//clear to end of screen
 
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				newPos.X = info.dwCursorPosition.X;
-				newPos.Y = info.dwCursorPosition.Y + cnt;
-				SetConsoleCursorPosition(m_HandleOut, newPos);
+				DWORD dwWritten;
+				WORD len;
+
+				pos = info.dwCursorPosition;
+				len = screenWidth - pos.X;
+				len += info.dwMaximumWindowSize.Y - pos.Y;
+				FillConsoleOutputCharacter(m_HandleOut, ' ', len, pos, &dwWritten);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'C': // ESC [ n C
+		case 'K': // ESC [ K
 			{
-				//move cursor right n columns
-				int cnt = m_DeviceData.OutputStateData[1];
+				//clear to end of line
 
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				newPos.X = info.dwCursorPosition.X + cnt;
-				newPos.Y = info.dwCursorPosition.Y;
-				SetConsoleCursorPosition(m_HandleOut, newPos);
+				DWORD dwWritten;
+				WORD len;
+
+				pos = info.dwCursorPosition;
+				len = screenWidth - pos.X;
+				FillConsoleOutputCharacter(m_HandleOut, ' ', len, pos, &dwWritten);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'D': // ESC [ n D
-			{
-				//move cursor left n columns
-				int cnt = m_DeviceData.OutputStateData[1];
 
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				newPos.X = info.dwCursorPosition.X - cnt;
-				newPos.Y = info.dwCursorPosition.Y;
-				SetConsoleCursorPosition(m_HandleOut, newPos);
-			}
-			m_DeviceData.OutputState = 0;
-			break;
-		case 'E': // ESC [ n E
-			{
-				//move cursor down n rows, and to col 1
-				int cnt = m_DeviceData.OutputStateData[1];
-
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				newPos.X = info.dwCursorPosition.X = 0;
-				newPos.Y = info.dwCursorPosition.Y + cnt;
-				SetConsoleCursorPosition(m_HandleOut, newPos);
-			}
-			m_DeviceData.OutputState = 0;
-			break;
-		case 'F': // ESC [ n F
-			{
-				//move cursor up n rows, and to col 1
-				int cnt = m_DeviceData.OutputStateData[1];
-
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				newPos.X = info.dwCursorPosition.X = 0;
-				newPos.Y = info.dwCursorPosition.Y - cnt;
-				SetConsoleCursorPosition(m_HandleOut, newPos);
-			}
-			m_DeviceData.OutputState = 0;
-			break;
-		case 'G': // ESC [ n G
+		case '`': // ESC [ n `
 			{
 				//move cursor to col n in current row
-				int cnt = m_DeviceData.OutputStateData[1];
+				int col = m_DeviceData.OutputStateData[1];
 
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				newPos.X = info.dwCursorPosition.X = cnt;
-				newPos.Y = info.dwCursorPosition.Y;
-				SetConsoleCursorPosition(m_HandleOut, newPos);
+				pos.X = col-1;
+				pos.Y = info.dwCursorPosition.Y;
+				SetConsoleCursorPosition(m_HandleOut, pos);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
 		case 'H': // ESC [ n;n H
-		case 'f': // ESC [ n;n f   //duplicate or error?
 			{
 				//move cursor to row,col
-				COORD newPos;
-				newPos.X = m_DeviceData.OutputStateData[2] - 1;
-				newPos.Y = m_DeviceData.OutputStateData[1] - 1;
-				SetConsoleCursorPosition(m_HandleOut, newPos);
-			}
-			m_DeviceData.OutputState = 0;
-			break;
-		case 'J': // ESC [ n J
-			{
-				//erase display: 0=cursor to end, 1=cursor to start, 2=entire display
-				int type = m_DeviceData.OutputStateData[1];
-
-				COORD pos;
-				DWORD dwWritten;
-				WORD len;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-
-				if(type==0 || type==2)
-				{
-					//erase cursor to end
-					pos = info.dwCursorPosition;
-					len = info.dwMaximumWindowSize.X - pos.X;
-					len += (info.dwMaximumWindowSize.Y - pos.Y) * info.dwMaximumWindowSize.X;
-					FillConsoleOutputCharacter(m_HandleOut, ' ', len, pos, &dwWritten);
+				if(m_DeviceData.OutputStateData[0] == 0) {
+					pos.X = 0;
+					pos.Y = firstY;
+				} else {
+					pos.X = m_DeviceData.OutputStateData[2] - 1;
+					pos.Y = m_DeviceData.OutputStateData[1] - 1 + firstY;
 				}
-				if(type==1 || type==2)
-				{
-					//erase cursor to start
-					pos = info.dwCursorPosition;
-					len = pos.X;
-					len += (pos.Y-1) * info.dwMaximumWindowSize.X;
-					pos.X = pos.Y = 1;
-					FillConsoleOutputCharacter(m_HandleOut, ' ', len, pos, &dwWritten);
-				}
+				SetConsoleCursorPosition(m_HandleOut, pos);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'K': // ESC [ n K
+
+		case 'B': // ESC [ n B
 			{
-				//erase line: 0=cursor to end, 1=cursor to start, 2=entire line
-				int type = m_DeviceData.OutputStateData[1];
-
-				COORD pos;
-				DWORD dwWritten;
-				WORD len;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-
-				if(type==0 || type==2)
-				{
-					//erase cursor to end
-					pos = info.dwCursorPosition;
-					len = info.dwMaximumWindowSize.X - pos.X;
-					FillConsoleOutputCharacter(m_HandleOut, ' ', len, pos, &dwWritten);
-				}
-				if(type==1 || type==2)
-				{
-					//erase cursor to start
-					pos = info.dwCursorPosition;
-					len = pos.X;
-					pos.X = 1;
-					FillConsoleOutputCharacter(m_HandleOut, ' ', len, pos, &dwWritten);
-				}
+				//move cursor down
+				pos.X = info.dwCursorPosition.X;
+				if(m_DeviceData.OutputStateData[0] == 0)
+					pos.Y = info.dwCursorPosition.Y + 1;
+				else
+					pos.Y = info.dwCursorPosition.Y + m_DeviceData.OutputStateData[1];
+				SetConsoleCursorPosition(m_HandleOut, pos);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'L': // ESC [ n L
+		case 'A': // ESC [ A
 			{
-				//insert n blank lines at current pos
-				int cnt = m_DeviceData.OutputStateData[1];
-
-				//move everything down
-				SMALL_RECT moveRect;
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				CHAR_INFO fill;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				moveRect.Left=1;
-				moveRect.Right=info.dwMaximumWindowSize.X;
-				moveRect.Top=info.dwCursorPosition.Y;
-				moveRect.Bottom=info.dwMaximumWindowSize.Y;
-				newPos.X = 1;
-				newPos.Y = info.dwCursorPosition.Y + cnt;
-				fill.Attributes=info.wAttributes;
-				fill.Char.AsciiChar=' '; //space
-				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, newPos, &fill);
+				//move cursor up
+				pos.X = info.dwCursorPosition.X;
+				if(m_DeviceData.OutputStateData[0] == 0)
+					pos.Y = info.dwCursorPosition.Y - 1;
+				else
+					pos.Y = info.dwCursorPosition.Y - m_DeviceData.OutputStateData[1];
+				SetConsoleCursorPosition(m_HandleOut, pos);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'M': // ESC [ n M
+		case 'C': // ESC [ C
 			{
-				//delete n lines at current pos
-				int cnt = m_DeviceData.OutputStateData[1];
-
-				//move everything up
-				SMALL_RECT moveRect;
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				CHAR_INFO fill;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				moveRect.Left=1;
-				moveRect.Right=info.dwMaximumWindowSize.X;
-				moveRect.Top=info.dwCursorPosition.Y + cnt;
-				moveRect.Bottom=info.dwMaximumWindowSize.Y;
-				newPos.X = 1;
-				newPos.Y = info.dwCursorPosition.Y;
-				fill.Attributes=info.wAttributes;
-				fill.Char.AsciiChar=' '; //space
-				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, newPos, &fill);
+				//move cursor right
+				if(m_DeviceData.OutputStateData[0] == 0)
+					pos.X = info.dwCursorPosition.X + 1;
+				else
+					pos.X = info.dwCursorPosition.X + m_DeviceData.OutputStateData[1];
+				pos.Y = info.dwCursorPosition.Y;
+				SetConsoleCursorPosition(m_HandleOut, pos);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'P': // ESC [ n P
+		case 'D': // ESC [ D
 			{
-				//delete n characters at current pos
-				int cnt = m_DeviceData.OutputStateData[1];
+				//move cursor left
+				if(m_DeviceData.OutputStateData[0] == 0)
+					pos.X = info.dwCursorPosition.X - 1;
+				else
+					pos.X = info.dwCursorPosition.X - m_DeviceData.OutputStateData[1];
+				pos.Y = info.dwCursorPosition.Y;
+				SetConsoleCursorPosition(m_HandleOut, pos);
+			}
+			m_DeviceData.OutputState = 0;
+			break;
+
+		case 'E': // ESC [ E
+			{
+				//newline
+				WriteConsole(m_HandleOut, "\r\n", 2, &dwWritten, NULL);
+			}
+			m_DeviceData.OutputState = 0;
+			break;
+
+		case 'P': // ESC [ P
+			{
+				//delete character at current pos
 
 				//move line contents left
 				SMALL_RECT moveRect;
-				COORD newPos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
 				CHAR_INFO fill;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-				moveRect.Left=info.dwCursorPosition.X + cnt;
+				moveRect.Left=info.dwCursorPosition.X + 1;
 				moveRect.Right=info.dwMaximumWindowSize.X;
 				moveRect.Top=info.dwCursorPosition.Y;
 				moveRect.Bottom=info.dwCursorPosition.Y;
-				newPos.X = moveRect.Left;
-				newPos.Y = moveRect.Top;
+				pos.X = info.dwCursorPosition.X;
+				pos.Y = moveRect.Top;
 				fill.Attributes=info.wAttributes;
 				fill.Char.AsciiChar=' '; //space
-				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, newPos, &fill);
+				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, pos, &fill);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'X': // ESC [ n X
+		case 'M': // ESC [ M
 			{
-				//erase n chars at current position
-				int cnt = m_DeviceData.OutputStateData[1];
+				//delete line at current pos
 
-				COORD pos;
-				DWORD dwWritten;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-
-				pos = info.dwCursorPosition;
-				FillConsoleOutputCharacter(m_HandleOut, ' ', cnt, pos, &dwWritten);
+				//move lines up
+				SMALL_RECT moveRect;
+				CHAR_INFO fill;
+				moveRect.Left=0;
+				moveRect.Right=info.dwMaximumWindowSize.X;
+				moveRect.Top=info.dwCursorPosition.Y + 1;
+				moveRect.Bottom=info.dwMaximumWindowSize.Y;
+				pos.X = 0;
+				pos.Y = info.dwCursorPosition.Y;
+				fill.Attributes=info.wAttributes;
+				fill.Char.AsciiChar=' '; //space
+				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, pos, &fill);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'a': // ESC [ n a
+
+		case '@': // ESC [ @
 			{
-				//move cursor right n cols
-				int cnt = m_DeviceData.OutputStateData[1];
+				//insert character at current pos
 
-				COORD pos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-
-				pos = info.dwCursorPosition;
-				pos.X += cnt;
-				SetConsoleCursorPosition(m_HandleOut, pos);
+				//move line contents right
+				SMALL_RECT moveRect;
+				CHAR_INFO fill;
+				moveRect.Left=info.dwCursorPosition.X;
+				moveRect.Right=info.dwMaximumWindowSize.X;
+				moveRect.Top=info.dwCursorPosition.Y;
+				moveRect.Bottom=info.dwCursorPosition.Y;
+				pos.X = info.dwCursorPosition.X + 1;
+				pos.Y = moveRect.Top;
+				fill.Attributes=info.wAttributes;
+				fill.Char.AsciiChar=' '; //space
+				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, pos, &fill);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'c': // ESC [ c
+		case 'L': // ESC [ L
 			{
-				//Answer ESC [ ? 6 c: `I am a VT102'.
-				PushForNextRead("\x1b[?6c");
+				//insert line at current pos
+
+				//move lines down
+				SMALL_RECT moveRect;
+				CHAR_INFO fill;
+				moveRect.Left=0;
+				moveRect.Right=info.dwMaximumWindowSize.X;
+				moveRect.Top=info.dwCursorPosition.Y;
+				moveRect.Bottom=info.dwMaximumWindowSize.Y;
+				pos.X = 0;
+				pos.Y = info.dwCursorPosition.Y + 1;
+				fill.Attributes=info.wAttributes;
+				fill.Char.AsciiChar=' '; //space
+				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, pos, &fill);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'd': // ESC [ n d
-			{
-				//move cursor to row n, current column
-				int row = m_DeviceData.OutputStateData[1];
 
-				COORD pos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-
-				pos = info.dwCursorPosition;
-				pos.Y  = row-1;
-				SetConsoleCursorPosition(m_HandleOut, pos);
-			}
-			m_DeviceData.OutputState = 0;
-			break;
-		case 'e': // ESC [ n e
-			{
-				//move cursor down n rows
-				int cnt = m_DeviceData.OutputStateData[1];
-
-				COORD pos;
-				CONSOLE_SCREEN_BUFFER_INFO info;
-
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-
-				pos = info.dwCursorPosition;
-				pos.Y += cnt;
-				SetConsoleCursorPosition(m_HandleOut, pos);
-			}
-			m_DeviceData.OutputState = 0;
-			break;
-		case 'm': // ESC [ n;n;n;n m
+		case 'm': // ESC [ n m
 			{
 				//set attributes
-				CONSOLE_SCREEN_BUFFER_INFO info;
-				GetConsoleScreenBufferInfo(m_HandleOut, &info);
-
-				int numAttr = m_DeviceData.OutputStateData[0];
-				int i;
-				for(i=1; i<=numAttr; ++i)
+				int attr = m_DeviceData.OutputStateData[1];
+				switch(attr)
 				{
-					int attr = m_DeviceData.OutputStateData[i];
-					switch(attr)
-					{
-					case 0: //     reset all attributes to their defaults
-						//white text, balack background
-						info.wAttributes &= ~FOREGROUND_MASK;
-						info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE|FOREGROUND_GREEN;
-						break;
+				case 0: //     reset all attributes to their defaults
+					//white text, black background
+					info.wAttributes &= ~FOREGROUND_MASK;
+					info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE|FOREGROUND_GREEN;
+					break;
 
-					case 1: //     set bold
-						info.wAttributes |= FOREGROUND_INTENSITY;
-						break;
+				case 1: //     set bold
+					info.wAttributes |= FOREGROUND_INTENSITY;
+					break;
 
-					case 2: //     set half-bright (simulated with color on a color display)
-						info.wAttributes &= ~FOREGROUND_INTENSITY;
-						break;
+				case 2: //     set half-bright (simulated with color on a color display)
+					info.wAttributes &= ~FOREGROUND_INTENSITY;
+					break;
 
-					case 4: //     set underscore (simulated with color on a color display)      (the colors used to simulate dim or underline are set using ESC ] ...)
-						info.wAttributes |= COMMON_LVB_UNDERSCORE;
-						break;
+				case 5: //     set blink
+					break;
 
-					case 5: //     set blink
-						break;
+				case 7: //     set reverse video
+					info.wAttributes |= COMMON_LVB_REVERSE_VIDEO;
+					break;
 
-					case 7: //     set reverse video
-						info.wAttributes |= COMMON_LVB_REVERSE_VIDEO;
-						break;
-
-					case 10: //    reset selected mapping, display control flag, and toggle meta flag.
-					case 11: //    select null mapping, set display control flag, reset toggle meta flag.
-					case 12: //    select null mapping, set display control flag, set toggle meta flag. (The toggle meta flag  causes the high bit of a byte to be toggled before the mapping table translation is done.)
-						break;
-
-					case 21: //    set normal intensity (this is not compatible with ECMA-48)
-					case 22: //    set normal intensity
-						info.wAttributes &= ~FOREGROUND_INTENSITY;
-						break;
-
-					case 24: //    underline off
-						info.wAttributes &= ~COMMON_LVB_UNDERSCORE;
-						break;
-
-					case 25: //    blink off
-						break;
-
-					case 27: //    reverse video off
-						info.wAttributes &= ~COMMON_LVB_REVERSE_VIDEO;
-						break;
-
-					case 30: //    set black foreground
-						info.wAttributes &= ~FOREGROUND_MASK;
-						break;
-					case 31: //    set red foreground
-						info.wAttributes &= ~FOREGROUND_MASK;
-						info.wAttributes |= FOREGROUND_RED;
-						break;
-					case 32: //    set green foreground
-						info.wAttributes &= ~FOREGROUND_MASK;
-						info.wAttributes |= FOREGROUND_GREEN;
-						break;
-					case 33: //    set brown foreground
-						info.wAttributes &= ~FOREGROUND_MASK;
-						info.wAttributes |= FOREGROUND_RED|FOREGROUND_GREEN;
-						break;
-					case 34: //    set blue foreground
-						info.wAttributes &= ~FOREGROUND_MASK;
-						info.wAttributes |= FOREGROUND_BLUE;
-						break;
-					case 35: //    set magenta foreground
-						info.wAttributes &= ~FOREGROUND_MASK;
-						info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE;
-						break;
-					case 36: //    set cyan foreground
-						info.wAttributes &= ~FOREGROUND_MASK;
-						info.wAttributes |= FOREGROUND_GREEN|FOREGROUND_BLUE;
-						break;
-					case 37: //    set white foreground
-						info.wAttributes &= ~FOREGROUND_MASK;
-						info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE|FOREGROUND_GREEN;
-						break;
-
-					case 38: //    set underscore on, set default foreground color
-						info.wAttributes &= ~COMMON_LVB_UNDERSCORE;
-						info.wAttributes &= ~FOREGROUND_MASK;
-						info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE|FOREGROUND_GREEN;
-						break;
-					case 39: //    set underscore off, set default foreground color
-						info.wAttributes &= ~FOREGROUND_MASK;
-						info.wAttributes |= FOREGROUND_RED|FOREGROUND_BLUE|FOREGROUND_GREEN;
-						info.wAttributes |= COMMON_LVB_UNDERSCORE;
-						break;
-
-					case 40: //    set black background
-						info.wAttributes &= ~BACKGROUND_MASK;
-						break;
-					case 41: //    set red background
-						info.wAttributes &= ~BACKGROUND_MASK;
-						info.wAttributes |= BACKGROUND_RED;
-						break;
-					case 42: //    set green background
-						info.wAttributes &= ~BACKGROUND_MASK;
-						info.wAttributes |= BACKGROUND_GREEN;
-						break;
-					case 43: //    set brown background
-						info.wAttributes &= ~BACKGROUND_MASK;
-						info.wAttributes |= BACKGROUND_RED|BACKGROUND_GREEN;
-						break;
-					case 44: //    set blue background
-						info.wAttributes &= ~BACKGROUND_MASK;
-						info.wAttributes |= BACKGROUND_BLUE;
-						break;
-					case 45: //    set magenta background
-						info.wAttributes &= ~BACKGROUND_MASK;
-						info.wAttributes |= BACKGROUND_RED|BACKGROUND_BLUE;
-						break;
-					case 46: //    set cyan background
-						info.wAttributes &= ~BACKGROUND_MASK;
-						info.wAttributes |= BACKGROUND_BLUE|BACKGROUND_GREEN;
-						break;
-					case 47: //    set white background
-						info.wAttributes &= ~BACKGROUND_MASK;
-						info.wAttributes |= BACKGROUND_RED|BACKGROUND_BLUE|BACKGROUND_GREEN;
-						break;
-					case 49: //    set default background color
-						info.wAttributes &= ~BACKGROUND_MASK;
-						break;
-					}
-				}//for each attr 
+				}
 
 				SetConsoleTextAttribute(m_HandleOut, info.wAttributes);
 			}
 			m_DeviceData.OutputState = 0;
 			break;
-		case 'n': // ESC [ n n
-			{
-				//get status
-				int option = m_DeviceData.OutputStateData[1];
 
-				switch(option)
-				{
-				case 5: //Device status report (DSR): Answer is ESC [ 0 n (Terminal OK).
-					PushForNextRead("\x1b[0n");
-					break;
-				case 6: //Cursor position report (CPR): Answer is ESC [ y ; x R
-					{
-						char buf[12];
-						CONSOLE_SCREEN_BUFFER_INFO info;
-
-						GetConsoleScreenBufferInfo(m_HandleOut, &info);
-
-						StringCbPrintf(buf, sizeof(buf), "\x1b[%d;%dR", info.dwCursorPosition.Y, info.dwCursorPosition.X);
-						PushForNextRead(buf);
-					}
-					break;
-				}
-			}
-			m_DeviceData.OutputState = 0;
-			break;
 		default:
 			// ESC [ n;n;n; X (unknown value) - end esc sequence
 			ktrace("Implement console code: ESC [ n %c\n", c);
@@ -968,10 +714,59 @@ bool ConsoleIOHandler::WriteChar(char c)
 		}
 		break;
 
-	case ignore_next_char:
-		//ignore this char, and reset state
-		m_DeviceData.OutputState = 0;
-		break;		
+	case '['<<8 | '=':  // ESC [ = 
+		switch(c)
+		{
+		case '0': //collect numeric parameters
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			{
+				int cnt = m_DeviceData.OutputStateData[0];
+				//add this digit to what we have
+				m_DeviceData.OutputStateData[cnt+1] *= 10;
+				m_DeviceData.OutputStateData[cnt+1] += c-'0';
+			}
+			break;
+		case ';': //number seperator
+			++m_DeviceData.OutputStateData[0];
+			break;
+
+		case 'C': // ESC [ = n C
+			{
+				int n = m_DeviceData.OutputStateData[1];
+
+				CONSOLE_CURSOR_INFO cinfo;
+				GetConsoleCursorInfo(m_HandleOut, &cinfo);
+
+				switch(n)
+				{
+				case 0:	//cursor normal
+					cinfo.bVisible = 1;
+					break;
+				case 1:	//cursor visible  -where is hide?
+					cinfo.bVisible = 1;
+					break;
+				}
+
+				SetConsoleCursorInfo(m_HandleOut, &cinfo);
+			}
+			m_DeviceData.OutputState = 0;
+			break;
+
+		default:
+			// ESC [ = n;n;n; X (unknown value) - end esc sequence
+			ktrace("Implement console code: ESC [ = n %c\n", c);
+			m_DeviceData.OutputState = 0;
+			break;
+		}
+		break;
 	}
 
 	return true;
@@ -1062,32 +857,41 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 		{
 			linux::winsize *pWS = (linux::winsize *)data;
 			CONSOLE_SCREEN_BUFFER_INFO Info;
-			//if(!GetConsoleScreenBufferInfo(m_Handle, &Info))
 			if(!GetConsoleScreenBufferInfo(m_HandleOut, &Info))
 			{
 				ktrace("Cannot get screen buffer info, err %ld\n", GetLastError());
 				return Win32ErrToUnixError(GetLastError());
 			}
-			pWS->ws_col = Info.srWindow.Right - Info.srWindow.Left + 1;
-			pWS->ws_row = Info.srWindow.Bottom - Info.srWindow.Top + 1;
-			pWS->ws_xpixel = Info.dwCursorPosition.X - Info.srWindow.Left + 1;
-			pWS->ws_ypixel = Info.dwCursorPosition.Y - Info.srWindow.Top + 1;
+			pWS->ws_col = Info.srWindow.Right + 1;
+			pWS->ws_row = Info.srWindow.Bottom + 1;
+			pWS->ws_xpixel = 0;//Info.srWindow.Right - Info.srWindow.Left;
+			pWS->ws_ypixel = 0;//Info.srWindow.Bottom - Info.srWindow.Top;
 			return 0;
 		}
 		break;
 	case TIOCSWINSZ:
 		{
 			linux::winsize *pWS = (linux::winsize *)data;
+			COORD sz;
+			sz.X = pWS->ws_col;
+			sz.Y = pWS->ws_row;
+			if(!SetConsoleScreenBufferSize(m_HandleOut, sz))
+			{
+				ktrace("Cannot set screen buffer size, err %ld\n", GetLastError());
+				return Win32ErrToUnixError(GetLastError());
+			}
+			/*
 			SMALL_RECT sr;
 			sr.Left = 0;
 			sr.Top = 0;
-			sr.Right = pWS->ws_col - 1;
-			sr.Bottom = pWS->ws_row - 1;
+			sr.Right = pWS->ws_xpixel;
+			sr.Bottom = pWS->ws_ypixel;
 			if(!SetConsoleWindowInfo(m_HandleOut, true, &sr))
 			{
 				ktrace("Cannot set screen window size, err %ld\n", GetLastError());
 				return Win32ErrToUnixError(GetLastError());
 			}
+			*/
 			return 0;
 		}
 		break;

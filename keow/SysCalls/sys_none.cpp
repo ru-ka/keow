@@ -111,7 +111,6 @@ void sys_afs_syscall(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_setfsuid(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_setfsgid(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_getdents(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
-void sys__newselect(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_flock(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_msync(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_readv(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
