@@ -14,3 +14,4 @@ zip -r9 keow.zip keow
 
 rm -f bootstrap-linux.zip
 (cd bootstrap; find linux | grep -v '/CVS' | zip -9y ../bootstrap-linux.zip -@ )
+zip bootstrap-linux.zip keow-bash.cmd
