@@ -6,6 +6,46 @@
 // eax is the return value
 
 
+//bit manipulation helpers for fd_set etc
+//based on linux kernel versions
+inline byte GetBit(void *addr, int bit) {
+	int r;
+	__asm btl addr, bit
+	__asm setb r
+	return r;
+}
+inline void ZeroBits(void *p, int cnt) {
+	memset(p, 0, cnt/8);
+}
+/*
+#define __FD_SET(fd,fdsetp) \
+		__asm__ __volatile__("btsl %1,%0": \
+			"=m" (*(__kernel_fd_set *) (fdsetp)):"r" ((int) (fd)))
+
+#define __FD_CLR(fd,fdsetp) \
+		__asm__ __volatile__("btrl %1,%0": \
+			"=m" (*(__kernel_fd_set *) (fdsetp)):"r" ((int) (fd)))
+
+#define __FD_ISSET(fd,fdsetp) (__extension__ ({ \
+		unsigned char __result; \
+		__asm__ __volatile__("btl %1,%2 ; setb %0" \
+			:"=q" (__result) :"r" ((int) (fd)), \
+			"m" (*(__kernel_fd_set *) (fdsetp))); \
+		__result; }))
+
+#define __FD_ZERO(fdsetp) \
+do { \
+	int __d0, __d1; \
+	__asm__ __volatile__("cld ; rep ; stosl" \
+			:"=m" (*(__kernel_fd_set *) (fdsetp)), \
+			  "=&c" (__d0), "=&D" (__d1) \
+			:"a" (0), "1" (__FDSET_LONGS), \
+			"2" ((__kernel_fd_set *) (fdsetp)) : "memory"); \
+} while (0)
+*/
+
+
+
 /*
  * write bytes to a handle
  * sys_write(handle,text,len)
@@ -270,34 +310,7 @@ void  sys_writev(CONTEXT* pCtx)
  */
 void  sys_select(CONTEXT* pCtx)
 {
-	ktrace("IMPLEMENT sys_select\n");
-	pCtx->Eax = -ENOSYS;
-	/*
-	int n = (int)pCtx->Ebx;
-	struct unix_fd_set *readfds = (struct unix_fd_set*)pCtx->Ecx;
-	struct unix_fd_set *writefds = (struct unix_fd_set*)pCtx->Edx;
-	struct unix_fd_set *exceptfds = (struct unix_fd_set*)pCtx->Esi;
-	struct unix_timeval * timeout = (struct unix_timeval*)pCtx->Edi;
-	int i, retry;
-
-	for(retry=0; retry<2; ++retry)
-	{
-		int cnt = 0;
-		for(i=0; i<n; ++i)
-		{
-			if(UNIX_FD_ISSET(readfds, i))
-			{
-			}
-		}
-		Sleep(timeout->sec*1000L + timeout->usec);
-	}
-
-	//timeout - reset all descriptors
-	UNIX_FD_ZERO(readfds);
-	UNIX_FD_ZERO(writefds);
-	UNIX_FD_ZERO(exceptfds);
-	pCtx->Eax = 0;
-	*/
+	sys__newselect(pCtx);
 }
 
 
@@ -968,5 +981,50 @@ void sys__llseek(CONTEXT* pCtx)
 		pCtx->Eax = 0;
 	else
 		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+}
+
+/*****************************************************************************/
+
+/*
+ * int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
+ */
+void sys__newselect(CONTEXT* pCtx)
+{
+	int numFds = pCtx->Ebx;
+	linux::fd_set *pReadFds = (linux::fd_set*)pCtx->Ecx;
+	linux::fd_set *pWriteFds = (linux::fd_set*)pCtx->Edx;
+	linux::fd_set *pExceptFds = (linux::fd_set*)pCtx->Esi;
+	linux::timeval *pTimeout = (linux::timeval*)pCtx->Edi;
+
+	//ktrace("IMPLEMENT sys__newselect\n");
+	//pCtx->Eax = -ENOSYS;
+
+	DWORD dwWait;
+	if(pTimeout==0)
+		dwWait = INFINITE;
+	else
+		dwWait = pTimeout->tv_sec + pTimeout->tv_usec*100; //correct?
+
+	DWORD dwEnd = GetTickCount() + dwWait; //wrap around will cause a quick return - oops :-)
+	while(dwEnd > GetTickCount())
+	{
+		int cnt = 0;
+		for(int fd=0; fd<numFds; ++fd)
+		{
+			if( GetBit(pReadFds, fd) == 0) {
+			}
+			if( GetBit(pReadFds, fd) == 0) {
+			}
+			if( GetBit(pReadFds, fd) == 0) {
+			}
+		}
+		Sleep(pTimeout->sec*1000L + pTimeout->usec);
+	}
+
+	//timeout - reset all descriptors
+	ZeroBits(pReadFds, numFds);
+	ZeroBits(pWriteFds, numFds);
+	ZeroBits(pExceptFds, numFds);
+	pCtx->Eax = 0;
 }
 

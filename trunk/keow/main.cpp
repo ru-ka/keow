@@ -15,9 +15,7 @@ KernelSharedDataStruct * pKernelSharedData;
 char * InitialEnv[] = {
 	"OLDPWD=/",
 	"HOME=/",
-	"TERM=linux", 
-	//"TERM=ansi",
-	//"BOOL_IMAGE=Linux",
+	"TERM=ansi80x25", //freebsd console (25-line ansi mode) -- easier to implement than the linux console -- implemented in ioh_console.cpp
 	"PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin",
 	"PWD=/",
 	NULL
@@ -295,8 +293,10 @@ int main(int argc, char ** argv)
 	sr.Left = 0;
 	sr.Top = 0;
 	sr.Right = 80-1;
-	sr.Bottom = 43-1;
+	sr.Bottom = 25-1;
 	SetConsoleWindowInfo(GetStdHandle(STD_OUTPUT_HANDLE), true, &sr);
+	//try for this more unix-like font (normal NT ones are too bold)
+	//TODO: use Lucidia Console 12
 
 	//SetConsoleCtrlHandler(CtrlEventHandler, TRUE);
 	SetConsoleCtrlHandler(NULL, TRUE);
