@@ -20,8 +20,8 @@
 
  *
  * $Source: /home/paul/src/keow/rsync/cvs/keow/SysCalls/kernel-headers-2.4.24-1/include/linux/ftape-header-segment.h,v $
- * $Revision: 1.1 $
- * $Date: 2005-03-15 08:30:45 $
+ * $Revision: 1.2 $
+ * $Date: 2005-03-15 09:04:32 $
  *
  *      This file defines some offsets into the header segment of a
  *      floppy tape cartridge.  For use with the QIC-40/80/3010/3020

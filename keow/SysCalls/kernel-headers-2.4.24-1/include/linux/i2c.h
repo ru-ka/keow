@@ -23,7 +23,7 @@
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and
    Frodo Looijaard <frodol@dds.nl> */
 
-/* $Id: i2c.h,v 1.1 2005-03-15 08:30:47 paul-sf Exp $ */
+/* $Id: i2c.h,v 1.2 2005-03-15 09:04:33 paul-sf Exp $ */
 
 #ifndef I2C_H
 #define I2C_H

@@ -52,7 +52,7 @@ typedef struct {
 #define spin_is_locked(x)	(*(volatile signed char *)(&(x)->lock) <= 0)
 #define spin_unlock_wait(x)	do { barrier(); } while(spin_is_locked(x))
 
-#ifndef __KERNEL_EMULATION_ON_WINDOWS__
+#ifndef __LINUXKERNELFORWINDOWS__
 
 #define spin_lock_string \
 	"\n1:\t" \
@@ -140,7 +140,7 @@ printk("eip: %p\n", &&here);
 		:"=m" (lock->lock) : : "memory");
 }
 
-#endif __KERNEL_EMULATION_ON_WINDOWS__
+#endif __LINUXKERNELFORWINDOWS__
 
 
 /*
@@ -172,7 +172,7 @@ typedef struct {
 
 #define rwlock_init(x)	do { *(x) = RW_LOCK_UNLOCKED; } while(0)
 
-#ifndef __KERNEL_EMULATION_ON_WINDOWS__
+#ifndef __LINUXKERNELFORWINDOWS__
 
 
 /*
@@ -216,7 +216,7 @@ static inline int write_trylock(rwlock_t *lock)
 	return 0;
 }
 
-#endif __KERNEL_EMULATION_ON_WINDOWS__
+#endif __LINUXKERNELFORWINDOWS__
 
 
 #endif /* __ASM_SPINLOCK_H */

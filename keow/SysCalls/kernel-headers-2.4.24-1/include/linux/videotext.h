@@ -1,7 +1,7 @@
 #ifndef _VTX_H
 #define _VTX_H
 
-/* $Id: videotext.h,v 1.1 2005-03-15 08:51:05 paul-sf Exp $
+/* $Id: videotext.h,v 1.2 2005-03-15 09:04:35 paul-sf Exp $
  *
  * Copyright (c) 1994-97 Martin Buck  <martin-2.buck@student.uni-ulm.de>
  * Read COPYING for more information

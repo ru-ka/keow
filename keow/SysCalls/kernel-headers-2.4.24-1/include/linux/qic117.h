@@ -21,8 +21,8 @@
 
  *
  * $Source: /home/paul/src/keow/rsync/cvs/keow/SysCalls/kernel-headers-2.4.24-1/include/linux/qic117.h,v $
- * $Revision: 1.1 $
- * $Date: 2005-03-15 08:32:40 $
+ * $Revision: 1.2 $
+ * $Date: 2005-03-15 09:04:34 $
  *
  *      This file contains QIC-117 spec. related definitions for the
  *      QIC-40/80/3010/3020 floppy-tape driver "ftape" for Linux.

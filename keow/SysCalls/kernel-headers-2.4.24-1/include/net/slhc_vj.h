@@ -3,7 +3,7 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Header: /home/paul/src/keow/rsync/cvs/keow/SysCalls/kernel-headers-2.4.24-1/include/net/slhc_vj.h,v 1.1 2005-03-15 08:56:48 paul-sf Exp $
+ * $Header: /home/paul/src/keow/rsync/cvs/keow/SysCalls/kernel-headers-2.4.24-1/include/net/slhc_vj.h,v 1.2 2005-03-15 09:04:37 paul-sf Exp $
  *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.

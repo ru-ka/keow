@@ -1,5 +1,5 @@
 /*
- * $Id: cobalt-nvram.h,v 1.1 2005-03-15 08:30:42 paul-sf Exp $
+ * $Id: cobalt-nvram.h,v 1.2 2005-03-15 09:04:32 paul-sf Exp $
  * cobalt-nvram.h : defines for the various fields in the cobalt NVRAM
  *
  * Copyright 2001,2002 Sun Microsystems, Inc.

@@ -22,7 +22,7 @@
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and even
    Frodo Looijaard <frodol@dds.nl> */
 
-/* $Id: i2c-algo-pcf.h,v 1.1 2005-03-15 08:30:46 paul-sf Exp $ */
+/* $Id: i2c-algo-pcf.h,v 1.2 2005-03-15 09:04:32 paul-sf Exp $ */
 
 #ifndef I2C_ALGO_PCF_H
 #define I2C_ALGO_PCF_H 1

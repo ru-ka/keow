@@ -7,7 +7,7 @@
  */
 
 /*
-    $Header: /home/paul/src/keow/rsync/cvs/keow/SysCalls/kernel-headers-2.4.24-1/include/scsi/scsi.h,v 1.1 2005-03-15 08:56:50 paul-sf Exp $
+    $Header: /home/paul/src/keow/rsync/cvs/keow/SysCalls/kernel-headers-2.4.24-1/include/scsi/scsi.h,v 1.2 2005-03-15 09:04:57 paul-sf Exp $
 
     For documentation on the OPCODES, MESSAGES, and SENSE values,
     please consult the SCSI standard.

@@ -1,4 +1,4 @@
-/* $Id: concap.h,v 1.1 2005-03-15 08:30:43 paul-sf Exp $
+/* $Id: concap.h,v 1.2 2005-03-15 09:04:32 paul-sf Exp $
  *
  * Copyright 1997 by Henner Eisen <eis@baty.hanse.de>
  *

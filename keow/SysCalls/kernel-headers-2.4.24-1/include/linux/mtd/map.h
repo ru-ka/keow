@@ -1,6 +1,6 @@
 
 /* Overhauled routines for dealing with different mmap regions of flash */
-/* $Id: map.h,v 1.1 2005-03-15 08:32:40 paul-sf Exp $ */
+/* $Id: map.h,v 1.2 2005-03-15 09:04:37 paul-sf Exp $ */
 
 #ifndef __LINUX_MTD_MAP_H__
 #define __LINUX_MTD_MAP_H__

@@ -1,4 +1,4 @@
-/* $Id: b1lli.h,v 1.1 2005-03-15 08:30:42 paul-sf Exp $
+/* $Id: b1lli.h,v 1.2 2005-03-15 09:04:31 paul-sf Exp $
  *
  * ISDN lowlevel-module for AVM B1-card.
  *
