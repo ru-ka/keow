@@ -186,7 +186,7 @@ void  sys_reboot(CONTEXT* pCtx)
 	case LINUX_REBOOT_CMD_CAD_OFF:
 	case LINUX_REBOOT_CMD_POWER_OFF:
 	case LINUX_REBOOT_CMD_RESTART2:
-		ktrace("Dummy reboot() - no action taken\n");
+		ktrace("Implement me: Dummy reboot() - no action taken\n");
 		pCtx->Eax = 0;
 		break;
 	}
@@ -424,6 +424,7 @@ void sys_ptrace(CONTEXT* pCtx)
 		break;
 
 	case PTRACE_KILL:
+		ktrace("ptrace PTRACE_KILL pid %d \n", pid);
 		SendSignal(pid, SIGKILL);
 		pCtx->Eax = 0;
 		break;

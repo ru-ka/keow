@@ -453,7 +453,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 		GetConsoleScreenBufferInfo(m_HandleOut, &info);
 		screenWidth = info.srWindow.Right - info.srWindow.Left + 1;
 		screenHeight = info.srWindow.Bottom - info.srWindow.Top + 1;
-		firstY = info.dwMaximumWindowSize.Y - info.dwSize.Y; //first visible row
+		firstY = info.dwSize.Y - screenHeight - 1; //first line of actual screen (bottom-most lines of buffer)
 		//ktrace("ESC [  .... %c   %d\n", c,m_DeviceData.OutputStateData[0]);
 
 		switch(c)
@@ -492,7 +492,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 
 				pos = info.dwCursorPosition;
 				len = screenWidth - pos.X;
-				len += info.dwMaximumWindowSize.Y - pos.Y;
+				len += (info.dwSize.Y - pos.Y) * info.dwSize.X;
 				FillConsoleOutputCharacter(m_HandleOut, ' ', len, pos, &dwWritten);
 			}
 			m_DeviceData.OutputState = 0;
@@ -531,6 +531,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 				} else {
 					pos.X = m_DeviceData.OutputStateData[2] - 1;
 					pos.Y = m_DeviceData.OutputStateData[1] - 1 + firstY;
+ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 				}
 				SetConsoleCursorPosition(m_HandleOut, pos);
 			}
@@ -602,7 +603,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 				SMALL_RECT moveRect;
 				CHAR_INFO fill;
 				moveRect.Left=info.dwCursorPosition.X + 1;
-				moveRect.Right=info.dwMaximumWindowSize.X;
+				moveRect.Right=info.dwSize.X;
 				moveRect.Top=info.dwCursorPosition.Y;
 				moveRect.Bottom=info.dwCursorPosition.Y;
 				pos.X = info.dwCursorPosition.X;
@@ -621,9 +622,9 @@ bool ConsoleIOHandler::WriteChar(char c)
 				SMALL_RECT moveRect;
 				CHAR_INFO fill;
 				moveRect.Left=0;
-				moveRect.Right=info.dwMaximumWindowSize.X;
+				moveRect.Right=info.dwSize.X;
 				moveRect.Top=info.dwCursorPosition.Y + 1;
-				moveRect.Bottom=info.dwMaximumWindowSize.Y;
+				moveRect.Bottom=info.dwSize.Y;
 				pos.X = 0;
 				pos.Y = info.dwCursorPosition.Y;
 				fill.Attributes=info.wAttributes;
@@ -641,7 +642,7 @@ bool ConsoleIOHandler::WriteChar(char c)
 				SMALL_RECT moveRect;
 				CHAR_INFO fill;
 				moveRect.Left=info.dwCursorPosition.X;
-				moveRect.Right=info.dwMaximumWindowSize.X;
+				moveRect.Right=info.dwSize.X;
 				moveRect.Top=info.dwCursorPosition.Y;
 				moveRect.Bottom=info.dwCursorPosition.Y;
 				pos.X = info.dwCursorPosition.X + 1;
@@ -660,9 +661,9 @@ bool ConsoleIOHandler::WriteChar(char c)
 				SMALL_RECT moveRect;
 				CHAR_INFO fill;
 				moveRect.Left=0;
-				moveRect.Right=info.dwMaximumWindowSize.X;
+				moveRect.Right=info.dwSize.X;
 				moveRect.Top=info.dwCursorPosition.Y;
-				moveRect.Bottom=info.dwMaximumWindowSize.Y;
+				moveRect.Bottom=info.dwSize.Y;
 				pos.X = 0;
 				pos.Y = info.dwCursorPosition.Y + 1;
 				fill.Attributes=info.wAttributes;
@@ -862,36 +863,42 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 				ktrace("Cannot get screen buffer info, err %ld\n", GetLastError());
 				return Win32ErrToUnixError(GetLastError());
 			}
-			pWS->ws_col = Info.srWindow.Right + 1;
-			pWS->ws_row = Info.srWindow.Bottom + 1;
+			pWS->ws_col = Info.dwSize.X; //always full width
+			pWS->ws_row = Info.srWindow.Bottom - Info.srWindow.Top + 1; //window height
 			pWS->ws_xpixel = 0;//Info.srWindow.Right - Info.srWindow.Left;
 			pWS->ws_ypixel = 0;//Info.srWindow.Bottom - Info.srWindow.Top;
+			ktrace("console get size %d,%d\n", pWS->ws_col, pWS->ws_row);
 			return 0;
 		}
 		break;
 	case TIOCSWINSZ:
 		{
 			linux::winsize *pWS = (linux::winsize *)data;
+			ktrace("console set size %d,%d\n", pWS->ws_col, pWS->ws_row);
+			CONSOLE_SCREEN_BUFFER_INFO Info;
+			if(!GetConsoleScreenBufferInfo(m_HandleOut, &Info))
+			{
+				ktrace("Cannot get screen buffer info, err %ld\n", GetLastError());
+				return Win32ErrToUnixError(GetLastError());
+			}
 			COORD sz;
 			sz.X = pWS->ws_col;
-			sz.Y = pWS->ws_row;
+			sz.Y = Info.dwSize.Y - 1; //keep our history
 			if(!SetConsoleScreenBufferSize(m_HandleOut, sz))
 			{
 				ktrace("Cannot set screen buffer size, err %ld\n", GetLastError());
 				return Win32ErrToUnixError(GetLastError());
 			}
-			/*
 			SMALL_RECT sr;
 			sr.Left = 0;
-			sr.Top = 0;
-			sr.Right = pWS->ws_xpixel;
-			sr.Bottom = pWS->ws_ypixel;
+			sr.Right = sz.X - 1;
+			sr.Bottom = sz.Y - 1;
+			sr.Top = sr.Bottom - (pWS->ws_row - 1);
 			if(!SetConsoleWindowInfo(m_HandleOut, true, &sr))
 			{
 				ktrace("Cannot set screen window size, err %ld\n", GetLastError());
 				return Win32ErrToUnixError(GetLastError());
 			}
-			*/
 			return 0;
 		}
 		break;

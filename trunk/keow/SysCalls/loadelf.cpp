@@ -91,7 +91,7 @@ DWORD ElfProtectionToWin32Protection(linux::Elf32_Word prot)
 //
 // Load the program into memory
 //
-int LoadProgram(FILE * fElf, PELF_Data pElf)
+int LoadProgram(FILE * fElf, PELF_Data pElf, bool LoadAsLibrary)
 {
 	int i;
 	linux::Elf32_Phdr * phdr; //Program header
@@ -105,7 +105,7 @@ int LoadProgram(FILE * fElf, PELF_Data pElf)
 	if(pElf->hdr.e_phoff == 0)
 		return -1; //no header
 
-	if(pElf->hdr.e_type != ET_EXEC)
+	if(LoadAsLibrary || pElf->hdr.e_type==ET_DYN)
 	{
 		if(pElf->last_lib_addr == 0)
 			pBaseAddr = (ADDR)0x40000000L; //linux 2.4 x86 uses this for start of libs?
@@ -167,7 +167,7 @@ int LoadProgram(FILE * fElf, PELF_Data pElf)
 			}
 
 
-			if(pElf->hdr.e_type == ET_EXEC)
+			if(!LoadAsLibrary)
 			{
 				//keep track largest filled size and allocated size
 				//between start_bss and last_bss is the bs section.
@@ -229,7 +229,7 @@ int LoadProgram(FILE * fElf, PELF_Data pElf)
 		else
 		{
 			*pElf2 = *pElf;
-			LoadELFFile(pElf2, Interpreter);
+			LoadELFFile(pElf2, Interpreter, true);
 			pElf->interpreter_start = pElf2->start_addr;
 			pElf->interpreter_base = pElf2->interpreter_base;
 			//pElf->brk = pElf2->brk;
@@ -278,7 +278,7 @@ int LoadProgram(FILE * fElf, PELF_Data pElf)
 /*
  * Load an ELF file into memory
  */
-_declspec(dllexport) int LoadELFFile(PELF_Data pElf, const char * filename)
+_declspec(dllexport) int LoadELFFile(PELF_Data pElf, const char * filename, bool LoadAsLibrary)
 {
 
 	FILE * fElf;
@@ -299,7 +299,7 @@ _declspec(dllexport) int LoadELFFile(PELF_Data pElf, const char * filename)
 	if(rc==0)
 		rc = LoadELFHeader(fElf, pElf);
 	if(rc==0)
-		rc = LoadProgram(fElf, pElf);
+		rc = LoadProgram(fElf, pElf, LoadAsLibrary);
 	
 
 	fclose(fElf);

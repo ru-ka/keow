@@ -1,2 +1,2 @@
 cd debug
-linuxkernelforwindows debug=1 root=..\linux\SOL\root init=/bin/bash
+KernelEmulationOnWindows debug=1 root=..\bootstrap\linux init=/bin/bash

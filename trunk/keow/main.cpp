@@ -156,7 +156,7 @@ HANDLE StartELFFile(const char * filename, const char * commandline, const char 
 		return INVALID_HANDLE_VALUE;
 	}
 
-	if(!LoadELFFile(pElf, InitProgram))
+	if(!LoadELFFile(pElf, InitProgram, false))
 	{
 		TerminateProcess(pElf->pinfo.hProcess,-1);
 		CloseHandle(pElf->pinfo.hThread);
