@@ -8,14 +8,32 @@
 
 //bit manipulation helpers for fd_set etc
 //based on linux kernel versions
-inline byte GetBit(void *addr, int bit) {
-	int r;
-	__asm btl addr, bit
-	__asm setb r
-	return r;
+inline void LINUX_FD_SET(int fd, linux::fd_set * pSet) {
+	DWORD* addr = (DWORD*)pSet;
+	__asm {
+		mov eax,fd
+		bts [addr],eax
+	}
 }
-inline void ZeroBits(void *p, int cnt) {
-	memset(p, 0, cnt/8);
+inline void LINUX_FD_CLR(int fd, linux::fd_set * pSet) {
+	DWORD* addr = (DWORD*)pSet;
+	__asm {
+		mov eax,fd
+		btr [addr],eax
+	}
+}
+inline BYTE LINUX_FD_ISSET(int fd, linux::fd_set * pSet) {
+	DWORD* addr = (DWORD*)pSet;
+	BYTE result;
+	__asm {
+		mov eax,fd
+		bt [addr],eax
+		setb result
+	}
+	return result;
+}
+inline void LINUX_FD_ZERO(linux::fd_set * pSet) {
+	memset(pSet, 0, __FDSET_LONGS);
 }
 /*
 #define __FD_SET(fd,fdsetp) \
@@ -996,6 +1014,11 @@ void sys__newselect(CONTEXT* pCtx)
 	linux::fd_set *pExceptFds = (linux::fd_set*)pCtx->Esi;
 	linux::timeval *pTimeout = (linux::timeval*)pCtx->Edi;
 
+	linux::fd_set ReadResults, WriteResults, ExceptResults;
+	LINUX_FD_ZERO(&ReadResults);
+	LINUX_FD_ZERO(&WriteResults);
+	LINUX_FD_ZERO(&ExceptResults);
+
 	//ktrace("IMPLEMENT sys__newselect\n");
 	//pCtx->Eax = -ENOSYS;
 
@@ -1006,25 +1029,50 @@ void sys__newselect(CONTEXT* pCtx)
 		dwWait = pTimeout->tv_sec + pTimeout->tv_usec*100; //correct?
 
 	DWORD dwEnd = GetTickCount() + dwWait; //wrap around will cause a quick return - oops :-)
+	bool foundData = false;
 	while(dwEnd > GetTickCount())
 	{
-		int cnt = 0;
 		for(int fd=0; fd<numFds; ++fd)
 		{
-			if( GetBit(pReadFds, fd) == 0) {
+			if( pReadFds
+			&&  LINUX_FD_ISSET(fd, pReadFds)
+			&&  pProcessData->FileHandlers[fd]!=NULL
+			&&  pProcessData->FileHandlers[fd]->CanRead() ) {
+				LINUX_FD_SET(fd, &ReadResults);
+				foundData = true;
 			}
-			if( GetBit(pReadFds, fd) == 0) {
+
+			if( pWriteFds
+			&&  LINUX_FD_ISSET(fd, pWriteFds)
+			&&  pProcessData->FileHandlers[fd]!=NULL
+			&&  pProcessData->FileHandlers[fd]->CanWrite() ) {
+				LINUX_FD_SET(fd, &WriteResults);
+				foundData = true;
 			}
-			if( GetBit(pReadFds, fd) == 0) {
+
+			if( pExceptFds
+			&&  LINUX_FD_ISSET(fd, pExceptFds)
+			&&  pProcessData->FileHandlers[fd]!=NULL
+			&&  pProcessData->FileHandlers[fd]->HasException() ) {
+				LINUX_FD_SET(fd, &ExceptResults);
+				foundData = true;
 			}
 		}
-		Sleep(pTimeout->sec*1000L + pTimeout->usec);
+		if(foundData)
+			break;
+
+		//loop
+		//Sleep( (pTimeout->tv_sec*1000L + pTimeout->tv_usec) / 10 );
+		Sleep(50);
 	}
 
-	//timeout - reset all descriptors
-	ZeroBits(pReadFds, numFds);
-	ZeroBits(pWriteFds, numFds);
-	ZeroBits(pExceptFds, numFds);
+	//store results
+	if(pReadFds)
+		*pReadFds = ReadResults;
+	if(pWriteFds)
+		*pWriteFds = WriteResults;
+	if(pExceptFds)
+		*pExceptFds = ExceptResults;
 	pCtx->Eax = 0;
 }
 

@@ -267,3 +267,26 @@ int FileIOHandler::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 	}
 	return filled;
 }
+
+
+bool FileIOHandler::CanRead()
+{
+	//ok if we are not at eof
+	DWORD dwRead = 0;
+	BYTE buf;
+	if(!ReadFile(m_Handle, &buf, 0, &dwRead, NULL))
+		return false;
+	return true;
+}
+
+bool FileIOHandler::CanWrite()
+{
+	//always except to be able to write to the File?
+	return true;
+}
+
+bool FileIOHandler::HasException()
+{
+	//TODO: what could this be?
+	return false;
+}

@@ -105,3 +105,25 @@ bool PipeIOHandler::Stat64(linux::stat64 * s)
 
 	return true;
 }
+
+
+bool PipeIOHandler::CanRead()
+{
+	//ok if we are not at eof
+	DWORD dwAvail = 0;
+	if(!PeekNamedPipe(m_Handle, NULL, 0, NULL, &dwAvail, NULL))
+		return false;
+	return dwAvail != 0;
+}
+
+bool PipeIOHandler::CanWrite()
+{
+	//TODO: how will we know?
+	return true;
+}
+
+bool PipeIOHandler::HasException()
+{
+	//TODO: what could this be?
+	return false;
+}

@@ -118,10 +118,10 @@ extern void do_settimeofday(struct timeval *tv);
 //#define FD_ISSET(fd,fdsetp)	__FD_ISSET(fd,fdsetp)
 //#define FD_ZERO(fdsetp)		__FD_ZERO(fdsetp)
 #define LINUX_FD_SETSIZE		__FD_SETSIZE
-#define LINUX_FD_SET(fd,fdsetp)	__FD_SET(fd,fdsetp)
-#define LINUX_FD_CLR(fd,fdsetp)	__FD_CLR(fd,fdsetp)
-#define LINUX_FD_ISSET(fd,fdsetp)	__FD_ISSET(fd,fdsetp)
-#define LINUX_FD_ZERO(fdsetp)		__FD_ZERO(fdsetp)
+//these are currently in sys_io.cpp for keow #define LINUX_FD_SET(fd,fdsetp)
+//these are currently in sys_io.cpp for keow #define LINUX_FD_CLR(fd,fdsetp)
+//these are currently in sys_io.cpp for keow #define LINUX_FD_ISSET(fd,fdsetp)
+//these are currently in sys_io.cpp for keow #define LINUX_FD_ZERO(fdsetp)
 
 /*
  * Names of the interval timers, and structure

@@ -16,6 +16,7 @@ bool DevNullIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 	if(pRead)
 		*pRead = 0;
 	//never can read from /dev/null, block if we can
+	//TODO: wake on signals
 	while((m_Flags&O_NONBLOCK)==0)
 		Sleep(10000);
 	return true;
@@ -51,4 +52,22 @@ bool DevNullIOHandler::Stat64(linux::stat64 * s)
 	IOHandler::BasicStat64(s, S_IFCHR);
 
 	return true;
+}
+
+bool DevNullIOHandler::CanRead()
+{
+	//never
+	return false;
+}
+
+bool DevNullIOHandler::CanWrite()
+{
+	//always
+	return true;
+}
+
+bool DevNullIOHandler::HasException()
+{
+	//always ok?
+	return false;
 }
