@@ -45,12 +45,14 @@ void sys_mount(CONTEXT* pCtx)
 
 	if(source==0
 	|| target==0
+	|| filesystemtype==0
 	|| source[0]==0
 	|| target[0]==0)
 	{
 		pCtx->Eax = EINVAL;
 		return;
 	}
+	ktrace("mount request: '%s' on '%s' - type %s\n", source,target,filesystemtype);
 
 	//the target must always be a directory
 	char p[MAX_PATH];
@@ -70,16 +72,15 @@ void sys_mount(CONTEXT* pCtx)
 
 
 	//TODO: make these if's a lookup for plugins etc
-	if(strcmp("keow", source)==0)
+	if(strcmp("keow", filesystemtype)==0)
 	{
-		//expect the source to be C:, D: or a UNC like \\server\share\...
-		if(strlen(source) < 2
-		|| (source[2]!=':' && strncmp(source,"\\",2)!=0) )
-		{
-			pCtx->Eax = EINVAL;
+		//expect the source to be a valid win32 directory path
+		//and we also need it to end in a backslash if it is just a drive letter
+		if(source[1]==':' && source[2]==0) {
+			//just drive letter, need path:  eg. C: bad,  C:\ is ok
+			pCtx->Eax = ENOTDIR;
 			return;
 		}
-		//source needs to be a directory too
 		attr = GetFileAttributes(source);
 		if(attr==INVALID_FILE_ATTRIBUTES)
 		{
@@ -103,13 +104,17 @@ void sys_mount(CONTEXT* pCtx)
 		//no work to do for keow, just remember the mount point
 
 		//record the mount
-		pKernelSharedData->NumCurrentMounts++;
 		MountPointDataStruct& mnt = pKernelSharedData->MountPoints[pKernelSharedData->NumCurrentMounts];
 		strncpy(mnt.Destination, target, MAX_PATH);
+		if(mnt.Destination[strlen(mnt.Destination)-1]=='/')
+			mnt.Destination[strlen(mnt.Destination)-1]=0; //dont' want to record the trailing slash - MakeWin32Path is easier that way
 		strncpy(mnt.Source, source, MAX_PATH);
 		mnt.Flags = mountflags;
 		mnt.pType = "keow"; //const
 		//data not required for this fs type
+		pKernelSharedData->NumCurrentMounts++;
+
+		pCtx->Eax = 0;
 	}
 	else
 	{
@@ -119,4 +124,40 @@ void sys_mount(CONTEXT* pCtx)
 }
 
 /*****************************************************************************/
+
+/*
+ * int umount(const char *target)
+ */
+void sys_umount(CONTEXT* pCtx)
+{
+	const char *target = (const char*)pCtx->Ebx;
+	if(target==0)
+	{
+		pCtx->Eax = -EINVAL;
+		return;
+	}
+
+	int len = strlen(target);
+	if(target[len-1]=='/')
+		len--; //don't want to match the slash
+
+	int m;
+	for(m=0; m<pKernelSharedData->NumCurrentMounts; ++m)
+	{
+		if(strcmp(target, pKernelSharedData->MountPoints[m].Destination)==0)
+		{
+			//remove this mount from the table,
+			//move others to fill the space
+
+			while(m<pKernelSharedData->NumCurrentMounts-1)
+				pKernelSharedData->MountPoints[m] = pKernelSharedData->MountPoints[m+1];
+			--pKernelSharedData->NumCurrentMounts;
+			pCtx->Eax = 0;
+			return;
+		}
+	}
+
+	//nothing found
+	pCtx->Eax = -EINVAL;
+}
 

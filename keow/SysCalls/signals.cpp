@@ -31,7 +31,7 @@
 /*
  * this part of the signal handler runs in the elf code thread
  */
-static void HandleSignal(int sig)
+static void _cdecl HandleSignal(int sig)
 {
 	ktrace("signal handler starting for %d (depth %d)\n", sig, pProcessData->signal_depth);
 
@@ -74,6 +74,14 @@ static void HandleSignal(int sig)
 
 	//signal handler debugging
 	//DebugBreak();
+
+	//signal is blocked by this function?
+	if(pProcessData->signal_blocked[sig] > 0)
+	{
+		ktrace("signal not delivered - currently blocked\n");
+		pProcessData->current_signal = 0;
+		return;
+	}
 
 	//is this process ignoring this signal?
 	linux::sigset_t mask = pProcessData->sigmask[pProcessData->signal_depth];
@@ -176,6 +184,9 @@ static void HandleSignal(int sig)
 	{
 		ktrace("dispatching to signal handler @ 0x%08lx\n", pProcessData->signal_action[sig].sa_handler);
 
+		//supposed to supress the signal whilst in the handler?
+		pProcessData->signal_blocked[sig]++;
+
 		//dispatch to custom handler
 		if(pProcessData->signal_action[sig].sa_flags & SA_SIGINFO)
 		{
@@ -194,12 +205,16 @@ static void HandleSignal(int sig)
 			sigset_t	  uc_sigmask;	/* mask last for extensibility */
 			ktrace("IMPLEMENT correct signal sa_action ucontext stuff\n");
 
-			((void (*)(int, linux::siginfo *, void *))pProcessData->signal_action[sig].sa_handler)(sig, &si, /*&ct*/0);
+			((void (_cdecl *)(int, linux::siginfo *, void *))pProcessData->signal_action[sig].sa_handler)(sig, &si, /*&ct*/0);
 		}
 		else
 		{
-			pProcessData->signal_action[sig].sa_handler(sig);
+			//pProcessData->signal_action[sig].sa_handler(sig);
+			((void (_cdecl *)(int))pProcessData->signal_action[sig].sa_handler)(sig);
 		}
+
+		//unblock
+		pProcessData->signal_blocked[sig]--;
 	}
 
 	//restore handler?
@@ -216,6 +231,7 @@ static void HandleSignal(int sig)
 	ktrace("signal handler ending for %d (depth %d)\n", sig, pProcessData->signal_depth);
 }
 
+//initial code injected into the ELF code so cause a jump to the signal handler in the correct thread context
 __declspec(naked) static void HandleSignalEntry()
 {
 	//on entry stack has
@@ -325,7 +341,7 @@ static void DispatchSignal(int sig)
 			ExitProcess(-11);
 		}
 
-		pProcessData->in_setup = SavedInSetup; //topped fiddling
+		pProcessData->in_setup = SavedInSetup; //stopped fiddling
 
 	}
 

@@ -622,6 +622,7 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 				ZeroMemory(&pProcessData->signal_action[i].sa_mask, sizeof(pProcessData->signal_action[i].sa_mask));
 			}
 			ZeroMemory(&pProcessData->sigmask, sizeof(pProcessData->sigmask));
+			ZeroMemory(&pProcessData->signal_blocked, sizeof(pProcessData->signal_blocked));
 			pProcessData->signal_depth = 0;
 
 			//we need a thread to handle signals
@@ -873,6 +874,8 @@ void MakeWin32Path( const char * UnixPath, char * Win32Path, int maxsize, bool F
 
 	ktrace("%s\n",p);
 }
+
+
 
 
 /*

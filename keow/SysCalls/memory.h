@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef LKFW_MEM_H
-#define LKFW_MEM_H
+#ifndef KEOW_MEM_H
+#define KEOW_MEM_H
 
 
 void RecordMemoryAllocation(ADDR addr, DWORD len, DWORD prot);
@@ -46,4 +46,4 @@ struct MemBlock
 	DWORD len;
 };
 
-#endif //LKFW_MEM_H
+#endif //KEOW_MEM_H

@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef LOADELF_H
-#define LOADELF_H
+#ifndef KEOW_LOADELF_H
+#define KEOW_LOADELF_H
 
 #include "linux_includes.h"
 typedef unsigned char* ADDR;
@@ -50,4 +50,4 @@ typedef struct ELF_Data * PELF_Data;
 _declspec(dllexport) int LoadELFFile(PELF_Data pElf, const char * filename, bool LoadAsLibrary);
 
 
-#endif //LOADELF_H
+#endif //KEOW_LOADELF_H

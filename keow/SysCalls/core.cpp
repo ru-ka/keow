@@ -43,7 +43,7 @@ void GenerateCoreDump()
 	DWORD written;
 	WriteFile(hCore, "Core dump of ", 13, &written, 0);
 	WriteFile(hCore, (char*)pProcessData->ProgramPath, strlen((char*)pProcessData->ProgramPath), &written, 0);
-	WriteFile(hCore, "%c", 0x0a, &written, 0);
+	WriteFile(hCore, "\x0a", 1, &written, 0);
 
 
 	CloseHandle(hCore);

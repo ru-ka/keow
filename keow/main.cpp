@@ -402,7 +402,7 @@ int main(int argc, char ** argv)
 	if(!GetExitCodeProcess(hInit, &exitcode))
 		printf("exit code undetermined\n");
 	else
-		printf("exit code %ld\n", exitcode);
+		printf("exit code 0x%lx (%ld)\n", exitcode,exitcode);
 
 
 	//allow exit

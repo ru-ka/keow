@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef LKFW_UTIL_H
-#define LKFW_UTIL_H
+#ifndef KEOW_UTIL_H
+#define KEOW_UTIL_H
 
 class LinkedListItem
 {
@@ -64,4 +64,4 @@ public:
 };
 
 
-#endif // LKFW_UTIL_H
+#endif // KEOW_UTIL_H

@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef IOHANDLER_H
-#define IOHANDLER_H
+#ifndef KEOW_IOHANDLER_H
+#define KEOW_IOHANDLER_H
 
 #include "linux_includes.h"
 
@@ -197,4 +197,4 @@ protected:
 };
 
 
-#endif //IOHANDLER_H
+#endif //KEOW_IOHANDLER_H
