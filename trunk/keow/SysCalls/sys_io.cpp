@@ -1,3 +1,26 @@
+/*
+ * Copyright 2005 Paul Walker
+ *
+ * GNU General Public License
+ * 
+ * This file is part of: Kernel Emulation on Windows (keow)
+ *
+ * Keow is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Keow is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Keow; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+
 #include "kernel.h"
 
 // eax is the syscall number
@@ -1105,3 +1128,63 @@ void sys__newselect(CONTEXT* pCtx)
 	pCtx->Eax = 0;
 }
 
+/*****************************************************************************/
+
+
+/*
+ * int mkdir(path)
+ * create a new directory
+ */
+void  sys_mkdir(CONTEXT* pCtx)
+{
+	char p[MAX_PATH];
+	DWORD mode = pCtx->Ecx;
+
+	MakeWin32Path((const char *)pCtx->Ebx, p, sizeof(p), false);
+
+	if(CreateDirectory(p, NULL))
+	{
+		pCtx->Eax = 0;
+		return;
+	}
+
+	DWORD err = GetLastError();
+	pCtx->Eax = -Win32ErrToUnixError(err);
+}
+
+/*
+ * int rmdir(path)
+ * remove a directory - it must be empty
+ */
+void  sys_rmdir(CONTEXT* pCtx)
+{
+	char p[MAX_PATH];
+
+	MakeWin32Path((const char *)pCtx->Ebx, p, sizeof(p), false);
+
+	if(RemoveDirectory(p))
+	{
+		pCtx->Eax = 0;
+		return;
+	}
+
+	DWORD err = GetLastError();
+	pCtx->Eax = -Win32ErrToUnixError(err);
+
+	if(err!=ERROR_SHARING_VIOLATION)
+		return; //return this error
+
+
+	//file is still being used. In unix you can delete such a file
+	//but not in windows. However in windows it can often be successfully
+	//renamed within the same directory, so try to do this with a temporary
+	//name and retry later
+	/*
+	for(int i=0; i<10000; ++i) //if 10000 files have been deleted we will fail - on well :-)
+	{
+		char p2[MAX_PATH];
+
+	}
+	*/
+	return; //return the original error
+}
