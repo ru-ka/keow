@@ -50,3 +50,21 @@ bool DevZeroIOHandler::Stat64(linux::stat64 * s)
 
 	return true;
 }
+
+bool DevZeroIOHandler::CanRead()
+{
+	//always
+	return true;
+}
+
+bool DevZeroIOHandler::CanWrite()
+{
+	//never
+	return false;
+}
+
+bool DevZeroIOHandler::HasException()
+{
+	//always ok?
+	return false;
+}

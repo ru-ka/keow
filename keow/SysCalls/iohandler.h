@@ -25,6 +25,11 @@ public:
 
 	virtual bool Close();
 
+	//for select() to use
+	virtual bool CanRead() = 0;
+	virtual bool CanWrite() = 0;
+	virtual bool HasException() = 0;
+
 	bool Stat(linux::stat *);
 
 	inline HANDLE GetHandle()					{return m_Handle;}
@@ -65,6 +70,10 @@ public:
 
 	bool Close();
 
+	bool CanRead();
+	bool CanWrite();
+	bool HasException();
+
 	int GetDirEnts64(linux::dirent64 *, int maxbytes);
 	DWORD Length();
 
@@ -91,6 +100,10 @@ public:
 	DWORD ioctl(DWORD request, DWORD data);
 	bool Stat64(linux::stat64 *);
 
+	bool CanRead();
+	bool CanWrite();
+	bool HasException();
+
 protected:
 };
 
@@ -107,6 +120,10 @@ public:
 	IOHandler* Duplicate(HANDLE hFromProcess, HANDLE hToProcess);
 	DWORD ioctl(DWORD request, DWORD data);
 	bool Stat64(linux::stat64 *);
+
+	bool CanRead();
+	bool CanWrite();
+	bool HasException();
 
 protected:
 	bool ReadChar(bool canblock, char &c);
@@ -130,6 +147,10 @@ public:
 	DWORD ioctl(DWORD request, DWORD data);
 	bool Stat64(linux::stat64 *);
 
+	bool CanRead();
+	bool CanWrite();
+	bool HasException();
+
 protected:
 };
 
@@ -144,6 +165,10 @@ public:
 	IOHandler* Duplicate(HANDLE hFromProcess, HANDLE hToProcess);
 	DWORD ioctl(DWORD request, DWORD data);
 	bool Stat64(linux::stat64 *);
+
+	bool CanRead();
+	bool CanWrite();
+	bool HasException();
 
 protected:
 };

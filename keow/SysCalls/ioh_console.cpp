@@ -913,3 +913,27 @@ bool ConsoleIOHandler::Stat64(linux::stat64 * s)
 
 	return true;
 }
+
+bool ConsoleIOHandler::CanRead()
+{
+	//any pre-recorded input to send?
+	if(m_DeviceData.InputState > 0) 
+		return true;
+	DWORD dwRead;
+	INPUT_RECORD buf;
+	if(!PeekConsoleInput(m_Handle, &buf, 1, &dwRead))
+		return false;
+	return dwRead != 0;
+}
+
+bool ConsoleIOHandler::CanWrite()
+{
+	//always except to be able to write to the console?
+	return true;
+}
+
+bool ConsoleIOHandler::HasException()
+{
+	//TODO: what could this be?
+	return false;
+}
