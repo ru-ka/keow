@@ -22,7 +22,7 @@
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and even
    Frodo Looijaard <frodol@dds.nl> */
 
-/* $Id: i2c-elektor.h,v 1.1 2005-03-15 08:30:47 paul-sf Exp $ */
+/* $Id: i2c-elektor.h,v 1.2 2005-03-15 09:04:32 paul-sf Exp $ */
 
 #ifndef I2C_PCF_ELEKTOR_H
 #define I2C_PCF_ELEKTOR_H 1

@@ -159,14 +159,14 @@ typedef struct {
 #ifdef CONFIG_SMP
 #include <linux/cache.h>
 
-#ifndef __KERNEL_EMULATION_ON_WINDOWS__
+#ifndef __LINUXKERNELFORWINDOWS__
 
 typedef union {
     spinlock_t lock;
     char fill_up[(SMP_CACHE_BYTES)];
 } spinlock_cacheline_t __attribute__ ((aligned(SMP_CACHE_BYTES)));
 
-#endif __KERNEL_EMULATION_ON_WINDOWS__
+#endif __LINUXKERNELFORWINDOWS__
 
 
 #else	/* SMP */

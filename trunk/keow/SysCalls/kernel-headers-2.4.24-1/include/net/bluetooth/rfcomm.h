@@ -26,7 +26,7 @@
 */
 
 /*
- * $Id: rfcomm.h,v 1.1 2005-03-15 08:56:49 paul-sf Exp $
+ * $Id: rfcomm.h,v 1.2 2005-03-15 09:04:37 paul-sf Exp $
  */
 
 #ifndef __RFCOMM_H

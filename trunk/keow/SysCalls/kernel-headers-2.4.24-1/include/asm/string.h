@@ -1,7 +1,7 @@
 #ifndef _I386_STRING_H_
 #define _I386_STRING_H_
 
-#ifndef __KERNEL_EMULATION_ON_WINDOWS__
+#ifndef __LINUXKERNELFORWINDOWS__
 
 #ifdef __KERNEL__
 #include <linux/config.h>
@@ -532,4 +532,4 @@ static inline void * memscan(void * addr, int c, size_t size)
 
 #endif
 
-#endif __KERNEL_EMULATION_ON_WINDOWS__
+#endif __LINUXKERNELFORWINDOWS__

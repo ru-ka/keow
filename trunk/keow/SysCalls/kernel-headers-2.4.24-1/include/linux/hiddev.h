@@ -2,7 +2,7 @@
 #define _HIDDEV_H
 
 /*
- * $Id: hiddev.h,v 1.1 2005-03-15 08:30:46 paul-sf Exp $
+ * $Id: hiddev.h,v 1.2 2005-03-15 09:04:32 paul-sf Exp $
  *
  *  Copyright (c) 1999-2000 Vojtech Pavlik
  *

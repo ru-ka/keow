@@ -4,7 +4,7 @@
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
  *
- *	$Id: if_bridge.h,v 1.1 2005-03-15 08:30:47 paul-sf Exp $
+ *	$Id: if_bridge.h,v 1.2 2005-03-15 09:04:33 paul-sf Exp $
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License

@@ -1,7 +1,7 @@
 #ifndef __ARCH_I386_ATOMIC__
 #define __ARCH_I386_ATOMIC__
 
-#ifndef __KERNEL_EMULATION_ON_WINDOWS__
+#ifndef __LINUXKERNELFORWINDOWS__
 
 #include <linux/config.h>
 
@@ -207,6 +207,6 @@ __asm__ __volatile__(LOCK "orl %0,%1" \
 #define smp_mb__before_atomic_inc()	barrier()
 #define smp_mb__after_atomic_inc()	barrier()
 
-#endif __KERNEL_EMULATION_ON_WINDOWS__
+#endif __LINUXKERNELFORWINDOWS__
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * $Id: ip6_tunnel.h,v 1.1 2005-03-15 08:56:48 paul-sf Exp $
+ * $Id: ip6_tunnel.h,v 1.2 2005-03-15 09:04:37 paul-sf Exp $
  */
 
 #ifndef _NET_IP6_TUNNEL_H

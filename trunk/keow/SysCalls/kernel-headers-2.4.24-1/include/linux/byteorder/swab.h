@@ -1,7 +1,7 @@
 #ifndef _LINUX_BYTEORDER_SWAB_H
 #define _LINUX_BYTEORDER_SWAB_H
 
-#ifndef __KERNEL_EMULATION_ON_WINDOWS__
+#ifndef __LINUXKERNELFORWINDOWS__
 
 /*
  * linux/byteorder/swab.h
@@ -234,6 +234,6 @@ static __inline__ void __swab64s(__u64 *addr)
 #define swab64s __swab64s
 #endif
 
-#endif //__KERNEL_EMULATION_ON_WINDOWS__
+#endif //__LINUXKERNELFORWINDOWS__
 
 #endif /* _LINUX_BYTEORDER_SWAB_H */

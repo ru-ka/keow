@@ -42,7 +42,7 @@
  *
  *****************************************************************************/
 
-static char ixjuser_h_rcsid[] = "$Id: ixjuser.h,v 1.1 2005-03-15 08:31:50 paul-sf Exp $";
+static char ixjuser_h_rcsid[] = "$Id: ixjuser.h,v 1.2 2005-03-15 09:04:34 paul-sf Exp $";
 
 #include <linux/telephony.h>
 

@@ -1,5 +1,5 @@
 /*
- *	$Id: pci.h,v 1.1 2005-03-15 08:32:39 paul-sf Exp $
+ *	$Id: pci.h,v 1.2 2005-03-15 09:04:34 paul-sf Exp $
  *
  *	PCI defines and function prototypes
  *	Copyright 1994, Drew Eckhardt

@@ -1,5 +1,5 @@
 /*
- * $Id: pmc551.h,v 1.1 2005-03-15 08:32:40 paul-sf Exp $
+ * $Id: pmc551.h,v 1.2 2005-03-15 09:04:37 paul-sf Exp $
  *
  * PMC551 PCI Mezzanine Ram Device
  *
@@ -17,7 +17,7 @@
 
 #include <linux/mtd/mtd.h>
 
-#define PMC551_VERSION "$Id: pmc551.h,v 1.1 2005-03-15 08:32:40 paul-sf Exp $\n"\
+#define PMC551_VERSION "$Id: pmc551.h,v 1.2 2005-03-15 09:04:37 paul-sf Exp $\n"\
        "Ramix PMC551 PCI Mezzanine Ram Driver. (C) 1999,2000 Nortel Networks.\n"
 
 /*
