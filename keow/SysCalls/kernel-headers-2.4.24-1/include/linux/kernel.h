@@ -57,7 +57,7 @@ extern int console_printk[];
 
 struct completion;
 
-#ifndef __LINUXKERNELFORWINDOWS__
+#ifndef __KERNEL_EMULATION_ON_WINDOWS__
 
 extern struct notifier_block *panic_notifier_list;
 
@@ -200,6 +200,6 @@ struct sysinfo {
 
 #define BUG_ON(condition) do { if (unlikely((condition)!=0)) BUG(); } while(0)
 
-#endif __LINUXKERNELFORWINDOWS__
+#endif __KERNEL_EMULATION_ON_WINDOWS__
 
 #endif /* _LINUX_KERNEL_H */
