@@ -21,7 +21,7 @@ struct ELF_Data
 typedef struct ELF_Data * PELF_Data;
 
 
-_declspec(dllexport) int LoadELFFile(PELF_Data pElf, const char * filename);
+_declspec(dllexport) int LoadELFFile(PELF_Data pElf, const char * filename, bool LoadAsLibrary);
 
 
 #endif //LOADELF_H

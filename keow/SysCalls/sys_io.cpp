@@ -479,6 +479,35 @@ void  sys_fcntl(CONTEXT* pCtx)
 		pCtx->Eax = 0;
 		break;
 
+	case F_DUPFD:	/* like dup2() but use any fd<=arg and close-on-exec flag of copy is off */
+		{
+			int maxfd = pCtx->Edx;
+			int fdnew;
+			DWORD OldEcx;
+
+			//find free handle entry
+			fdnew = FindFreeFD();
+			if(fdnew==-1)
+			{
+				pCtx->Eax = -EMFILE; //too many open files
+				return;
+			}
+			if(fdnew > maxfd)
+			{
+				pCtx->Eax = EINVAL;
+				return;
+			}
+
+			//use dup2 for actual work
+			OldEcx = pCtx->Ecx;
+			pCtx->Ecx = fdnew;
+			sys_dup2(pCtx);
+			pCtx->Ecx = OldEcx;
+			pProcessData->FileHandlers[fdnew]->SetInheritable(false);
+			//eax is already set with the result
+		}
+		break;
+
 	default:
 		ktrace("IMPLEMENT sys_fcntl 0x%lx\n", pCtx->Ecx);
 		pCtx->Eax = -ENOSYS;

@@ -730,6 +730,8 @@ DWORD DoExecve(const char * filename, char* argv[], char* envp[])
 	//we are busy fiddling with process stuff
 	pProcessData->in_setup = true;
 
+	ktrace("execve of %s\n", filename);
+
 	ProcessDataStruct *p = pProcessData; //we reuse our PID
 
 	PELF_Data pElf = (PELF_Data)calloc(sizeof(struct ELF_Data), 1);
@@ -752,7 +754,7 @@ DWORD DoExecve(const char * filename, char* argv[], char* envp[])
 		return Win32ErrToUnixError(err);
 	}
 
-	if(!LoadELFFile(pElf, filename))
+	if(!LoadELFFile(pElf, filename, false))
 	{
 		TerminateProcess(pElf->pinfo.hProcess,-1);
 		CloseHandle(pElf->pinfo.hThread);
