@@ -1,4 +1,4 @@
-#ifndef __LINUXKERNELFORWINDOWS__
+#ifndef __KERNEL_EMULATION_ON_WINDOWS__
 
 #ifndef _I386_PAGE_H
 #define _I386_PAGE_H
@@ -143,4 +143,4 @@ static __inline__ int get_order(unsigned long size)
 
 #endif /* _I386_PAGE_H */
 
-#endif __LINUXKERNELFORWINDOWS__
+#endif __KERNEL_EMULATION_ON_WINDOWS__

@@ -152,7 +152,7 @@ typedef struct __wait_queue_head wait_queue_head_t;
 #define DECLARE_WAIT_QUEUE_HEAD(name) \
 	wait_queue_head_t name = __WAIT_QUEUE_HEAD_INITIALIZER(name)
 
-#ifndef __LINUXKERNELFORWINDOWS__
+#ifndef __KERNEL_EMULATION_ON_WINDOWS__
 static inline void init_waitqueue_head(wait_queue_head_t *q)
 {
 #if WAITQUEUE_DEBUG
@@ -166,7 +166,7 @@ static inline void init_waitqueue_head(wait_queue_head_t *q)
 	q->__creator = (long)current_text_addr();
 #endif
 }
-#endif __LINUXKERNELFORWINDOWS__
+#endif __KERNEL_EMULATION_ON_WINDOWS__
 
 static inline void init_waitqueue_entry(wait_queue_t *q, struct task_struct *p)
 {

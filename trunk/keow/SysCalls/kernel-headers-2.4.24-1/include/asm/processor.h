@@ -7,7 +7,7 @@
 #ifndef __ASM_I386_PROCESSOR_H
 #define __ASM_I386_PROCESSOR_H
 
-#ifndef __LINUXKERNELFORWINDOWS__
+#ifndef __KERNEL_EMULATION_ON_WINDOWS__
 
 #include <asm/vm86.h>
 #include <asm/math_emu.h>
@@ -503,6 +503,6 @@ extern inline void prefetchw(const void *x)
 
 #endif
 
-#endif __LINUXKERNELFORWINDOWS__
+#endif __KERNEL_EMULATION_ON_WINDOWS__
 
 #endif /* __ASM_I386_PROCESSOR_H */
