@@ -327,8 +327,11 @@ int main(int argc, char ** argv)
 
 	//try for this more unix-like font (normal NT ones are too bold)
 	//TODO: use Lucidia Console 12
+
 	//SetConsoleCtrlHandler(CtrlEventHandler, TRUE);
+	//SetConsoleCtrlHandler(NULL, TRUE);
 	SetConsoleCtrlHandler(NULL, TRUE);
+	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_PROCESSED_OUTPUT);
 
 
 	ValidateKernelTraps();

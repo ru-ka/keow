@@ -180,6 +180,21 @@ retry:
 		if(dwRead==0)
 			continue;
 
+		//debug
+		if(buf.EventType==KEY_EVENT) {
+			ktrace("KEY_EVENT bKeyDown %d, vkey %d, ascii %d, ctrlkeys %d\n", buf.Event.KeyEvent.bKeyDown, buf.Event.KeyEvent.wVirtualKeyCode, buf.Event.KeyEvent.uChar.AsciiChar, buf.Event.KeyEvent.dwControlKeyState);
+		}
+
+		//Ctrl-C is a special case
+		if(buf.EventType==KEY_EVENT
+		&& buf.Event.KeyEvent.uChar.AsciiChar==CTRL('C'))
+		{
+			//Ctrl-C does not come as a bKeydown so handle it specially
+			ktrace("Ctrl-C\n");
+			c=CTRL('C');
+			return true;
+		}
+
 		if(buf.EventType==KEY_EVENT
 		&& buf.Event.KeyEvent.bKeyDown!=0 )
 		{
@@ -240,24 +255,24 @@ retry:
 			case VK_F4: // ESC [ P
 			case VK_F5: // ESC [ Q
 			case VK_F6: // ESC [ R
-			case VK_F7: // ESC [ N
-			case VK_F8: // ESC [ N
-			case VK_F9: // ESC [ N
-			case VK_F10: // ESC [ N
-			case VK_F11: // ESC [ M
-			case VK_F12: // ESC [ N
-			case VK_F13: // ESC [ N
-			case VK_F14: // ESC [ N
-			case VK_F15: // ESC [ N
-			case VK_F16: // ESC [ N
-			case VK_F17: // ESC [ N
-			case VK_F18: // ESC [ N
-			case VK_F19: // ESC [ N
-			case VK_F20: // ESC [ N
-			case VK_F21: // ESC [ N
-			case VK_F22: // ESC [ N
-			case VK_F23: // ESC [ N
-			case VK_F24: // ESC [ N
+			case VK_F7: // ESC [ S
+			case VK_F8: // ESC [ T
+			case VK_F9: // ESC [ U
+			case VK_F10: // ESC [ V
+			case VK_F11: // ESC [ W
+			case VK_F12: // ESC [ X
+			case VK_F13: // ESC [ Y
+			case VK_F14: // ESC [ Z
+			case VK_F15: // ESC [ a
+			case VK_F16: // ESC [ b
+			case VK_F17: // ESC [ c
+			case VK_F18: // ESC [ d
+			case VK_F19: // ESC [ e
+			case VK_F20: // ESC [ f
+			case VK_F21: // ESC [ g
+			case VK_F22: // ESC [ h
+			case VK_F23: // ESC [ i
+			case VK_F24: // ESC [ j
 				{
 					char extra[] = "[M";
 					int fn = c - VK_F1;
@@ -267,15 +282,16 @@ retry:
 				}
 				break;
 
-			//TODO: more key codes
+			//TODO: more special key codes
 
-			default:
+
+			default: //this bit handles 'normal' keys that generate characters
 				if(buf.Event.KeyEvent.uChar.AsciiChar==0) {
 					//we read something not suitable for returning, retry the read, even when non-blocking
 					goto retry;
 				} else {
 					c = buf.Event.KeyEvent.uChar.AsciiChar;
-					ktrace("keu %d %c\n", c,c);
+					ktrace("key %d %c\n", c,c);
 				}
 				break;
 			}
@@ -363,9 +379,8 @@ bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 		//#define FLUSHO	0010000
 		//#define PENDIN	0040000
 		//#define IEXTEN	0100000
-		if((m_DeviceData.TermIOs.c_lflag & ISIG)==0)
+		if(m_DeviceData.TermIOs.c_lflag & ISIG)
 		{
-ktrace("sig? %d [intr %d]\n", *p, m_DeviceData.TermIOs.c_cc[VINTR]);
 			if(*p==m_DeviceData.TermIOs.c_cc[VINTR])
 				SendSignal(pProcessData->PID, SIGINT);
 			//others?
@@ -831,7 +846,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 {
 	switch(request)
 	{
-	case TCGETS:
+	case TCGETS: //get stty stuff
 		{
 			linux::termios * arg = (linux::termios*)data;
 			arg->c_iflag = m_DeviceData.TermIOs.c_iflag;
@@ -852,7 +867,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 		//flush input & output
 		FlushConsoleInputBuffer(m_Handle);
 		//...fall through...
-	case TCSETS:
+	case TCSETS: //set stty stuff
 		{
 			linux::termios * arg = (linux::termios*)data;
 			m_DeviceData.TermIOs.c_iflag = arg->c_iflag;
@@ -865,7 +880,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 		}
 		break;
 
-	case TIOCGPGRP:
+	case TIOCGPGRP: //get process group
 		{
 			if(!data)
 				return -EFAULT;
@@ -873,7 +888,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 			return 0;
 		}
 		break;
-	case TIOCSPGRP:
+	case TIOCSPGRP: //set process group
 		{
 			if(!data)
 				return -EFAULT;
@@ -882,7 +897,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 		}
 		break;
 
-	case TIOCGWINSZ:
+	case TIOCGWINSZ: //window size
 		{
 			linux::winsize *pWS = (linux::winsize *)data;
 			CONSOLE_SCREEN_BUFFER_INFO Info;
@@ -899,7 +914,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 			return 0;
 		}
 		break;
-	case TIOCSWINSZ:
+	case TIOCSWINSZ: //window size
 		{
 			linux::winsize *pWS = (linux::winsize *)data;
 			ktrace("console set size %d,%d\n", pWS->ws_col, pWS->ws_row);
@@ -933,7 +948,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 
 	default:
 		ktrace("IMPLEMENT sys_ioctl 0x%lx for ConsoleIOHandler\n", request);
-		return -ENOSYS;
+		return -ENOTTY;
 	}
 	return -EINVAL;
 }
