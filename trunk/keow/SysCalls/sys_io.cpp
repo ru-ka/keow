@@ -203,7 +203,9 @@ void  sys_open(CONTEXT* pCtx)
 	int fd;
 	DWORD win32access, win32share, disposition, flags;
 	IOHandler * ioh;
-	
+
+	ktrace("open(%s, 0x%lx, 0%lo)\n", pCtx->Ebx, access, perms);
+
 	MakeWin32Path((const char*)pCtx->Ebx, p, sizeof(p), true);
 
 	//find free handle entry
@@ -215,10 +217,10 @@ void  sys_open(CONTEXT* pCtx)
 	}
 
 	//calc flags
-	if((access&0xF) == O_WRONLY)
+	if((access&O_ACCMODE) == O_WRONLY)
 		win32access = GENERIC_WRITE;
 	else
-		if((access&0xF) == O_RDONLY)
+		if((access&O_ACCMODE) == O_RDONLY)
 			win32access = GENERIC_READ;
 		else
 			win32access = GENERIC_READ|GENERIC_WRITE;
@@ -251,9 +253,20 @@ void  sys_open(CONTEXT* pCtx)
 		}
 	}
 
+
 	pProcessData->FileHandlers[fd] = ioh;
 	pCtx->Eax = fd;
 
+	//more flags
+	if(access & O_TRUNC) 
+	{
+		SetFilePointer(ioh->GetHandle(), 0, 0, FILE_BEGIN);
+		SetEndOfFile(ioh->GetHandle());
+	}
+	if(access & O_APPEND)
+	{
+		SetFilePointer(ioh->GetHandle(), 0, 0, FILE_END);
+	}
 }
 
 

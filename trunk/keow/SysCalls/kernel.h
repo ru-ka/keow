@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef KERNEL_H
-#define KERNEL_H
+#ifndef KEOW_KERNEL_H
+#define KEOW_KERNEL_H
 
 //want Win2k functions
 #define _WIN32_WINNT 0x500
@@ -130,6 +130,7 @@ struct ProcessDataStruct {
 
 	linux::sigaction signal_action[MAX_SIGNALS];
 	linux::sigset_t sigmask[MAX_PENDING_SIGNALS];
+	int signal_blocked[MAX_SIGNALS];
 	int signal_depth;
 
 	//If you add or alter fields, also update all in forkexec.cpp and kernel.cpp
@@ -517,4 +518,4 @@ PROTO_SYSCALL(free_hugepages);
 PROTO_SYSCALL(exit_group);
 
 
-#endif //KERNEL_H
+#endif //KEOW_KERNEL_H

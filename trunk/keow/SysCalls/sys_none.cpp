@@ -51,7 +51,6 @@ void sys_mknod(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_chmod(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_lchown(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_lseek(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
-void sys_umount(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_setuid(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_stime(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_alarm(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
