@@ -285,19 +285,25 @@ int main(int argc, char ** argv)
 	SetLastError(0);
 	SetConsoleTitle("Console - Kernel Emulation on Windows");
 
+	//80 columns, lots of history
 	COORD c;
 	c.X = 80;
 	c.Y = 1000;
 	SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), c);
+	//start output at the bottom of the buffer
+	c.X = 0;
+	c.Y--;
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
+
 	SMALL_RECT sr;
 	sr.Left = 0;
 	sr.Top = 0;
 	sr.Right = 80-1;
 	sr.Bottom = 25-1;
 	SetConsoleWindowInfo(GetStdHandle(STD_OUTPUT_HANDLE), true, &sr);
+
 	//try for this more unix-like font (normal NT ones are too bold)
 	//TODO: use Lucidia Console 12
-
 	//SetConsoleCtrlHandler(CtrlEventHandler, TRUE);
 	SetConsoleCtrlHandler(NULL, TRUE);
 
