@@ -157,6 +157,10 @@ SOURCE=.\sys_mem.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\sys_mount.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\sys_net.cpp
 # End Source File
 # Begin Source File

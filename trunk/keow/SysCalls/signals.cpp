@@ -258,6 +258,14 @@ static void DispatchSignal(int sig)
 	//to get back to their code!
 	ktrace("attempting to dispatch signal %d\n", sig);
 
+	if(sig==SIGKILL)
+	{
+		//no arguing here - just die
+		ktrace("killed - sigkill\n");
+		pProcessData->killed_by_sig = sig;
+		ExitProcess((UINT)-sig);
+	}
+
 	//pause the thread, get its execution context,
 	//update the context to call to a signal handler
 	//let the thread resume

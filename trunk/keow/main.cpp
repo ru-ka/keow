@@ -105,7 +105,7 @@ void ValidateKernelTraps()
 		halt();
 	}
 
-	//Check pages sizes are as we assume
+	//Check pages sizes are as we assume (code depends on these)
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
 	if(si.wProcessorArchitecture != PROCESSOR_ARCHITECTURE_INTEL
