@@ -1,0 +1,383 @@
+#include <windows.h>
+#include <stdio.h>
+
+#include "syscalls\kernel.h"
+#include "syscalls\loadelf.h"
+
+
+typedef void (*ARG_HANDLER)(const char *);
+
+const char * InitProgram = "/sbin/init";
+
+char KernelInstance[MAX_PATH];
+KernelSharedDataStruct * pKernelSharedData;
+
+char * InitialEnv[] = {
+	"OLDPWD=/",
+	"HOME=/",
+	"TERM=linux", 
+	//"TERM=ansi",
+	//"BOOL_IMAGE=Linux",
+	"PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin",
+	"PWD=/",
+	NULL
+};
+
+
+void halt()
+{
+	MSG msg;
+
+	printf("Kernel halted.");
+
+	while(GetMessage(&msg,0,0,0))
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+}
+
+
+void CleanUpTraceFiles()
+{
+	//clean up tracing files from previous runs
+	char p[MAX_PATH];
+
+	for(int i=0; i<MAX_PROCESSES; ++i)
+	{
+		StringCbPrintf(p,sizeof(p),"%s\\..\\pid%05d.trace", pKernelSharedData->LinuxFileSystemRoot, i);
+		DeleteFile(p);
+	}
+}
+
+
+void ValidateKernelTraps()
+{
+	//Test whether INT 80h is illegal in Windows
+	//and will trigger our error handler
+
+#pragma pack(push,1)
+	struct {
+		WORD limit;
+		DWORD base;
+	} idt_data;
+#pragma pack(pop)
+
+	__asm {
+		sidt idt_data
+	};
+
+	//TODO: how do we read the IDT itself? Is itn't it physical memory?
+	printf("todo: validate kernel traps\n");
+
+	//if(fails)
+	//	halt();
+
+	//Check if call gates 7h and 27h are illegal
+	//and will trigger our error handler
+
+
+	//We currentl depend on ASCII build, not UNICODE
+	if(sizeof(TCHAR) != sizeof(char))
+	{
+		printf("UNICODE build not supported\n");
+		halt();
+	}
+
+	//Check pages sizes are as we assume
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+	if(si.wProcessorArchitecture != PROCESSOR_ARCHITECTURE_INTEL
+	|| si.dwPageSize != SIZE4k
+	|| si.dwAllocationGranularity  != SIZE64k)
+	{
+		printf("Architecture assumptions not met/not supported\n");
+		halt();
+	}
+}
+
+
+void InitKernelData()
+{
+	StringCbPrintf(KernelInstance, sizeof(KernelInstance), "KernelEmulationOnWindows-KernelDataStruct-(%ld)-%lx", GetCurrentProcessId(), GetTickCount());
+
+	//shared memory
+	HANDLE hKernelData = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(KernelSharedDataStruct), KernelInstance);
+
+	pKernelSharedData = (KernelSharedDataStruct*)MapViewOfFile(hKernelData, FILE_MAP_ALL_ACCESS, 0,0,0);
+	if(!pKernelSharedData)
+	{
+		printf("Failed to allocate shared memory\n");
+		halt();
+	}
+	printf("Kernel shared memory size is %ld bytes\n", sizeof(KernelSharedDataStruct));
+
+	//data was init as zero, so don't need to set much
+
+	StringCbPrintf(pKernelSharedData->KernelInstanceName, sizeof(pKernelSharedData->KernelInstanceName), KernelInstance);
+
+	//process stub is same dir as this exe
+	GetModuleFileName(NULL, pKernelSharedData->ProcessStubFilename, MAX_PATH);
+	//replace ending
+	char *s = strrchr(pKernelSharedData->ProcessStubFilename, '\\');
+	StringCbCopy(s, MAX_PATH-strlen(pKernelSharedData->ProcessStubFilename), "\\ProcessStub.exe");
+
+	pKernelSharedData->LastAllocatedPID = 1; //we'll allocate that
+
+	//A dummy stub to let's the SysCalls dll init before we start using it
+	Process_Init("INIT", 0, KernelInstance);
+}
+
+
+HANDLE StartELFFile(const char * filename, const char * commandline, const char *startdir, const char ** env)
+{
+	PELF_Data pElf;
+	const int InitPID = 1; //init is always PID 1
+
+	ProcessDataStruct *p = &pKernelSharedData->ProcessTable[InitPID];
+
+
+	pElf = (PELF_Data)calloc(sizeof(struct ELF_Data), 1);
+	if(pElf==NULL)
+	{
+		perror("cannot allocate ELF_Data");
+		return INVALID_HANDLE_VALUE;
+	}
+
+	//New a new process to start the code in
+	//use RUN keyword in argv[0] - this is the first ever program (not using fork/exec)
+	char CommandLine[100];
+	StringCbPrintf(CommandLine, sizeof(CommandLine), "RUN %d %s", InitPID, KernelInstance);
+
+	GetStartupInfo(&pElf->sinfo);
+	if(!CreateProcess(pKernelSharedData->ProcessStubFilename, CommandLine, NULL, NULL, FALSE, CREATE_SUSPENDED|CREATE_NEW_PROCESS_GROUP, NULL, NULL, &pElf->sinfo, &pElf->pinfo))
+	{
+		DWORD err = GetLastError();
+		fprintf(stderr,"error %ld starting %s\n", err, filename);
+		free(pElf);
+		return INVALID_HANDLE_VALUE;
+	}
+
+	if(!LoadELFFile(pElf, InitProgram))
+	{
+		TerminateProcess(pElf->pinfo.hProcess,-1);
+		CloseHandle(pElf->pinfo.hThread);
+		CloseHandle(pElf->pinfo.hProcess);
+		free(pElf);
+		return INVALID_HANDLE_VALUE;
+	}
+
+	//initial process data
+	p->in_setup = true;
+
+	StringCbCopy(p->unix_pwd, sizeof(p->unix_pwd), startdir);
+	StringCbCopy(p->ProgramPath, sizeof(p->ProgramPath), filename);
+
+	p->program_base = pElf->program_base;
+	p->program_max = pElf->program_max;
+	p->interpreter_base = pElf->interpreter_base;
+	p->interpreter_max = pElf->last_lib_addr;
+	p->interpreter_entry = pElf->interpreter_start;
+	p->phdr = pElf->phdr_addr;
+	p->phent = pElf->hdr.e_phentsize;
+	p->phnum = pElf->hdr.e_phnum;
+	p->program_entry = pElf->start_addr;
+	p->uid = p->gid = 0; //root
+	p->euid = p->egid = 0; //root
+	p->sav_uid = p->sav_gid = 0; //root
+	p->brk = p->brk_base = pElf->brk;
+	p->PID = 1;
+	p->ParentPID = 0;
+	p->ProcessGroupPID = 1;
+
+	//register process in kernel data
+	p->in_use = true;
+	p->Win32PID = pElf->pinfo.dwProcessId;
+	p->MainThreadID = pElf->pinfo.dwThreadId;
+	p->SignalThreadID = -1; //not yet set
+
+	//an initial environment
+	//got this by: cat -x /proc/1/environ on linux
+	char * initial_argv[] = {0,0};
+	initial_argv[0] = p->ProgramPath;
+	p->argv = CopyStringListToProcess(pElf->pinfo.hProcess, initial_argv);;
+	p->envp = CopyStringListToProcess(pElf->pinfo.hProcess, InitialEnv);
+
+
+	//start the process running
+	ResumeThread(pElf->pinfo.hThread);
+
+
+	//cleanup
+	HANDLE hRet = pElf->pinfo.hProcess;
+	CloseHandle(pElf->pinfo.hThread);
+
+	free(pElf);
+
+	return hRet;
+}
+
+
+BOOL WINAPI CtrlEventHandler(DWORD dwCtrlType)
+{
+	switch(dwCtrlType)
+	{
+	case CTRL_C_EVENT:
+	case CTRL_BREAK_EVENT:
+		//ignore
+		break;
+	case CTRL_CLOSE_EVENT:
+	case CTRL_LOGOFF_EVENT:
+	case CTRL_SHUTDOWN_EVENT:
+		//tell 'init' to shut down
+		//in leu of the proper way use SIGTERM (need to research this)
+		SendSignal(1,SIGTERM);
+		break;
+	}
+	return TRUE; //always say we handled it
+}
+
+
+
+void arg_root(const char *arg)
+{
+	//ensure it exists
+	if(!SetCurrentDirectory(arg))
+	{
+		perror("root dir does not exist");
+		halt();
+	}
+
+	pKernelSharedData->LinuxFileSystemRootLen = 
+		GetCurrentDirectory(sizeof(pKernelSharedData->LinuxFileSystemRoot)-1, pKernelSharedData->LinuxFileSystemRoot);
+
+	printf("Using %s as filesystem root\n", pKernelSharedData->LinuxFileSystemRoot);
+}
+
+void arg_init(const char *arg)
+{
+	InitProgram = arg;
+	printf("Using %s as 'init'\n", InitProgram);
+}
+
+void arg_debug(const char *arg)
+{
+	pKernelSharedData->KernelDebug = atoi(arg);
+	printf("Kernel Debug: %d\n", pKernelSharedData->KernelDebug);
+}
+
+
+struct {
+	const char * arg_name;
+	ARG_HANDLER handler;
+} argument_handlers[] = {
+	{"root", arg_root},
+	{"init", arg_init},
+	{"debug", arg_debug},
+	{NULL, NULL}
+};
+
+
+
+
+int main(int argc, char ** argv)
+{
+	int i;
+
+	SetLastError(0);
+	SetConsoleTitle("Console - Kernel Emulation on Windows");
+
+	COORD c;
+	c.X = 80;
+	c.Y = 1000;
+	SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), c);
+	SMALL_RECT sr;
+	sr.Left = 0;
+	sr.Top = 0;
+	sr.Right = 80-1;
+	sr.Bottom = 43-1;
+	SetConsoleWindowInfo(GetStdHandle(STD_OUTPUT_HANDLE), true, &sr);
+
+	//SetConsoleCtrlHandler(CtrlEventHandler, TRUE);
+	SetConsoleCtrlHandler(NULL, TRUE);
+
+
+	ValidateKernelTraps();
+
+	printf("Kernel Booting\n");
+
+	printf("Setting up kernel data structure\n");
+	InitKernelData();
+
+	printf("Processing arguments\n");
+	//defaults
+	for(i=1; i<argc; ++i)
+	{
+		char *n, *v;
+		int h;
+
+		printf("processing: %s\n", argv[i]);
+
+		//try to get a name=value split. else value NULL
+		n=argv[i];
+		v=strchr(n,'=');
+		if(v!=NULL)
+		{
+			*v = 0;
+			v++;
+		}
+
+		//find handler for arg
+		for(h=0; argument_handlers[h].arg_name!=NULL; ++h)
+		{
+			if(strcmp(argument_handlers[h].arg_name, n) == 0)
+			{
+				(*argument_handlers[h].handler)(v);
+			}
+		}
+		if(argument_handlers[h].arg_name!=NULL)
+			printf("unknown argument ignored");
+	}
+	printf("Finished argument processing\n");
+
+	if(pKernelSharedData->LinuxFileSystemRootLen == 0)
+	{
+		printf("No root= specified\n");
+		halt();
+	}
+
+	CleanUpTraceFiles();
+	
+	
+	//Load the initial executable
+	printf("Loading 'init': %s\n", InitProgram);
+	HANDLE hInit = StartELFFile(InitProgram, "", "/", NULL);
+
+	if(hInit==INVALID_HANDLE_VALUE)
+	{
+		printf("Failed to load 'init'\n");
+		halt();
+	}
+
+
+	printf("'init' started\n");
+
+	//wait for it to exit
+	MsgWaitForMultipleObjects(1, &hInit, FALSE, INFINITE, NULL);
+	printf("'init' appears to have terminated, ");
+
+	DWORD exitcode; 
+	if(!GetExitCodeProcess(hInit, &exitcode))
+		printf("exit code undetermined\n");
+	else
+		printf("exit code %ld\n", exitcode);
+
+
+	//allow exit
+	printf("Halting kernel, press Ctrl-C to close\n");
+	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_PROCESSED_INPUT);
+	SetConsoleCtrlHandler(NULL, FALSE);
+
+	halt();
+	return -1; //never get here
+}
