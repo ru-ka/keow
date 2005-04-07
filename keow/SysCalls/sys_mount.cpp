@@ -106,9 +106,11 @@ void sys_mount(CONTEXT* pCtx)
 		//record the mount
 		MountPointDataStruct& mnt = pKernelSharedData->MountPoints[pKernelSharedData->NumCurrentMounts];
 		strncpy(mnt.Destination, target, MAX_PATH);
-		if(mnt.Destination[strlen(mnt.Destination)-1]=='/')
-			mnt.Destination[strlen(mnt.Destination)-1]=0; //dont' want to record the trailing slash - MakeWin32Path is easier that way
+		mnt.DestinatinLen = strlen(mnt.Destination); 
+		if(mnt.Destination[mnt.DestinatinLen-1]=='/')
+			mnt.Destination[mnt.DestinatinLen-1]=0; //dont' want to record the trailing slash - MakeWin32Path is easier that way
 		strncpy(mnt.Source, source, MAX_PATH);
+		mnt.SourceLen = strlen(mnt.Source); 
 		mnt.Flags = mountflags;
 		mnt.pType = "keow"; //const
 		//data not required for this fs type

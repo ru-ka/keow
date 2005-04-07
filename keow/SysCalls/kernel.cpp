@@ -569,7 +569,8 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 
 	char pwd[MAX_PATH];
 	MakeWin32Path(pProcessData->unix_pwd, pwd, MAX_PATH, true);
-	SetCurrentDirectory(pwd);
+	if(strcmp(keyword, "INIT")!=0)
+		SetCurrentDirectory(pwd);
 
 
 	//install exception handler for capturing INT 80h Linux kernel syscalls
@@ -753,6 +754,23 @@ static void GetLinkRelativePath(const char *fullpath, char* linkpath, int maxsiz
 	}
 }
 
+
+#define USE_NEW_PATH_CLASS
+#ifdef USE_NEW_PATH_CLASS
+
+//TODO: remove MakeWin32Path and later code that uses it
+void MakeWin32Path( const char * UnixPath, char * Win32Path, int maxsize, bool FollowSymLinks)
+{
+	//test new method
+	Path p2;
+	p2.SetUnixPath(UnixPath, FollowSymLinks);
+	ktrace("%s -> %s\n", p2.UnixPath(), p2.Win32Path());
+	strncpy(Win32Path, p2.Win32Path(), maxsize);
+}
+
+#else //USE_NEW_PATH_CLASS
+
+
 //Helper for MakeWin32Path
 //applies the relative path p (eg "../dir2") to unixpath
 static void addPath(const char* fullpath, char *unixpath, const char * p, bool FollowSymLinks)
@@ -873,7 +891,13 @@ void MakeWin32Path( const char * UnixPath, char * Win32Path, int maxsize, bool F
 	addPath(Win32Path, p, UnixPath, FollowSymLinks);
 
 	ktrace("%s\n",p);
+
+	//test new method
+	Path p2;
+	p2.SetUnixPath(UnixPath, FollowSymLinks);
+	ktrace("%s -> %s\n", p2.UnixPath(), p2.Win32Path());
 }
+#endif //USE_NEW_PATH_CLASS
 
 
 
