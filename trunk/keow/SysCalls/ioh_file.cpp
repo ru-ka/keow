@@ -218,7 +218,7 @@ int FileIOHandler::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 {
 	DWORD err = 0;
 	WIN32_FIND_DATA wfd;
-	char p[MAX_PATH], up[MAX_PATH];
+	Path p(false);
 
 	int filled = 0;
 	while(filled+(int)sizeof(linux::dirent64) < maxbytes)
@@ -262,16 +262,15 @@ int FileIOHandler::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 
 		de->d_reclen = sizeof(linux::dirent64);
 
-		StringCbCopy(up, sizeof(up), GetUnixPath());
-		StringCbCat(up, sizeof(up)-strlen(up), "/");
-		StringCbCat(up, sizeof(up)-strlen(up), wfd.cFileName);
-		MakeWin32Path(up, p, sizeof(p), false);
+
+		p.SetUnixPath(GetUnixPath());
+		p.AddUnixPath(wfd.cFileName);
 
 		de->d_type = 0; //not provided on linux x86 32bit?  (GetUnixFileType(p);
 
 		StringCbCopy(de->d_name, sizeof(de->d_name), wfd.cFileName);
 
-		if(IsSymbolicLink(p))
+		if(IsSymbolicLink(p.Win32Path()))
 		{
 			//ensure name we return does not end in .lnk
 			int e = strlen(de->d_name) - 4;

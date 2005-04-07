@@ -55,10 +55,10 @@ void sys_mount(CONTEXT* pCtx)
 	ktrace("mount request: '%s' on '%s' - type %s\n", source,target,filesystemtype);
 
 	//the target must always be a directory
-	char p[MAX_PATH];
-	MakeWin32Path(target, p, sizeof(p), true);
+	Path p;
+	p.SetUnixPath(target);
 
-	DWORD attr = GetFileAttributes(p);
+	DWORD attr = GetFileAttributes(p.Win32Path());
 	if(attr==INVALID_FILE_ATTRIBUTES)
 	{
 		pCtx->Eax = ENOTDIR;
