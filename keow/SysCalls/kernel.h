@@ -180,7 +180,7 @@ struct MountPointDataStruct {
 	char Source[MAX_PATH];
 	char Destination[MAX_PATH];
 	int DestinatinLen, SourceLen;
-	const char * pType;
+	char Type[9];
 	DWORD Flags;
 	BYTE Data[MAX_MOUNT_DATA]; //typically options
 };

@@ -31,6 +31,7 @@
 typedef void (*ARG_HANDLER)(const char *);
 
 const char * InitProgram = "/sbin/init";
+char * AutoMount = NULL;
 
 char KernelInstance[MAX_PATH];
 KernelSharedDataStruct * pKernelSharedData;
@@ -97,6 +98,19 @@ void ValidateKernelTraps()
 	//Check if call gates 7h and 27h are illegal
 	//and will trigger our error handler
 
+	//expect to be able to trap INT 80h kernel calls
+	bool trapped = false;
+	__try {
+		__asm int 80h
+	}
+	__except( EXCEPTION_EXECUTE_HANDLER ) {
+		trapped = true;
+	}
+	if(!trapped)
+	{
+		printf("Cannot trap kernel calls.\n");
+		halt();
+	}
 
 	//We currentl depend on ASCII build, not UNICODE
 	if(sizeof(TCHAR) != sizeof(char))
@@ -115,6 +129,64 @@ void ValidateKernelTraps()
 		printf("Architecture assumptions not met/not supported\n");
 		halt();
 	}
+}
+
+
+//AutoMount windows drive letters
+//make mounts and generate initial /etc/mtab
+void AutoMountDrives()
+{
+	if(AutoMount==0)
+		AutoMount = strdup("CDEFGHIJKLMNOPRSTUVWXYZ");
+
+	//expect to be in root dir
+	//files may no exist, if so don't create them
+	FILE * fMtab = NULL;
+	const char * szMtab = "./etc/mtab";
+	if(GetFileAttributes(szMtab)!=INVALID_FILE_ATTRIBUTES)
+		fMtab = fopen(szMtab, "wb");
+
+	char drive[] = "X:\\";
+	char mnt[] = "./mnt/X";
+	char *pMntLetter = &mnt[6]; //'X'
+
+	char *letter = AutoMount;
+	while(*letter)
+	{
+		drive[0] = *pMntLetter = toupper(*letter);
+
+		if(GetFileAttributes(drive)!=INVALID_FILE_ATTRIBUTES)
+		{
+			printf("automatic drive mount: %s on /mnt/%c\n", drive, *pMntLetter);
+
+			CreateDirectory(mnt, NULL);
+			if(GetFileAttributes(mnt)&FILE_ATTRIBUTE_DIRECTORY)
+			{
+				//record the mount
+				MountPointDataStruct& mp = pKernelSharedData->MountPoints[pKernelSharedData->NumCurrentMounts];
+				StringCbPrintf(mp.Destination, MAX_PATH, "/mnt/%c", *pMntLetter);
+				mp.DestinatinLen = strlen(mp.Destination); 
+				strncpy(mp.Source, drive, MAX_PATH);
+				mp.SourceLen = strlen(mp.Source); 
+				mp.Flags = 0;
+				strncpy(mp.Type, "keow", sizeof(mp.Type)-1);
+				//data not required for this fs type
+				pKernelSharedData->NumCurrentMounts++;
+
+				//update /etc/mtab
+				if(fMtab)
+				{
+					//eg: c:/ /mnt/c keow rw 0 0
+					fprintf(fMtab, "%c:\\  /mnt/%c  keow rw 0 0 %c", *pMntLetter, *pMntLetter, 0x0a);
+				}
+			}
+		}
+
+		++letter;
+	}
+
+	if(fMtab)
+		fclose(fMtab);
 }
 
 
@@ -287,6 +359,12 @@ void arg_debug(const char *arg)
 	printf("Kernel Debug: %d\n", pKernelSharedData->KernelDebug);
 }
 
+void arg_automount(const char *arg)
+{
+	AutoMount = strdup(arg);
+	printf("AutoMount: %s\n", AutoMount);
+}
+
 
 struct {
 	const char * arg_name;
@@ -295,6 +373,7 @@ struct {
 	{"root", arg_root},
 	{"init", arg_init},
 	{"debug", arg_debug},
+	{"automount", arg_automount},
 	{NULL, NULL}
 };
 
@@ -379,6 +458,9 @@ int main(int argc, char ** argv)
 	}
 
 	CleanUpTraceFiles();
+
+	//AutoMount windows drive letters
+	AutoMountDrives();
 	
 	
 	//Load the initial executable

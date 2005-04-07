@@ -112,7 +112,7 @@ void sys_mount(CONTEXT* pCtx)
 		strncpy(mnt.Source, source, MAX_PATH);
 		mnt.SourceLen = strlen(mnt.Source); 
 		mnt.Flags = mountflags;
-		mnt.pType = "keow"; //const
+		strncpy(mnt.Type, "keow", sizeof(mnt.Type)-1);
 		//data not required for this fs type
 		pKernelSharedData->NumCurrentMounts++;
 
@@ -151,8 +151,10 @@ void sys_umount(CONTEXT* pCtx)
 			//remove this mount from the table,
 			//move others to fill the space
 
-			while(m<pKernelSharedData->NumCurrentMounts-1)
+			while(m<pKernelSharedData->NumCurrentMounts-1) {
 				pKernelSharedData->MountPoints[m] = pKernelSharedData->MountPoints[m+1];
+				++m;
+			}
 			--pKernelSharedData->NumCurrentMounts;
 			pCtx->Eax = 0;
 			return;

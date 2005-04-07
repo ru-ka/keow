@@ -61,7 +61,6 @@ void sys_gtty(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_nice(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_ftime(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_sync(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
-void sys_rename(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_times(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_prof(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
 void sys_setgid(CONTEXT* pCtx)		{sys_unhandled(pCtx);}
