@@ -175,7 +175,7 @@ void Path::CalculateWin32Path()
  */
 void Path::ApplyPathElement(const char *pStr)
 {
-	StringCbCat(m_Win32Path, MAX_PATH-strlen(m_Win32Path), "/"); //"\\");
+	StringCbCat(m_Win32Path, MAX_PATH-strlen(m_Win32Path), "\\");
 	char * pWin32OldEnd = &m_Win32Path[strlen(m_Win32Path)];
 	StringCbCat(m_Win32Path, MAX_PATH-strlen(m_Win32Path), pStr);
 
@@ -190,14 +190,14 @@ void Path::ApplyPathElement(const char *pStr)
 		if(strcmp(mnt.Destination, m_UnixPath) == 0)
 		{
 			//TODO: use a pointer to a resolver routine instead of fs type tests here
-			if(strcmp("keow", mnt.pType) == 0)
+			if(strcmp("keow", mnt.Type) == 0)
 			{
 				//follow this mount by replacing with a new path
 				StringCbCopy(m_Win32Path, MAX_PATH-strlen(m_Win32Path), mnt.Source);
 			}
 			else
 			{
-				ktrace("Panic: unhandled filesystem type: %s\n", mnt.pType);
+				ktrace("Panic: unhandled filesystem type: %s\n", mnt.Type);
 				ExitProcess(-11);
 			}
 		}

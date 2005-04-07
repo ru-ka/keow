@@ -1226,3 +1226,37 @@ void  sys_rmdir(CONTEXT* pCtx)
 	*/
 	return; //return the original error
 }
+
+
+/*****************************************************************************/
+
+
+/*
+ * int rename(oldpath, newpath)
+ */
+void sys_rename(CONTEXT* pCtx)
+{
+	Path OldP, NewP;
+
+	OldP.SetUnixPath((const char *)pCtx->Ebx);
+	NewP.SetUnixPath((const char *)pCtx->Ecx);
+
+	char * p2 = NULL;
+	if(IsSymbolicLink(OldP.Win32Path()))
+	{
+		int len = strlen(p2);
+		len+=4;
+		p2 = new char[len];
+		StringCbPrintf(p2, len, "%s.lnk", NewP.Win32Path);
+	}
+
+	DebugBreak();
+	if(MoveFileEx(OldP.Win32Path(), p2?p2:NewP.Win32Path(), MOVEFILE_REPLACE_EXISTING))
+		pCtx->Eax = 0;
+	else
+		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+
+	if(p2)
+		delete p2;
+}
+
