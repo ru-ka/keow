@@ -1064,6 +1064,34 @@ void sys__llseek(CONTEXT* pCtx)
 		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
 }
 
+
+/*
+ * off_t lseek(int fildes, off_t offset, int whence)
+ */
+void sys_lseek(CONTEXT* pCtx)
+{
+	//use llseek
+	CONTEXT ctx2;
+	linux::loff_t result;
+
+	ctx2.Ebx = pCtx->Ebx; //fd
+	ctx2.Ecx = 0; //offset, high
+	ctx2.Edx = pCtx->Ecx; //offset, low
+	ctx2.Esi = (DWORD)(&result);
+	ctx2.Edi = pCtx->Edx; //whence
+
+	sys__llseek(&ctx2);
+	if(ctx2.Eax!=0)
+	{
+		//error
+		pCtx->Eax = ctx2.Eax;
+		return;
+	}
+
+	pCtx->Eax = (DWORD)(result & 0x7FFFFFFF);
+}
+
+
 /*****************************************************************************/
 
 /*
