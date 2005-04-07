@@ -35,6 +35,7 @@ typedef unsigned char * ADDR;
 #include "iohandler.h"
 #include "memory.h"
 #include "util.h"
+#include "path.h"
 
 #include <stdio.h>
 
@@ -178,6 +179,7 @@ struct TerminalDeviceDataStruct {
 struct MountPointDataStruct {
 	char Source[MAX_PATH];
 	char Destination[MAX_PATH];
+	int DestinatinLen, SourceLen;
 	const char * pType;
 	DWORD Flags;
 	BYTE Data[MAX_MOUNT_DATA]; //typically options

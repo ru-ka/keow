@@ -421,7 +421,7 @@ void  sys_chdir(CONTEXT* pCtx)
 {
 	char p[MAX_PATH];
 	char* unixp;
-
+DebugBreak();
 	MakeWin32Path((const char*)pCtx->Ebx, p, sizeof(p), true);
 	unixp = &p[pKernelSharedData->LinuxFileSystemRootLen];
 
