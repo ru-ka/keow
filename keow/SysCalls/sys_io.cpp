@@ -161,14 +161,14 @@ void  sys_read(CONTEXT* pCtx)
  */
 void  sys_access(CONTEXT* pCtx)
 {
-	char p[MAX_PATH];
+	Path p;
 	DWORD attr;
 	char ok = 1;
 	DWORD check = pCtx->Ecx;
 
-	MakeWin32Path((const char*)pCtx->Ebx, p, sizeof(p), true);
+	p.SetUnixPath((const char*)pCtx->Ebx);
 
-	attr = GetFileAttributes(p);
+	attr = GetFileAttributes(p.Win32Path());
 	if(attr==INVALID_FILE_ATTRIBUTES)
 	{
 		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
@@ -196,8 +196,7 @@ void  sys_access(CONTEXT* pCtx)
  */
 void  sys_open(CONTEXT* pCtx)
 {
-	char p[MAX_PATH];
-	char *unixp = &p[pKernelSharedData->LinuxFileSystemRootLen];
+	Path p;
 	DWORD access = pCtx->Ecx;
 	DWORD perms = pCtx->Edx;
 	int fd;
@@ -206,7 +205,7 @@ void  sys_open(CONTEXT* pCtx)
 
 	ktrace("open(%s, 0x%lx, 0%lo)\n", pCtx->Ebx, access, perms);
 
-	MakeWin32Path((const char*)pCtx->Ebx, p, sizeof(p), true);
+	p.SetUnixPath((const char*)pCtx->Ebx);
 
 	//find free handle entry
 	fd = FindFreeFD();
@@ -235,7 +234,7 @@ void  sys_open(CONTEXT* pCtx)
 
 
 	//open
-	ioh = CreateIOHandlerForPath(unixp);
+	ioh = CreateIOHandlerForPath(p.UnixPath());
 	if(ioh==NULL)
 	{
 		pCtx->Eax = -ENXIO; //no device available?
@@ -244,7 +243,7 @@ void  sys_open(CONTEXT* pCtx)
 
 	if(instanceof(ioh,FileIOHandler))
 	{
-		bool ok = ((FileIOHandler*)ioh)->Open(p, win32access, win32share, disposition, flags);
+		bool ok = ((FileIOHandler*)ioh)->Open(p.Win32Path(), win32access, win32share, disposition, flags);
 		if(!ok)
 		{
 			pCtx->Eax = -Win32ErrToUnixError(GetLastError());
@@ -419,21 +418,18 @@ void  sys_getcwd(CONTEXT* pCtx)
  */
 void  sys_chdir(CONTEXT* pCtx)
 {
-	char p[MAX_PATH];
-	char* unixp;
-DebugBreak();
-	MakeWin32Path((const char*)pCtx->Ebx, p, sizeof(p), true);
-	unixp = &p[pKernelSharedData->LinuxFileSystemRootLen];
+	Path p;
+	p.SetUnixPath((const char*)pCtx->Ebx);
 
-	if(!SetCurrentDirectory(p))
+	if(!SetCurrentDirectory(p.Win32Path()))
 	{
 		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
 		return;
 	}
 
-	ktrace("chdir %s\n", unixp);
+	ktrace("chdir %s\n", p.UnixPath());
 
-	StringCbCopy(pProcessData->unix_pwd, sizeof(pProcessData->unix_pwd), unixp);
+	StringCbCopy(pProcessData->unix_pwd, sizeof(pProcessData->unix_pwd), p.UnixPath());
 	pCtx->Eax = 0;
 }
 
@@ -682,12 +678,12 @@ void sys_stat(CONTEXT* pCtx)
 {
 	const char * fname = (const char*)pCtx->Ebx;
 	linux::stat * buf = (linux::stat*)pCtx->Ecx;
-	char p[MAX_PATH];
+	Path p;
 
-	MakeWin32Path(fname, p, sizeof(p), true);
+	p.SetUnixPath(fname);
 
 	FileIOHandler * ioh = new FileIOHandler();
-	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	if(ioh->Open(p.Win32Path(), 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
 	{
 		if(ioh->Stat(buf))
 		{
@@ -713,13 +709,13 @@ void sys_lstat(CONTEXT* pCtx)
 {
 	const char * fname = (const char*)pCtx->Ebx;
 	linux::stat * buf = (linux::stat*)pCtx->Ecx;
-	char p[MAX_PATH];
 
-	MakeWin32Path(fname, p, sizeof(p), false);
 	//don't resolve symbolic links for lstat
+	Path p(false);
+	p.SetUnixPath(fname);
 
 	FileIOHandler * ioh = new FileIOHandler();
-	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	if(ioh->Open(p.Win32Path(), 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
 	{
 		if(ioh->Stat(buf))
 		{
@@ -784,12 +780,12 @@ void sys_stat64(CONTEXT* pCtx)
 {
 	const char * fname = (const char*)pCtx->Ebx;
 	linux::stat64 * buf = (linux::stat64*)pCtx->Ecx;
-	char p[MAX_PATH];
 
-	MakeWin32Path(fname, p, sizeof(p), true);
+	Path p;
+	p.SetUnixPath(fname);
 
 	FileIOHandler * ioh = new FileIOHandler();
-	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	if(ioh->Open(p.Win32Path(), 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
 	{
 		if(ioh->Stat64(buf))
 		{
@@ -815,13 +811,13 @@ void sys_lstat64(CONTEXT* pCtx)
 {
 	const char * fname = (const char*)pCtx->Ebx;
 	linux::stat64 * buf = (linux::stat64*)pCtx->Ecx;
-	char p[MAX_PATH];
 
-	MakeWin32Path(fname, p, sizeof(p), false);
 	//don't resolve symbolic links for lstat
+	Path p(false);
+	p.SetUnixPath(fname);
 
 	FileIOHandler * ioh = new FileIOHandler();
-	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	if(ioh->Open(p.Win32Path(), 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
 	{
 		if(ioh->Stat64(buf))
 		{
@@ -883,27 +879,30 @@ void sys_fstat64(CONTEXT* pCtx)
  */
 void sys_readlink(CONTEXT* pCtx)
 {
-	char p[MAX_PATH];
 	int c;
 
-	MakeWin32Path((const char*)pCtx->Ebx, p, sizeof(p), false);
+	//don't follow symlinks
+	Path p;
+	p.FollowSymLinks(false);
+	p.SetUnixPath((const char*)pCtx->Ebx);
 
-	if(GetFileAttributes(p)==INVALID_FILE_ATTRIBUTES)
+	if(GetFileAttributes(p.Win32Path())==INVALID_FILE_ATTRIBUTES)
 	{
 		pCtx->Eax = -ENOENT; //no file
 	}
 	else
-	if(!IsSymbolicLink(p))
+	if(!IsSymbolicLink(p.Win32Path()))
 	{
 		pCtx->Eax = -EINVAL; //not a link
 	}
 	else
 	{
-		MakeWin32Path((const char*)pCtx->Ebx, p, sizeof(p), true);
+		//want to follow it now
+		p.FollowSymLinks(true);
 
 		//readlink does not copy the null!
 		char *pD = (char*)pCtx->Ecx;
-		const char *pS = &p[pKernelSharedData->LinuxFileSystemRootLen];
+		const char *pS = p.UnixPath();
 		int max = (int)pCtx->Edx;
 		for(c=0; *pS!=0 && c<max; ++c,++pD,++pS)
 		{
@@ -959,12 +958,12 @@ void sys_pipe(CONTEXT* pCtx)
  */
 void sys_link(CONTEXT* pCtx)
 {
-	char OldP[MAX_PATH], NewP[MAX_PATH];
+	Path OldP(false), NewP(false);
 
-	MakeWin32Path((const char*)pCtx->Ebx, OldP, sizeof(OldP), false);
-	MakeWin32Path((const char*)pCtx->Ecx, NewP, sizeof(NewP), false);
+	OldP.SetUnixPath((const char*)pCtx->Ebx);
+	NewP.SetUnixPath((const char*)pCtx->Ecx);
 
-	if(CreateHardLink(NewP, OldP, NULL))
+	if(CreateHardLink(NewP.Win32Path(), OldP.Win32Path(), NULL))
 		pCtx->Eax = 0;
 	else
 		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
@@ -976,11 +975,10 @@ void sys_link(CONTEXT* pCtx)
  */
 void sys_unlink(CONTEXT* pCtx)
 {
-	char p[MAX_PATH];
+	Path p(false);
+	p.SetUnixPath((const char *)pCtx->Ebx);
 
-	MakeWin32Path((const char *)pCtx->Ebx, p, sizeof(p), false);
-
-	if(DeleteFile(p))
+	if(DeleteFile(p.Win32Path()))
 	{
 		pCtx->Eax = 0;
 		return;
@@ -1150,12 +1148,12 @@ void sys__newselect(CONTEXT* pCtx)
  */
 void  sys_mkdir(CONTEXT* pCtx)
 {
-	char p[MAX_PATH];
 	DWORD mode = pCtx->Ecx;
 
-	MakeWin32Path((const char *)pCtx->Ebx, p, sizeof(p), false);
+	Path p;
+	p.SetUnixPath((const char *)pCtx->Ebx);
 
-	if(CreateDirectory(p, NULL))
+	if(CreateDirectory(p.Win32Path(), NULL))
 	{
 		pCtx->Eax = 0;
 		return;
@@ -1171,11 +1169,10 @@ void  sys_mkdir(CONTEXT* pCtx)
  */
 void  sys_rmdir(CONTEXT* pCtx)
 {
-	char p[MAX_PATH];
+	Path p(false);
+	p.SetUnixPath((const char *)pCtx->Ebx);
 
-	MakeWin32Path((const char *)pCtx->Ebx, p, sizeof(p), false);
-
-	if(RemoveDirectory(p))
+	if(RemoveDirectory(p.Win32Path()))
 	{
 		pCtx->Eax = 0;
 		return;

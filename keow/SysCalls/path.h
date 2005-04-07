@@ -26,10 +26,13 @@
 
 class Path {
 public:
-	Path();
+	Path(bool FollowSymLinks = true);
 	~Path();
 
-	void SetUnixPath(const char * unixp, bool FollowSymLinks = true);
+	void SetUnixPath(const char * unixp);
+	void AddUnixPath(const char * unixp);
+
+	void FollowSymLinks(bool follow);
 
 	const char * UnixPath();
 	const char * Win32Path();

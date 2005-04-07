@@ -567,10 +567,13 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 	//pProcessData->original_stack_esp = (ADDR)pTIB->pvStackUserTop;
 	ktrace("Stack ESP is @ 0x%08lx\n", pProcessData->original_stack_esp);
 
-	char pwd[MAX_PATH];
-	MakeWin32Path(pProcessData->unix_pwd, pwd, MAX_PATH, true);
+	//need to set current directory for the process?
 	if(strcmp(keyword, "INIT")!=0)
-		SetCurrentDirectory(pwd);
+	{
+		Path pwd;
+		pwd.SetUnixPath(pProcessData->unix_pwd);
+		SetCurrentDirectory(pwd.Win32Path());
+	}
 
 
 	//install exception handler for capturing INT 80h Linux kernel syscalls
@@ -753,151 +756,6 @@ static void GetLinkRelativePath(const char *fullpath, char* linkpath, int maxsiz
 		}
 	}
 }
-
-
-#define USE_NEW_PATH_CLASS
-#ifdef USE_NEW_PATH_CLASS
-
-//TODO: remove MakeWin32Path and later code that uses it
-void MakeWin32Path( const char * UnixPath, char * Win32Path, int maxsize, bool FollowSymLinks)
-{
-	//test new method
-	Path p2;
-	p2.SetUnixPath(UnixPath, FollowSymLinks);
-	ktrace("%s -> %s\n", p2.UnixPath(), p2.Win32Path());
-	strncpy(Win32Path, p2.Win32Path(), maxsize);
-}
-
-#else //USE_NEW_PATH_CLASS
-
-
-//Helper for MakeWin32Path
-//applies the relative path p (eg "../dir2") to unixpath
-static void addPath(const char* fullpath, char *unixpath, const char * p, bool FollowSymLinks)
-{
-	int uplen = strlen(unixpath);
-	int prevlen = uplen;
-	int max_uplen = MAX_PATH-(fullpath-unixpath); //some space already used
-
-	while(*p != '\0' && uplen < max_uplen)
-	{
-		if(uplen>0 && unixpath[uplen-1]!='/' && unixpath[uplen-1]!='\\')
-		{
-			unixpath[uplen]='/';
-			uplen++;
-			unixpath[uplen]=0;
-		}
-
-		if(*p=='/' || *p=='\\')
-		{
-			//this test only matches at the start (eg /usr) other slashes 
-			// get removed before a second iteration of the loop
-			unixpath[0] = '/'; //path starts at filesystem root
-			unixpath[1] = 0;
-			uplen=1;
-			p++;
-		}
-		else
-		if(*p=='.' && p[1]=='.' && (p[2]=='\0'||p[2]=='/'||p[2]=='\\'))
-		{
-			//change up a dir ".."
-
-			//skip trailing slash then the prev name
-			uplen--;  
-			while(uplen>0 && unixpath[uplen-1]!='/' && unixpath[uplen-1]!='\\')
-				uplen--;
-
-			// ../../.. etc right back to the root
-			if(uplen<=0)
-			{
-				unixpath[0] = '/'; //path starts at filesystem root
-				unixpath[1] = 0;
-				uplen=1;
-			}
-
-			//terminate
-			unixpath[uplen]=0;
-
-			p+=2;
-		}
-		else
-		if(*p=='.' && p[1]=='.' && (p[2]=='\0'||p[2]=='/'||p[2]=='\\'))
-		{
-			//same dir "."
-			//ignore
-			p++;
-		}
-		else
-		{
-			//a dir/file name to add to the unixpath
-
-			//name starts here
-			const char *s = p;
-			//where is the end of the name
-			while(*p!=0 && *p!='/' && *p!='\\')
-				p++;
-
-			//copy the name over (including any trailing slash)
-			StringCbCopyN(&unixpath[uplen], max_uplen-uplen, s, p-s);
-			uplen += (p-s);
-			unixpath[uplen] = 0;
-		}
-
-		//skip extraneous slashes (eg. as in: /usr/lib//)
-		while(*p=='/' || *p=='\\')
-			p++;
-
-		//check that the name we currently have is not a link we need to follow
-		StringCbCopyN(&unixpath[uplen], max_uplen-uplen, ".lnk", max_uplen-uplen);
-		if(GetFileAttributes(fullpath)!=INVALID_FILE_ATTRIBUTES)
-		{
-			if(FollowSymLinks)
-			{
-				char linkpath[MAX_PATH];
-				GetLinkRelativePath(fullpath, linkpath, sizeof(linkpath));
-				unixpath[prevlen] = 0; //remove the last peice and replace it
-				addPath(fullpath, unixpath, linkpath, FollowSymLinks);
-				uplen=strlen(unixpath);
-			}
-			else
-			{
-				uplen+=4; //sizeof ".lnk"
-			}
-		}
-		unixpath[uplen] = 0;
-
-		prevlen = uplen;
-	}
-	unixpath[uplen] = 0;
-}
-
-/*
- * Using LinuxFileSystem root kernel parameter to build correct win32 path
- * Also take care of kernel "mount points".
- */
-void MakeWin32Path( const char * UnixPath, char * Win32Path, int maxsize, bool FollowSymLinks)
-{
-	char *p;
-
-	//will always start here
-	StringCbCopy(Win32Path, maxsize, pKernelSharedData->LinuxFileSystemRoot);
-	//this point on can be altered by addpath
-	p=&Win32Path[strlen(Win32Path)];
-
-	//current path
-	StringCbCopy(p, maxsize-(p-Win32Path), pProcessData->unix_pwd);
-
-	//add requested path
-	addPath(Win32Path, p, UnixPath, FollowSymLinks);
-
-	ktrace("%s\n",p);
-
-	//test new method
-	Path p2;
-	p2.SetUnixPath(UnixPath, FollowSymLinks);
-	ktrace("%s -> %s\n", p2.UnixPath(), p2.Win32Path());
-}
-#endif //USE_NEW_PATH_CLASS
 
 
 
@@ -1106,7 +964,7 @@ bool IsSymbolicLink(const char *Win32Path)
 	for(int i=0; i<2; ++i)
 	{
 		destpath[0] = 0;
-		StringCbCopy(sourcepath, sizeof(sourcepath), Win32Path);
+		StringCbCopy(sourcepath, sizeof(sourcepath)-5, Win32Path);
 		if(i>0)
 			StringCbCat(sourcepath, sizeof(sourcepath), ".lnk");
 

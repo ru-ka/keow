@@ -223,7 +223,6 @@ extern HANDLE hKernelLock;
 
 void kernel_init();
 void kernel_term();
-void MakeWin32Path( const char * UnixPath, char * Win32Path, int maxsize, bool FollowSymLinks);
 int Win32ErrToUnixError(DWORD err);
 void ktrace(const char * format, ...);
 int AllocatePID();

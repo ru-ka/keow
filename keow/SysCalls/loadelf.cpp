@@ -311,7 +311,9 @@ _declspec(dllexport) int LoadELFFile(PELF_Data pElf, const char * filename, bool
 
 	ktrace("LoadELFFile %s\n", filename);
 
-	MakeWin32Path(filename, pElf->filepath, sizeof(pElf->filepath), true);
+	Path p;
+	p.SetUnixPath(filename);
+	strncpy(pElf->filepath, p.Win32Path(), sizeof(pElf->filepath));
 
 	fElf = fopen(pElf->filepath,"rb");
 	if(fElf==NULL)

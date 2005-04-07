@@ -28,12 +28,12 @@
 extern HRESULT GetShortCutTarget(LPCSTR lpszLinkFile, LPSTR lpszPath);
 
 
-Path::Path()
+Path::Path(bool FollowSymLinks)
 {
 	m_UnixPath[0] = 0;
 	m_Win32Path[0] = 0;
 	m_Win32Calculated = false;
-	m_FollowSymLinks = true;
+	m_FollowSymLinks = FollowSymLinks;
 }
 Path::~Path()
 {
@@ -52,20 +52,37 @@ const char * Path::UnixPath()
 }
 
 
-void Path::SetUnixPath(const char * unixp, bool FollowSymLinks)
+void Path::SetUnixPath(const char * unixp)
 {
-	m_FollowSymLinks = FollowSymLinks;
-
 	if(unixp[0] != '/')
 		strncpy(m_UnixPath, pProcessData->unix_pwd, MAX_PATH-1);
+	else
+		m_UnixPath[0] = 0;
+
+	AddUnixPath(unixp);
+}
+
+void Path::AddUnixPath(const char * unixp)
+{
+	if(unixp[0] == '/')
+		m_UnixPath[0] = 0;
+
 	int len = strlen(m_UnixPath);
 	if(len>0 && m_UnixPath[len-1]!='/') {
 		m_UnixPath[len]='/';
 		m_UnixPath[len+1]=0;
 	}
+
 	strncat(m_UnixPath, unixp, MAX_PATH-strlen(m_UnixPath));
 
 	CollapseUnixPath();
+}
+
+
+void Path::FollowSymLinks(bool follow)
+{
+	m_FollowSymLinks = follow;
+	m_Win32Calculated = false;
 }
 
 
