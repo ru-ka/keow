@@ -23,9 +23,8 @@
 
 #include "kernel.h"
 #include "path.h"
+#include "filesys.h"
 
-
-extern HRESULT GetShortCutTarget(LPCSTR lpszLinkFile, LPSTR lpszPath);
 
 
 Path::Path(bool FollowSymLinks)
@@ -34,21 +33,27 @@ Path::Path(bool FollowSymLinks)
 	m_Win32Path[0] = 0;
 	m_Win32Calculated = false;
 	m_FollowSymLinks = FollowSymLinks;
+	m_nMountPoint = -1; //none, root
+	m_nUnixPathMountPath = 0;
 }
 Path::~Path()
 {
+	//never free m_FsHandler - we don't own it
 }
 
 
 const char * Path::Win32Path()
 {
-	if(!m_Win32Calculated)
-		CalculateWin32Path();
+	CalculateWin32Path();
 	return m_Win32Path;
 }
 const char * Path::UnixPath()
 {
 	return m_UnixPath;
+}
+const char * Path::CurrentFileSystemUnixPath()
+{
+	return &m_UnixPath[m_nUnixPathMountPath];
 }
 
 
@@ -139,12 +144,19 @@ void Path::CollapseUnixPath()
  */
 void Path::CalculateWin32Path()
 {
+	if(m_Win32Calculated)
+		return;
+
 	//always start here
 	StringCbCopy(m_Win32Path, MAX_PATH, pKernelSharedData->LinuxFileSystemRoot);
+
+	m_nMountPoint = -1; //none, root
+	FileSystemHandler* h = FileSystemHandler::RootFileSystemHandler;
 
 	//apply requested path
 	char *pStart = m_UnixPath;
 	char *pEnd;
+	int nOldMount = m_nMountPoint;
 	do {
 		while(*pStart == '/')
 			pStart++; //don't want the slash
@@ -157,73 +169,60 @@ void Path::CalculateWin32Path()
 		char save = *pEnd;
 		*pEnd = 0;
 
-		ApplyPathElement(pStart);
+		h->ApplyPathElement(*this, pStart);
+
+		//changed?
+		if(m_nMountPoint != -1)
+			h = FileSystemHandler::Get( pKernelSharedData->MountPoints[m_nMountPoint].nFsHandler );
+
+		ktrace("fs:%s, ApplyPathElement:%s => %s\n", h->Name(), pStart, m_Win32Path);
 
 		//restore
 		*pEnd = save;
 
+		//new mount?
+		if(m_nMountPoint != nOldMount)
+		{
+			//first directory in the new mount
+			m_nUnixPathMountPath = pStart - m_UnixPath;
+
+			nOldMount = m_nMountPoint;
+		}
+
 		pStart = pEnd; //next char to process
 	} while(*pStart != 0); //not null terminator
 
-	ktrace("%s -> %s\n", m_UnixPath, m_Win32Path);
+	ktrace("%s -> [%s] %s\n", m_UnixPath, h->Name(), m_Win32Path);
 	m_Win32Calculated = true;
 }
 
 
-/* append a single file or directory name to the path
- * take care when traversing mount points and symlinks
- */
-void Path::ApplyPathElement(const char *pStr)
+FileSystemHandler * Path::GetFileSystemHandler()
 {
-	StringCbCat(m_Win32Path, MAX_PATH-strlen(m_Win32Path), "\\");
-	char * pWin32OldEnd = &m_Win32Path[strlen(m_Win32Path)];
-	StringCbCat(m_Win32Path, MAX_PATH-strlen(m_Win32Path), pStr);
+	CalculateWin32Path();
 
-	//check that the name we currently have is not a mount point we need to resolve
-	//!!! rely on pStr being a null terminated substring of m_UnixPath so if we examine
-	//!!!  m_UnixPath right now it will be null terminated right at the point we are
-	//!!!  currently considering
-	for(int m=0; m<pKernelSharedData->NumCurrentMounts; ++m)
-	{
-		MountPointDataStruct &mnt = pKernelSharedData->MountPoints[m];
+	FileSystemHandler* h = FileSystemHandler::RootFileSystemHandler;
+	if(m_nMountPoint != -1)
+		h = FileSystemHandler::Get( pKernelSharedData->MountPoints[m_nMountPoint].nFsHandler );
 
-		if(strcmp(mnt.Destination, m_UnixPath) == 0)
-		{
-			//TODO: use a pointer to a resolver routine instead of fs type tests here
-			if(strcmp("keow", mnt.Type) == 0)
-			{
-				//follow this mount by replacing with a new path
-				StringCbCopy(m_Win32Path, MAX_PATH-strlen(m_Win32Path), mnt.Source);
-			}
-			else
-			{
-				ktrace("Panic: unhandled filesystem type: %s\n", mnt.Type);
-				ExitProcess(-11);
-			}
-		}
-	}
+	return h;
+}
 
-	//check that the name we currently have is not a link we need to follow
-	char * pWin32End = &m_Win32Path[strlen(m_Win32Path)];
-	StringCbCat(m_Win32Path, MAX_PATH-strlen(m_Win32Path), ".lnk");
-	if(GetFileAttributes(m_Win32Path)==INVALID_FILE_ATTRIBUTES)
-		*pWin32End = 0; //remove the .lnk
-	else
-	{
-		if(m_FollowSymLinks)
-		{
-			char szTarget[MAX_PATH];
-			//try to open the file as a windows shortcut
-			HRESULT hr = GetShortCutTarget(m_Win32Path, szTarget);
-			if(SUCCEEDED(hr))
-			{
-				//remove link name and replace with what it refers to
-				*pWin32OldEnd = 0;
-				if(PathIsRelative(szTarget))
-					StringCbCat(m_Win32Path, MAX_PATH-strlen(m_Win32Path), szTarget);
-				else
-					StringCbCopy(m_Win32Path, MAX_PATH-strlen(m_Win32Path), szTarget);
-			}
-		}
-	}
+
+IOHandler* Path::CreateIOHandler()
+{
+	CalculateWin32Path();
+	return GetFileSystemHandler()->CreateIOHandler(*this);
+}
+
+bool Path::IsSymbolicLink()
+{
+	CalculateWin32Path();
+	return GetFileSystemHandler()->IsSymbolicLink(*this);
+}
+
+int Path::GetUnixFileType()
+{
+	CalculateWin32Path();
+	return GetFileSystemHandler()->GetUnixFileType(*this);
 }

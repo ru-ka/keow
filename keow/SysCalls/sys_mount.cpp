@@ -112,8 +112,8 @@ void sys_mount(CONTEXT* pCtx)
 		strncpy(mnt.Source, source, MAX_PATH);
 		mnt.SourceLen = strlen(mnt.Source); 
 		mnt.Flags = mountflags;
-		strncpy(mnt.Type, "keow", sizeof(mnt.Type)-1);
-		//data not required for this fs type
+		strncpy(mnt.Data, (char*)data, sizeof(mnt.Data)-1);
+		mnt.nFsHandler = FileSystemHandler::GetIndex("keow");
 		pKernelSharedData->NumCurrentMounts++;
 
 		pCtx->Eax = 0;

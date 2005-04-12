@@ -49,7 +49,6 @@ static bool ktrace_should_append = false;
 ULARGE_INTEGER Time1Jan1970;
 
 
-HRESULT GetShortCutTarget(LPCSTR lpszLinkFile, LPSTR lpszPath);
 DWORD WINAPI SignalThreadMain(LPVOID param);
 
 
@@ -733,31 +732,6 @@ extern "C" _declspec(dllexport) void HandleSysCall( CONTEXT * pCtx )
 
 
 
-//Helper 
-//if fullpath is a link make linkpath the relative locate it refers to
-//otherwise linkpath is blank
-static void GetLinkRelativePath(const char *fullpath, char* linkpath, int maxsize)
-{
-	HRESULT hr;
-	char szTarget[MAX_PATH]; 
-
-	*linkpath = 0;
-
-	//try to open the file as a windows shortcut
-	hr = GetShortCutTarget(fullpath, szTarget);
-	if(SUCCEEDED(hr))
-	{
-		if(PathIsRelative(szTarget))
-			StringCbCopy(linkpath, maxsize, szTarget);
-		else
-		{
-			//make linkpath a relative path from link to target
-			PathRelativePathTo(linkpath, fullpath, FILE_ATTRIBUTE_NORMAL, szTarget, FILE_ATTRIBUTE_NORMAL);
-		}
-	}
-}
-
-
 
 
 /*
@@ -892,128 +866,6 @@ int FindFreeFD()
 		return -1;
 	else
 		return fd;
-}
-
-
-/*
- * construct an iohandler suitable for manipulating a path
- * the iohandler is minimally initialized on return (may not have done Open for example)
- */
-IOHandler* CreateIOHandlerForPath(const char * UnixPath)
-{
-	static const char tty_prefix[] = "/dev/tty";
-	static const char dev_prefix[] = "/dev/";
-
-	if(strcmp(UnixPath, "/dev/tty") == 0)
-	{
-		//TODO:
-		/*
-		//find terminal we are attached to
-		for(int i=0; i<MAX_TERMINALS; ++i) 
-		{
-		}
-		return NULL; //no controlling tty?
-		*/
-		return new ConsoleIOHandler(CONSOLE0_NUM, false); //existing console window
-	}
-	else
-	if(strncmp(UnixPath, tty_prefix, sizeof(tty_prefix)-1) == 0)
-	{
-		// it is /dev/tty*
-		int num = atoi(&UnixPath[sizeof(tty_prefix)-1]);
-		if(num >= NUM_CONSOLE_TERMINALS)
-			return NULL; //no device
-		//allocate a console if one is not around
-		//return a ConsoleIOHandler for it
-		//return new ConsoleIOHandler()
-		return NULL; //TODO
-	}
-	else
-	if(strcmp(UnixPath, "/dev/console") == 0)
-	{
-		return new ConsoleIOHandler(CONSOLE0_NUM, false); //existing console window
-	}
-	else
-	if(strcmp(UnixPath, "/dev/null") == 0)
-	{
-		return new DevNullIOHandler();
-	}
-	else
-	if(strcmp(UnixPath, "/dev/zero") == 0)
-	{
-		return new DevZeroIOHandler();
-	}
-	else
-	if(strncmp(UnixPath, dev_prefix, sizeof(dev_prefix)-1) == 0)
-	{
-		ktrace("unhandled device requested: %s\n", UnixPath);
-		return NULL;
-	}
-	else
-	{
-		return new FileIOHandler();
-	}
-}
-
-
-bool IsSymbolicLink(const char *Win32Path)
-{
-	char sourcepath[MAX_PATH];
-	char destpath[MAX_PATH];
-
-	for(int i=0; i<2; ++i)
-	{
-		destpath[0] = 0;
-		StringCbCopy(sourcepath, sizeof(sourcepath)-5, Win32Path);
-		if(i>0)
-			StringCbCat(sourcepath, sizeof(sourcepath), ".lnk");
-
-		if(GetFileAttributes(sourcepath)!=INVALID_FILE_ATTRIBUTES)
-		{
-			GetLinkRelativePath(sourcepath, destpath, sizeof(destpath));
-			if(destpath[0]!=0)
-				return true;
-		}
-	}
-
-	return false;
-}
-
-int GetUnixFileType(const char* Win32Path)
-{
-	const char *UnixPath = &Win32Path[pKernelSharedData->LinuxFileSystemRootLen];
-
-	if(strncmp(UnixPath, "/dev/", 5) == 0)
-		return S_IFBLK;//|S_IFCHR; // - block or character device - should return one or the other!
-
-	DWORD attr = GetFileAttributes(Win32Path);
-	if(attr == INVALID_FILE_ATTRIBUTES)
-	{
-		ktrace("GetFileAddributes err=0x%lx on %s\n", GetLastError(), Win32Path);
-		return 0; //nothing
-	}
-
-	if(attr & FILE_ATTRIBUTE_DIRECTORY)
-		return S_IFDIR;
-
-	if(IsSymbolicLink(Win32Path))
-		return S_IFLNK;
-
-	return S_IFREG; //regular file
-
-	/*
-#define S_IFMT  00170000
-#define S_IFSOCK 0140000
-#define S_IFLNK	 0120000
-#define S_IFREG  0100000
-#define S_IFBLK  0060000
-#define S_IFDIR  0040000
-#define S_IFCHR  0020000
-#define S_IFIFO  0010000
-#define S_ISUID  0004000
-#define S_ISGID  0002000
-#define S_ISVTX  0001000
-	*/
 }
 
 

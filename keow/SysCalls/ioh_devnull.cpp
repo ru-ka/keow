@@ -34,6 +34,12 @@ DevNullIOHandler::DevNullIOHandler()
 }
 
 
+bool DevNullIOHandler::Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags)
+{
+	//was always open
+	return true;
+}
+
 bool DevNullIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 {
 	if(pRead)
@@ -93,4 +99,21 @@ bool DevNullIOHandler::HasException()
 {
 	//always ok?
 	return false;
+}
+
+
+
+int DevNullIOHandler::GetDirEnts64(linux::dirent64 *, int maxbytes)
+{
+	return 0;
+}
+
+DWORD DevNullIOHandler::Length()
+{
+	return 0;
+}
+
+DWORD DevNullIOHandler::Seek(DWORD offset, DWORD method)
+{
+	return -1;
 }

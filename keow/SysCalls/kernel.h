@@ -180,9 +180,9 @@ struct MountPointDataStruct {
 	char Source[MAX_PATH];
 	char Destination[MAX_PATH];
 	int DestinatinLen, SourceLen;
-	char Type[9];
 	DWORD Flags;
-	BYTE Data[MAX_MOUNT_DATA]; //typically options
+	char Data[MAX_MOUNT_DATA]; //typically options
+	int nFsHandler;	//index into FileSystemHandler::FileSystemTable
 };
 
 
@@ -223,15 +223,15 @@ extern HANDLE hKernelLock;
 
 void kernel_init();
 void kernel_term();
-int Win32ErrToUnixError(DWORD err);
 void ktrace(const char * format, ...);
+
+int Win32ErrToUnixError(DWORD err);
 int AllocatePID();
 int FindFreeFD();
-IOHandler* CreateIOHandlerForPath(const char * UnixPath);
-int GetUnixFileType(const char* Win32Path);
+
 void MemoryDump(const char *msg, const void * from_addr, DWORD sz);
-bool IsSymbolicLink(const char* Win32Path);
 void GenerateCoreDump();
+
 bool IsThreadSuspended(HANDLE hThread);
 bool WaitForThreadToSuspend(HANDLE hThread);
 

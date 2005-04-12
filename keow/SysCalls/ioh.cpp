@@ -34,7 +34,7 @@ IOHandler::IOHandler(int size)
 	m_Handle = INVALID_HANDLE_VALUE;
 	m_Inheritable = true; //default
 	m_Flags = 0;
-	m_Path[0] = 0;
+	m_Path.SetUnixPath("/");
 }
 
 IOHandler::~IOHandler()
@@ -46,7 +46,7 @@ bool IOHandler::DupBaseData(IOHandler& from, HANDLE hFromProcess, HANDLE hToProc
 {
 	m_Inheritable = from.m_Inheritable;
 	m_Flags = from.m_Flags;
-	StringCbCopy(m_Path, sizeof(m_Path), from.m_Path);
+	m_Path = from.m_Path;
 
 	//dup with inheritance allowed
 	if(from.m_Handle==INVALID_HANDLE_VALUE)
@@ -73,11 +73,11 @@ bool IOHandler::Close()
 
 const char * IOHandler::GetWin32Path()
 {
-	return m_Path;
+	return m_Path.Win32Path();
 }
 const char * IOHandler::GetUnixPath()
 {
-	return &m_Path[pKernelSharedData->LinuxFileSystemRootLen];
+	return m_Path.UnixPath();
 }
 
 
@@ -134,7 +134,7 @@ void IOHandler::BasicStat64(linux::stat64 * s, int file_type)
 	if(file_type)
 		s->st_mode |= file_type;
 	else
-		s->st_mode |= GetUnixFileType(m_Path);
+		s->st_mode |= m_Path.GetUnixFileType();
 
 	s->st_nlink = 1;
 	s->st_uid = 0;

@@ -26,15 +26,14 @@
 #include <stdlib.h>
 
 
-char msg[100];
-HMODULE hLibSyscalls;
+char msg[100] = "";
+HMODULE hLibSyscalls = 0;
 
 typedef void (*PHandleSysCall)(CONTEXT *pCtx);
-PHandleSysCall HandleSysCall;
+PHandleSysCall HandleSysCall = 0;
 
 typedef void (*PProcess_Init)(const char* keyword, int pid, const char * KernelInstance);
-PProcess_Init Process_Init;
-
+PProcess_Init Process_Init = 0;
 
 
 int main(int argc, char ** argv)
