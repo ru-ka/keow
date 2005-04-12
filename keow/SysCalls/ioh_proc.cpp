@@ -210,10 +210,16 @@ bool ProcIOHandler::CalculateProcObject()
 	if(!pProcPath)
 		return false;
 
-	char * p = strtok(pProcPath+1, "/"); //+1 to skip the initial '/'
+	//possible that we have not path, so don't need p
+	char * p = NULL;
+	if(*pProcPath) {
+		p = strtok(pProcPath+1, "/"); //+1 to skip the initial '/'
+	}
+
 	bool ok = false;
 
-	if(p==NULL)
+	if(*pProcPath==0
+	|| p==0)
 	{
 		//the proc root directory - contents is pid's and system entries
 
@@ -231,14 +237,18 @@ bool ProcIOHandler::CalculateProcObject()
 		{
 			if(pKernelSharedData->ProcessTable[i].in_use)
 			{
-				m_dwDataSize += StringCbPrintfA((char*)&m_pProcObjectData[m_dwDataOffset], 6, "%d", i);
+				StringCbPrintfA((char*)&m_pProcObjectData[m_dwDataSize], 6, "%d", i);
+				while(m_pProcObjectData[m_dwDataSize]!=NULL) {
+					m_dwDataSize++;
+				}
 				m_dwDataSize++; //include the null
 			}
 		}
 		//add constant stuff
-		memcpy(&m_pProcObjectData[m_dwDataOffset], proc_root_common, sizeof(proc_root_common));
+		memcpy(&m_pProcObjectData[m_dwDataSize], proc_root_common, sizeof(proc_root_common));
 		m_dwDataSize += sizeof(proc_root_common);
 
+		ok = true;
 	}
 	else
 	if(isdigit(*p))
@@ -260,6 +270,8 @@ bool ProcIOHandler::CalculateProcObject()
 			m_dwDataSize = sizeof(proc_pid_files);
 			m_pProcObjectData = new BYTE[m_dwDataSize];
 			memcpy(m_pProcObjectData, proc_pid_files, m_dwDataSize);
+
+			ok = true;
 		}
 		else
 		if(strcmp(p,"cmdline")==0)
@@ -285,6 +297,7 @@ bool ProcIOHandler::CalculateProcObject()
 				p+=len;
 			}
 
+			ok = true;
 		}
 		else
 		{
