@@ -184,7 +184,7 @@ void Path::CalculateWin32Path()
 		if(m_nMountPoint != nOldMount)
 		{
 			//first directory in the new mount
-			m_nUnixPathMountPath = pStart - m_UnixPath;
+			m_nUnixPathMountPath = pEnd - m_UnixPath;
 
 			nOldMount = m_nMountPoint;
 		}
