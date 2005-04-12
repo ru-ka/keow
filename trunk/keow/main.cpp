@@ -157,11 +157,11 @@ void AutoMountDrives()
 
 		if(GetFileAttributes(drive)!=INVALID_FILE_ATTRIBUTES)
 		{
-			printf("automatic drive mount: %s on /mnt/%c\n", drive, *pMntLetter);
-
 			CreateDirectory(mnt, NULL);
 			if(GetFileAttributes(mnt)&FILE_ATTRIBUTE_DIRECTORY)
 			{
+				printf("automatic drive mount: %s on /mnt/%c\n", drive, *pMntLetter);
+
 				//record the mount
 				MountPointDataStruct& mp = pKernelSharedData->MountPoints[pKernelSharedData->NumCurrentMounts];
 				StringCbPrintf(mp.Destination, MAX_PATH, "/mnt/%c", *pMntLetter);
@@ -169,8 +169,8 @@ void AutoMountDrives()
 				strncpy(mp.Source, drive, MAX_PATH);
 				mp.SourceLen = strlen(mp.Source); 
 				mp.Flags = 0;
-				strncpy(mp.Type, "keow", sizeof(mp.Type)-1);
-				//data not required for this fs type
+				mp.nFsHandler = KEOW_FS_INDEX;
+				mp.Data[0] = 0;
 				pKernelSharedData->NumCurrentMounts++;
 
 				//update /etc/mtab
@@ -183,6 +183,26 @@ void AutoMountDrives()
 		}
 
 		++letter;
+	}
+
+	//also want /proc mounted
+	CreateDirectory("proc", NULL);
+	if(GetFileAttributes("proc")&FILE_ATTRIBUTE_DIRECTORY)
+	{
+		//record the mount
+		MountPointDataStruct& mp = pKernelSharedData->MountPoints[pKernelSharedData->NumCurrentMounts];
+		strncpy(mp.Destination, "/proc", MAX_PATH);
+		mp.DestinatinLen = strlen(mp.Destination); 
+		strncpy(mp.Source, "/proc", MAX_PATH);
+		mp.SourceLen = strlen(mp.Source); 
+		mp.Flags = 0;
+		mp.nFsHandler = PROC_FS_INDEX;
+		mp.Data[0] = 0;
+		pKernelSharedData->NumCurrentMounts++;
+
+		//update /etc/mtab
+		if(fMtab)
+			fprintf(fMtab, "/proc /proc proc rw 0 0 %c", 0x0a);
 	}
 
 	if(fMtab)

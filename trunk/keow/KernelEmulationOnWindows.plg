@@ -6,53 +6,86 @@
 --------------------Configuration: SysCalls - Win32 Debug--------------------
 </h3>
 <h3>Command Lines</h3>
-Creating temporary file "C:\Temp\RSP9B5.tmp" with contents
+Creating temporary file "C:\Temp\RSP4D3.tmp" with contents
 [
-/nologo /MDd /W3 /Gm /GR /GX /ZI /Od /I "kernel-headers-2.4.24-1\include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "SYSCALLS_EXPORTS" /Fp"../Debug/SysCalls.pch" /YX /Fo"../Debug/" /Fd"../Debug/" /FD /GZ /c 
-"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\SysCalls\sys_io.cpp"
+/nologo /MDd /W3 /Gm /GR /GX /ZI /Od /I "kernel-headers-2.4.24-1\include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "SYSCALLS_EXPORTS" /Fp"Debug/SysCalls.pch" /YX /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\SysCalls\ioh_proc.cpp"
 ]
-Creating command line "cl.exe @C:\Temp\RSP9B5.tmp" 
-Creating temporary file "C:\Temp\RSP9B6.tmp" with contents
+Creating command line "cl.exe @C:\Temp\RSP4D3.tmp" 
+Creating temporary file "C:\Temp\RSP4D4.tmp" with contents
 [
-kernel32.lib user32.lib gdi32.lib advapi32.lib shell32.lib shlwapi.lib ole32.lib /nologo /base:"0x60000000" /dll /incremental:yes /pdb:"../Debug/SysCalls.pdb" /debug /machine:I386 /out:"../Debug/SysCalls.dll" /implib:"../Debug/SysCalls.lib" /pdbtype:sept 
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\core.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\dllmain.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\forkexec.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\ioh.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\ioh_console.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\ioh_devnull.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\ioh_devzero.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\ioh_file.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\ioh_pipe.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\kernel.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\loadelf.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\memory.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\shortcuts.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\signals.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\sys_io.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\sys_mem.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\sys_mount.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\sys_net.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\sys_none.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\sys_perms.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\sys_process.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\sys_rtsig.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\sys_sys.obj"
-"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\path.obj"
+kernel32.lib user32.lib gdi32.lib advapi32.lib shell32.lib shlwapi.lib ole32.lib /nologo /base:"0x60000000" /dll /incremental:yes /pdb:"../Debug/SysCalls.pdb" /map:"Debug/SysCalls.map" /debug /machine:I386 /out:"../Debug/SysCalls.dll" /implib:"../Debug/SysCalls.lib" /pdbtype:sept 
+".\Debug\core.obj"
+".\Debug\dllmain.obj"
+".\Debug\forkexec.obj"
+".\Debug\fs_keow.obj"
+".\Debug\ioh.obj"
+".\Debug\ioh_console.obj"
+".\Debug\ioh_devnull.obj"
+".\Debug\ioh_devzero.obj"
+".\Debug\ioh_file.obj"
+".\Debug\ioh_pipe.obj"
+".\Debug\kernel.obj"
+".\Debug\loadelf.obj"
+".\Debug\memory.obj"
+".\Debug\path.obj"
+".\Debug\shortcuts.obj"
+".\Debug\signals.obj"
+".\Debug\sys_io.obj"
+".\Debug\sys_mem.obj"
+".\Debug\sys_mount.obj"
+".\Debug\sys_net.obj"
+".\Debug\sys_none.obj"
+".\Debug\sys_perms.obj"
+".\Debug\sys_process.obj"
+".\Debug\sys_rtsig.obj"
+".\Debug\sys_sys.obj"
+".\Debug\filesys.obj"
+".\Debug\fs_proc.obj"
+".\Debug\ioh_proc.obj"
 ]
-Creating command line "link.exe @C:\Temp\RSP9B6.tmp"
+Creating command line "link.exe @C:\Temp\RSP4D4.tmp"
 <h3>Output Window</h3>
 Compiling...
-sys_io.cpp
+ioh_proc.cpp
 Linking...
+   Creating library ../Debug/SysCalls.lib and object ../Debug/SysCalls.exp
 <h3>
 --------------------Configuration: ProcessStub - Win32 Debug--------------------
 </h3>
 <h3>Command Lines</h3>
+Creating temporary file "C:\Temp\RSP4D8.tmp" with contents
+[
+kernel32.lib msvcrt.lib /nologo /base:"0x7000000" /version:0.1 /stack:0x400000,0x400000 /subsystem:console /incremental:yes /pdb:"../Debug/ProcessStub.pdb" /map:"Debug/ProcessStub.map" /debug /machine:I386 /nodefaultlib /out:"../Debug/ProcessStub.exe" /pdbtype:sept 
+".\Debug\stub.obj"
+".\Debug\Resources.res"
+"\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\Debug\SysCalls.lib"
+]
+Creating command line "link.exe @C:\Temp\RSP4D8.tmp"
+<h3>Output Window</h3>
+Linking...
 <h3>
 --------------------Configuration: KernelEmulationOnWindows - Win32 Debug--------------------
 </h3>
 <h3>Command Lines</h3>
+Creating temporary file "C:\Temp\RSP4D9.tmp" with contents
+[
+/nologo /MTd /W3 /Gm /GX /ZI /Od /I "syscalls\kernel-headers-2.4.24-1\include" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FR"Debug/" /Fp"Debug/KernelEmulationOnWindows.pch" /YX /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\main.cpp"
+]
+Creating command line "cl.exe @C:\Temp\RSP4D9.tmp" 
+Creating temporary file "C:\Temp\RSP4DA.tmp" with contents
+[
+.\Debug\SysCalls.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /version:0.1 /subsystem:console /incremental:yes /pdb:"Debug/KernelEmulationOnWindows.pdb" /map:"Debug/KernelEmulationOnWindows.map" /debug /machine:I386 /out:"Debug/KernelEmulationOnWindows.exe" /pdbtype:sept 
+".\Debug\main.obj"
+".\Debug\Resources.res"
+".\Debug\SysCalls.lib"
+]
+Creating command line "link.exe @C:\Temp\RSP4DA.tmp"
+<h3>Output Window</h3>
+Compiling...
+main.cpp
+Linking...
 
 
 

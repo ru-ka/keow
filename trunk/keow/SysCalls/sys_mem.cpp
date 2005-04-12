@@ -120,7 +120,7 @@ void sys_mmap(CONTEXT* pCtx)
 		ioh = dynamic_cast<FileIOHandler*>(pProcessData->FileHandlers[args->fd]);
 		if(ioh==NULL)
 		{
-			pCtx->Eax = -EACCES; //not a file
+			pCtx->Eax = -EACCES; //not a simple file - can't handle that
 			return;
 		}
 

@@ -125,6 +125,19 @@ ConsoleIOHandler::ConsoleIOHandler(int nDeviceNum, bool initialise)
 }
 
 
+bool ConsoleIOHandler::Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags)
+{
+	//was always open
+	//TODO: move constructor stuff here. Do we need to?
+	return true;
+}
+bool ConsoleIOHandler::Close()
+{
+	CloseHandle(m_HandleOut); //additional one for us to free
+	return IOHandler::Close();
+}
+
+
 bool ConsoleIOHandler::PushForNextRead(const char * pString) 
 {
 	int len = strlen(pString);
@@ -986,4 +999,21 @@ bool ConsoleIOHandler::HasException()
 {
 	//TODO: what could this be?
 	return false;
+}
+
+
+
+int ConsoleIOHandler::GetDirEnts64(linux::dirent64 *, int maxbytes)
+{
+	return 0;
+}
+
+DWORD ConsoleIOHandler::Length()
+{
+	return 0;
+}
+
+DWORD ConsoleIOHandler::Seek(DWORD offset, DWORD method)
+{
+	return 0;
 }

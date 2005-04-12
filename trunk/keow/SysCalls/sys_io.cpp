@@ -234,22 +234,19 @@ void  sys_open(CONTEXT* pCtx)
 
 
 	//open
-	ioh = CreateIOHandlerForPath(p.UnixPath());
+	ioh = p.CreateIOHandler();
 	if(ioh==NULL)
 	{
 		pCtx->Eax = -ENXIO; //no device available?
 		return;
 	}
 
-	if(instanceof(ioh,FileIOHandler))
+	bool ok = ioh->Open(p, win32access, win32share, disposition, flags);
+	if(!ok)
 	{
-		bool ok = ((FileIOHandler*)ioh)->Open(p.Win32Path(), win32access, win32share, disposition, flags);
-		if(!ok)
-		{
-			pCtx->Eax = -Win32ErrToUnixError(GetLastError());
-			delete ioh;
-			return;
-		}
+		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		delete ioh;
+		return;
 	}
 
 
@@ -439,7 +436,7 @@ void  sys_chdir(CONTEXT* pCtx)
 void sys_fchdir(CONTEXT* pCtx)
 {
 	int fd;
-	FileIOHandler * ioh;
+	IOHandler * ioh;
 
 	fd = pCtx->Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
@@ -448,12 +445,7 @@ void sys_fchdir(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = dynamic_cast<FileIOHandler*>(pProcessData->FileHandlers[fd]);
-	if(ioh==NULL)
-	{
-		pCtx->Eax = -EBADF;
-		return;
-	}
+	ioh = pProcessData->FileHandlers[fd];
 
 	//delegate
 	pCtx->Ebx = (DWORD)ioh->GetUnixPath();
@@ -640,7 +632,7 @@ void sys_getdents64(CONTEXT* pCtx)
 	int maxbytes = pCtx->Edx;
 	int filled = 0;
 	int fd;
-	FileIOHandler * ioh;
+	IOHandler * ioh;
 
 	fd = pCtx->Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
@@ -649,12 +641,7 @@ void sys_getdents64(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = dynamic_cast<FileIOHandler*>(pProcessData->FileHandlers[fd]);
-	if(ioh==NULL)
-	{
-		pCtx->Eax = -EBADF;
-		return;
-	}
+	ioh = pProcessData->FileHandlers[fd];
 
 	filled = ioh->GetDirEnts64(s, maxbytes);
 	if(filled >= 0)
@@ -682,8 +669,14 @@ void sys_stat(CONTEXT* pCtx)
 
 	p.SetUnixPath(fname);
 
-	FileIOHandler * ioh = new FileIOHandler();
-	if(ioh->Open(p.Win32Path(), 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	IOHandler * ioh = p.CreateIOHandler();
+	if(ioh==NULL)
+	{
+		pCtx->Eax = -ENOMEM;
+		return;
+	}
+
+	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
 	{
 		if(ioh->Stat(buf))
 		{
@@ -699,6 +692,7 @@ void sys_stat(CONTEXT* pCtx)
 		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
 	}
 
+	delete ioh;
 }
 
 
@@ -714,8 +708,14 @@ void sys_lstat(CONTEXT* pCtx)
 	Path p(false);
 	p.SetUnixPath(fname);
 
-	FileIOHandler * ioh = new FileIOHandler();
-	if(ioh->Open(p.Win32Path(), 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	IOHandler * ioh = p.CreateIOHandler();
+	if(ioh==NULL)
+	{
+		pCtx->Eax = -ENOMEM;
+		return;
+	}
+
+	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
 	{
 		if(ioh->Stat(buf))
 		{
@@ -731,6 +731,7 @@ void sys_lstat(CONTEXT* pCtx)
 		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
 	}
 
+	delete ioh;
 }
 
 
@@ -741,7 +742,7 @@ void sys_fstat(CONTEXT* pCtx)
 {
 	linux::stat * buf = (linux::stat*)pCtx->Ecx;
 	int fd;
-	FileIOHandler * ioh;
+	IOHandler * ioh;
 
 	fd = pCtx->Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
@@ -750,13 +751,7 @@ void sys_fstat(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = dynamic_cast<FileIOHandler*>(pProcessData->FileHandlers[fd]);
-	if(ioh==NULL)
-	{
-		pCtx->Eax = -EBADF;
-		return;
-	}
-
+	ioh = pProcessData->FileHandlers[fd];
 
 	if(ioh->Stat(buf))
 	{
@@ -784,8 +779,14 @@ void sys_stat64(CONTEXT* pCtx)
 	Path p;
 	p.SetUnixPath(fname);
 
-	FileIOHandler * ioh = new FileIOHandler();
-	if(ioh->Open(p.Win32Path(), 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	IOHandler * ioh = p.CreateIOHandler();
+	if(ioh==NULL)
+	{
+		pCtx->Eax = -ENOMEM;
+		return;
+	}
+
+	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
 	{
 		if(ioh->Stat64(buf))
 		{
@@ -801,6 +802,7 @@ void sys_stat64(CONTEXT* pCtx)
 		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
 	}
 
+	delete ioh;
 }
 
 
@@ -816,8 +818,14 @@ void sys_lstat64(CONTEXT* pCtx)
 	Path p(false);
 	p.SetUnixPath(fname);
 
-	FileIOHandler * ioh = new FileIOHandler();
-	if(ioh->Open(p.Win32Path(), 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	IOHandler * ioh = p.CreateIOHandler();
+	if(ioh==NULL)
+	{
+		pCtx->Eax = -ENOMEM;
+		return;
+	}
+
+	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
 	{
 		if(ioh->Stat64(buf))
 		{
@@ -833,6 +841,7 @@ void sys_lstat64(CONTEXT* pCtx)
 		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
 	}
 
+	delete ioh;
 }
 
 
@@ -891,7 +900,7 @@ void sys_readlink(CONTEXT* pCtx)
 		pCtx->Eax = -ENOENT; //no file
 	}
 	else
-	if(!IsSymbolicLink(p.Win32Path()))
+	if(!p.IsSymbolicLink())
 	{
 		pCtx->Eax = -EINVAL; //not a link
 	}
@@ -1242,7 +1251,7 @@ void sys_rename(CONTEXT* pCtx)
 	NewP.SetUnixPath((const char *)pCtx->Ecx);
 
 	char * p2 = NULL;
-	if(IsSymbolicLink(OldP.Win32Path()))
+	if(OldP.IsSymbolicLink())
 	{
 		int len = strlen(p2);
 		len+=4;
@@ -1250,7 +1259,6 @@ void sys_rename(CONTEXT* pCtx)
 		StringCbPrintf(p2, len, "%s.lnk", NewP.Win32Path);
 	}
 
-	DebugBreak();
 	if(MoveFileEx(OldP.Win32Path(), p2?p2:NewP.Win32Path(), MOVEFILE_REPLACE_EXISTING))
 		pCtx->Eax = 0;
 	else

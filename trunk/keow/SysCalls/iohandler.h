@@ -25,6 +25,8 @@
 #define KEOW_IOHANDLER_H
 
 #include "linux_includes.h"
+#include "path.h"
+
 
 struct TerminalDeviceDataStruct;
 
@@ -37,6 +39,9 @@ class IOHandler
 public:
 	virtual ~IOHandler();
 
+	virtual bool Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags) = 0;
+	virtual bool Close();
+
 	virtual bool Read(void* address, DWORD size, DWORD *pRead) = 0;
 	virtual bool Write(const void* address, DWORD size, DWORD *pWritten) = 0;
 	virtual IOHandler* Duplicate(HANDLE hFromProcess, HANDLE hToProcess) = 0;
@@ -46,14 +51,17 @@ public:
 	virtual const char * GetWin32Path();
 	virtual const char * GetUnixPath();
 
-	virtual bool Close();
-
 	//for select() to use
 	virtual bool CanRead() = 0;
 	virtual bool CanWrite() = 0;
 	virtual bool HasException() = 0;
 
-	bool Stat(linux::stat *);
+	virtual int GetDirEnts64(linux::dirent64 *, int maxbytes) = 0;
+	virtual DWORD Length() = 0;
+	virtual DWORD Seek(DWORD offset, DWORD method) = 0;
+
+
+	bool Stat(linux::stat *); //not virtual - relies on virtual Stat64
 
 	inline HANDLE GetHandle()					{return m_Handle;}
 	inline void SetHandle(HANDLE h)				{m_Handle=h;}
@@ -68,7 +76,7 @@ protected:
 	bool DupBaseData(IOHandler& from, HANDLE hFromProcess, HANDLE hToProcess);
 	void BasicStat64(linux::stat64 * s, int file_type);
 
-	char m_Path[MAX_PATH];
+	Path m_Path;
 	int m_ClassSize;
 	HANDLE m_Handle;
 	bool m_Inheritable;
@@ -84,23 +92,22 @@ public:
 
 	//FileIOHandler& operator=(FileIOHandler& other);
 
-	bool Open(const char * filename, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags);
+	bool Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags);
+	bool Close();
+
 	bool Read(void* address, DWORD size, DWORD *pRead);
 	bool Write(const void* address, DWORD size, DWORD *pWritten);
 	IOHandler* Duplicate(HANDLE hFromProcess, HANDLE hToProcess);
 	DWORD ioctl(DWORD request, DWORD data);
 	bool Stat64(linux::stat64 *);
 
-	bool Close();
+	int GetDirEnts64(linux::dirent64 *, int maxbytes);
+	DWORD Length();
+	DWORD Seek(DWORD offset, DWORD method);
 
 	bool CanRead();
 	bool CanWrite();
 	bool HasException();
-
-	int GetDirEnts64(linux::dirent64 *, int maxbytes);
-	DWORD Length();
-
-	DWORD Seek(DWORD offset, DWORD method);
 
 protected:
 	bool m_IsADirectory;
@@ -117,11 +124,18 @@ public:
 
 	//PipeIOHandler& operator=(PipeIOHandler& other);
 
+	bool Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags);
+	//bool Close();
+
 	bool Read(void* address, DWORD size, DWORD *pRead);
 	bool Write(const void* address, DWORD size, DWORD *pWritten);
 	IOHandler* Duplicate(HANDLE hFromProcess, HANDLE hToProcess);
 	DWORD ioctl(DWORD request, DWORD data);
 	bool Stat64(linux::stat64 *);
+
+	int GetDirEnts64(linux::dirent64 *, int maxbytes);
+	DWORD Length();
+	DWORD Seek(DWORD offset, DWORD method);
 
 	bool CanRead();
 	bool CanWrite();
@@ -138,11 +152,18 @@ public:
 
 	//ConsoleIOHandler& operator=(ConsoleIOHandler& other);
 
+	bool Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags);
+	bool Close();
+
 	bool Read(void* address, DWORD size, DWORD *pRead);
 	bool Write(const void* address, DWORD size, DWORD *pWritten);
 	IOHandler* Duplicate(HANDLE hFromProcess, HANDLE hToProcess);
 	DWORD ioctl(DWORD request, DWORD data);
 	bool Stat64(linux::stat64 *);
+
+	int GetDirEnts64(linux::dirent64 *, int maxbytes);
+	DWORD Length();
+	DWORD Seek(DWORD offset, DWORD method);
 
 	bool CanRead();
 	bool CanWrite();
@@ -164,11 +185,18 @@ class DevZeroIOHandler : public IOHandler
 public:
 	DevZeroIOHandler();
 
+	bool Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags);
+	//bool Close();
+
 	bool Read(void* address, DWORD size, DWORD *pRead);
 	bool Write(const void* address, DWORD size, DWORD *pWritten);
 	IOHandler* Duplicate(HANDLE hFromProcess, HANDLE hToProcess);
 	DWORD ioctl(DWORD request, DWORD data);
 	bool Stat64(linux::stat64 *);
+
+	int GetDirEnts64(linux::dirent64 *, int maxbytes);
+	DWORD Length();
+	DWORD Seek(DWORD offset, DWORD method);
 
 	bool CanRead();
 	bool CanWrite();
@@ -183,17 +211,63 @@ class DevNullIOHandler : public IOHandler
 public:
 	DevNullIOHandler();
 
+	bool Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags);
+	//bool Close();
+
 	bool Read(void* address, DWORD size, DWORD *pRead);
 	bool Write(const void* address, DWORD size, DWORD *pWritten);
 	IOHandler* Duplicate(HANDLE hFromProcess, HANDLE hToProcess);
 	DWORD ioctl(DWORD request, DWORD data);
 	bool Stat64(linux::stat64 *);
 
+	int GetDirEnts64(linux::dirent64 *, int maxbytes);
+	DWORD Length();
+	DWORD Seek(DWORD offset, DWORD method);
+
 	bool CanRead();
 	bool CanWrite();
 	bool HasException();
 
 protected:
+};
+
+
+// for accessing things in proc filesystem
+class ProcIOHandler : public IOHandler
+{
+public:
+	ProcIOHandler(Path path);
+
+	bool Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags);
+	bool Close();
+
+	bool Read(void* address, DWORD size, DWORD *pRead);
+	bool Write(const void* address, DWORD size, DWORD *pWritten);
+	IOHandler* Duplicate(HANDLE hFromProcess, HANDLE hToProcess);
+	DWORD ioctl(DWORD request, DWORD data);
+	bool Stat64(linux::stat64 *);
+
+	int GetDirEnts64(linux::dirent64 *, int maxbytes);
+	DWORD Length();
+	DWORD Seek(DWORD offset, DWORD method);
+
+	bool CanRead();
+	bool CanWrite();
+	bool HasException();
+
+protected:
+	bool CalculateProcObject();
+
+	enum ProcObjectTypeEnum {
+		TypeData,
+		TypeSymLink,
+		TypeDir
+	};
+
+	Path m_Path;
+	ProcObjectTypeEnum m_ProcObjectType;
+	BYTE * m_pProcObjectData;
+	DWORD m_dwDataOffset, m_dwDataSize;
 };
 
 

@@ -41,6 +41,28 @@ PipeIOHandler::PipeIOHandler(HANDLE h)
 }
 
 
+//opening a specific named pipe (as opposed to opening a handle for a child process)
+bool PipeIOHandler::Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags)
+{
+DebugBreak();
+	Close();
+	m_Path = filepath;
+
+	HANDLE h = CreateFile(m_Path.Win32Path(), access, ShareMode, NULL, disposition, flags, NULL);
+	//can inherit handle....
+	if(h==INVALID_HANDLE_VALUE)
+	{
+		if(m_Handle!=INVALID_HANDLE_VALUE)
+			CloseHandle(m_Handle);
+		m_Handle = INVALID_HANDLE_VALUE;
+	}
+	else
+		DuplicateHandle(GetCurrentProcess(), h, GetCurrentProcess(), &m_Handle, 0, TRUE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
+
+	return m_Handle!=INVALID_HANDLE_VALUE;
+}
+
+
 bool PipeIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 {
 	if((m_Flags&O_NONBLOCK) == 0)
@@ -149,4 +171,20 @@ bool PipeIOHandler::HasException()
 {
 	//TODO: what could this be?
 	return false;
+}
+
+
+int PipeIOHandler::GetDirEnts64(linux::dirent64 *, int maxbytes)
+{
+	return 0;
+}
+
+DWORD PipeIOHandler::Length()
+{
+	return 0;
+}
+
+DWORD PipeIOHandler::Seek(DWORD offset, DWORD method)
+{
+	return -1;
 }

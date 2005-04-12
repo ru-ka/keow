@@ -33,6 +33,12 @@ DevZeroIOHandler::DevZeroIOHandler()
 {
 }
 
+bool DevZeroIOHandler::Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags)
+{
+	//was always open
+	return true;
+}
+
 
 bool DevZeroIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 {
@@ -90,4 +96,20 @@ bool DevZeroIOHandler::HasException()
 {
 	//always ok?
 	return false;
+}
+
+
+int DevZeroIOHandler::GetDirEnts64(linux::dirent64 *, int maxbytes)
+{
+	return 0;
+}
+
+DWORD DevZeroIOHandler::Length()
+{
+	return 0;
+}
+
+DWORD DevZeroIOHandler::Seek(DWORD offset, DWORD method)
+{
+	return 0;
 }

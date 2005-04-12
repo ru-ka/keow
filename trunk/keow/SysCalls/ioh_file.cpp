@@ -46,22 +46,22 @@ bool FileIOHandler::Close()
 }
 
 
-bool FileIOHandler::Open(const char * filename, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags)
+bool FileIOHandler::Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags)
 {
-	StringCbCopy(m_Path, sizeof(m_Path), filename);
+	m_Path = filepath;
 
 	if(m_hFindData != INVALID_HANDLE_VALUE)
 		FindClose(m_hFindData);
 	m_hFindData = INVALID_HANDLE_VALUE;
 
-	DWORD attr = GetFileAttributes(filename);
+	DWORD attr = GetFileAttributes(m_Path.Win32Path());
 	if((attr!=INVALID_FILE_ATTRIBUTES) && (attr & FILE_ATTRIBUTE_DIRECTORY))
 	{
 		m_IsADirectory = true;
 		flags = FILE_FLAG_BACKUP_SEMANTICS;
 	}
 
-	HANDLE h = CreateFile(filename, access, ShareMode, NULL, disposition, flags, NULL);
+	HANDLE h = CreateFile(m_Path.Win32Path(), access, ShareMode, NULL, disposition, flags, NULL);
 	//can inherit handle....
 	if(h==INVALID_HANDLE_VALUE)
 	{
@@ -146,7 +146,7 @@ bool FileIOHandler::Stat64(linux::stat64 * s)
 		s->st_mode = 0555;  // r-xr-xr-x
 	else
 		s->st_mode = 0755;  // rwxrwxrwx
-	s->st_mode |= GetUnixFileType(m_Path);
+	s->st_mode |= m_Path.GetUnixFileType();
 
 	s->st_nlink = fi.nNumberOfLinks;
 	s->st_uid = 0;
@@ -226,7 +226,7 @@ int FileIOHandler::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 		if(m_hFindData==INVALID_HANDLE_VALUE)
 		{
 			char DirPattern[MAX_PATH];
-			StringCbPrintf(DirPattern, sizeof(DirPattern), "%s/*.*", m_Path);
+			StringCbPrintf(DirPattern, sizeof(DirPattern), "%s/*.*", m_Path.Win32Path());
 
 			m_hFindData = FindFirstFile(DirPattern, &wfd);
 			//can't inherit handle, so set count of 'find' so child processes can recreate our state
@@ -270,7 +270,7 @@ int FileIOHandler::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 
 		StringCbCopy(de->d_name, sizeof(de->d_name), wfd.cFileName);
 
-		if(IsSymbolicLink(p.Win32Path()))
+		if(p.IsSymbolicLink())
 		{
 			//ensure name we return does not end in .lnk
 			int e = strlen(de->d_name) - 4;
