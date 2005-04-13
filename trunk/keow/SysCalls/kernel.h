@@ -134,12 +134,14 @@ struct ProcessDataStruct {
 	int signal_blocked[MAX_SIGNALS];
 	int signal_depth;
 
+	FILETIME StartedTime;
+
 	//If you add or alter fields, also update all in forkexec.cpp and kernel.cpp
 
 
 	//-------------------------------------------------------------------------
 
-	//Data below this line cannot be safely duplicated (it is local pointer)
+	//Data below this line cannot be safely duplicated (it is local pointers)
 	//It is recorded here to allow fork() child process to use ReadMemory to get it
 
 	IOHandler* FileHandlers[MAX_OPEN_FILES];
