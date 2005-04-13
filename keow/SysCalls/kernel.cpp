@@ -520,6 +520,7 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 	pProcessData = &pKernelSharedData->ProcessTable[pid];
 	pProcessData->PID = pid;
 	pProcessData->exitcode = -SIGSEGV; //in case no set later
+	GetSystemTimeAsFileTime(&pProcessData->StartedTime);
 	//need originater to set this or exec etc: pProcessData->MainThreadID = GetCurrentThreadId();
 	pProcessData->hKernelDebugFile = INVALID_HANDLE_VALUE;
 

@@ -266,6 +266,11 @@ public:
 
 protected:
 	bool CalculateProcObject();
+	bool PopulateData();
+
+	int m_nPopulator;  //NOT a pointer - so we can copy between processes: see PopulateData()
+	bool m_bPopulated;
+	int m_RelaventPid;
 
 	Path m_Path;
 	ProcObjectTypeEnum m_ProcObjectType;
