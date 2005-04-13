@@ -58,7 +58,7 @@ void sys_mount(CONTEXT* pCtx)
 	Path p;
 	p.SetUnixPath(target);
 
-	DWORD attr = GetFileAttributes(p.Win32Path());
+	DWORD attr = p.GetFileAttributes();
 	if(attr==INVALID_FILE_ATTRIBUTES)
 	{
 		pCtx->Eax = ENOTDIR;

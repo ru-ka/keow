@@ -177,7 +177,7 @@ void AutoMountDrives()
 				if(fMtab)
 				{
 					//eg: c:/ /mnt/c keow rw 0 0
-					fprintf(fMtab, "%c:\\  /mnt/%c  keow rw 0 0 %c", *pMntLetter, *pMntLetter, 0x0a);
+					fprintf(fMtab, "%c:\\  /mnt/%c  keow rw 0 0 \x0a", *pMntLetter, *pMntLetter);
 				}
 			}
 		}
@@ -202,7 +202,7 @@ void AutoMountDrives()
 
 		//update /etc/mtab
 		if(fMtab)
-			fprintf(fMtab, "/proc /proc proc rw 0 0 %c", 0x0a);
+			fprintf(fMtab, "/proc /proc proc rw 0 0 \x0a");
 	}
 
 	if(fMtab)
@@ -236,6 +236,19 @@ void InitKernelData()
 	StringCbCopy(s, MAX_PATH-strlen(pKernelSharedData->ProcessStubFilename), "\\ProcessStub.exe");
 
 	pKernelSharedData->LastAllocatedPID = 1; //we'll allocate that
+
+	GetSystemTime(&pKernelSharedData->BootTime);
+
+	//simple - probably doesn't match the kernel
+	pKernelSharedData->BogoMips = 0;
+	const DWORD msSample = 1000;
+	DWORD dwEnd = GetTickCount() + msSample;
+	while(GetTickCount() < dwEnd) {
+		Sleep(0);
+		pKernelSharedData->BogoMips++;
+	}
+	pKernelSharedData->BogoMips /= msSample;
+	printf("keow bogomips: %ld\n", pKernelSharedData->BogoMips);
 
 	//A dummy stub to let's the SysCalls dll init before we start using it
 	Process_Init("INIT", 0, KernelInstance);

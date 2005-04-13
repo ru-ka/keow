@@ -44,7 +44,7 @@ void KeowFs::ApplyPathElement(Path& path, const char *pStr)
 	//check that the name we currently have is not a link we need to follow
 	char * pWin32End = &path.m_Win32Path[strlen(path.m_Win32Path)];
 	StringCbCat(path.m_Win32Path, MAX_PATH-strlen(path.m_Win32Path), ".lnk");
-	if(GetFileAttributes(path.m_Win32Path)==INVALID_FILE_ATTRIBUTES)
+	if(::GetFileAttributes(path.m_Win32Path)==INVALID_FILE_ATTRIBUTES)
 		*pWin32End = 0; //remove the .lnk
 	else
 	{
@@ -189,7 +189,7 @@ bool KeowFs::IsSymbolicLink(Path& path)
 		if(i>0)
 			StringCbCat(sourcepath, sizeof(sourcepath), ".lnk");
 
-		if(GetFileAttributes(sourcepath)!=INVALID_FILE_ATTRIBUTES)
+		if(::GetFileAttributes(sourcepath)!=INVALID_FILE_ATTRIBUTES)
 		{
 			GetLinkRelativePath(sourcepath, destpath, sizeof(destpath));
 			if(destpath[0]!=0)
@@ -202,10 +202,10 @@ bool KeowFs::IsSymbolicLink(Path& path)
 
 int KeowFs::GetUnixFileType(Path& path)
 {
-	DWORD attr = GetFileAttributes(path.Win32Path());
+	DWORD attr = GetFileAttributes(path);
 	if(attr == INVALID_FILE_ATTRIBUTES)
 	{
-		ktrace("GetFileAddributes err=0x%lx on %s\n", GetLastError(), path.Win32Path());
+		//ktrace("GetFileAddributes err=0x%lx on %s\n", GetLastError(), path.Win32Path());
 		return 0; //nothing
 	}
 
@@ -230,5 +230,10 @@ int KeowFs::GetUnixFileType(Path& path)
 #define S_ISGID  0002000
 #define S_ISVTX  0001000
 	*/
+}
+
+DWORD KeowFs::GetFileAttributes(Path& path)
+{
+	return ::GetFileAttributes(path.Win32Path());
 }
 

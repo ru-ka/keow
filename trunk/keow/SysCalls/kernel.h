@@ -195,6 +195,10 @@ struct KernelSharedDataStruct {
 
 	int LastAllocatedPID;
 
+	SYSTEMTIME BootTime;
+	DWORD BogoMips;
+	DWORD ForksSinceBoot;
+
 	char KernelInstanceName[MAX_PATH];
 	int KernelDebug;
 

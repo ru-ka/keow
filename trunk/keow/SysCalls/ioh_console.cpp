@@ -1008,12 +1008,12 @@ int ConsoleIOHandler::GetDirEnts64(linux::dirent64 *, int maxbytes)
 	return 0;
 }
 
-DWORD ConsoleIOHandler::Length()
+ULONGLONG ConsoleIOHandler::Length()
 {
-	return 0;
+	return 0L;
 }
 
-DWORD ConsoleIOHandler::Seek(DWORD offset, DWORD method)
+ULONGLONG ConsoleIOHandler::Seek(ULONGLONG offset, DWORD method)
 {
-	return 0;
+	return 0L;
 }

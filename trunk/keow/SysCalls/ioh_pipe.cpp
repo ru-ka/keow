@@ -179,12 +179,12 @@ int PipeIOHandler::GetDirEnts64(linux::dirent64 *, int maxbytes)
 	return 0;
 }
 
-DWORD PipeIOHandler::Length()
+ULONGLONG PipeIOHandler::Length()
 {
 	return 0;
 }
 
-DWORD PipeIOHandler::Seek(DWORD offset, DWORD method)
+ULONGLONG PipeIOHandler::Seek(ULONGLONG offset, DWORD method)
 {
 	return -1;
 }

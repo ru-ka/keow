@@ -108,12 +108,12 @@ int DevNullIOHandler::GetDirEnts64(linux::dirent64 *, int maxbytes)
 	return 0;
 }
 
-DWORD DevNullIOHandler::Length()
+ULONGLONG DevNullIOHandler::Length()
 {
 	return 0;
 }
 
-DWORD DevNullIOHandler::Seek(DWORD offset, DWORD method)
+ULONGLONG DevNullIOHandler::Seek(ULONGLONG offset, DWORD method)
 {
 	return -1;
 }

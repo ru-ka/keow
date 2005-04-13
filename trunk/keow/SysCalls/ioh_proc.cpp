@@ -33,6 +33,7 @@ ProcIOHandler::ProcIOHandler(Path path)
 , m_Path(path)
 , m_pProcObjectData(NULL)
 {
+	CalculateProcObject();
 }
 
 bool ProcIOHandler::Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags)
@@ -46,7 +47,6 @@ bool ProcIOHandler::Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD di
 		SetLastError(ERROR_PATH_NOT_FOUND);
 		return false;
 	}
-	m_dwDataOffset = 0;
 
 	return true;
 }
@@ -63,12 +63,12 @@ bool ProcIOHandler::Close()
 bool ProcIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 {
 	//EOF?
-	if(m_dwDataOffset > m_dwDataSize
+	if(m_dwDataOffset >= m_dwDataSize
 	|| m_pProcObjectData == NULL )
 	{
 		if(pRead)
 			*pRead = 0;
-		return false;
+		return true;
 	}
 
 	DWORD dwAvail = m_dwDataSize-m_dwDataOffset;
@@ -122,7 +122,56 @@ bool ProcIOHandler::Stat64(linux::stat64 * s)
 	if(!s)
 		return false;
 
-	IOHandler::BasicStat64(s, S_IFREG);
+	IOHandler::BasicStat64(s, 0);
+
+	//if(writable)
+	//	s->st_mode = 0744;  // rwxr--r--
+	//else
+		s->st_mode = 0444;  // r--r--r--
+
+	switch(m_ProcObjectType)
+	{
+	case TypeDir:
+		s->st_mode |= S_IFDIR;
+		s->st_nlink = 1; //should really be number of entries in dir?
+		s->st_size = m_dwDataSize; //??
+		break;
+
+	case TypeSymLink:
+		s->st_mode |= S_IFLNK;
+		s->st_nlink = 1;
+		s->st_size = m_dwDataSize; //??
+		break;
+
+	case TypeData:
+	default:
+		//regular file data
+		s->st_mode |= S_IFREG;
+		s->st_nlink = 1;
+		s->st_size = m_dwDataSize;
+		break;
+	}
+
+
+	s->st_uid = 0;
+	s->st_gid = 0;
+
+	s->st_dev = 3<<8|4;  //????
+	s->st_rdev = 3<<8|4;
+
+	s->st_ino = 1999;    //dummy inode
+	s->__st_ino = 1999;
+
+	s->st_blksize = 512; //block size for efficient IO
+	
+	s->st_blocks = (unsigned long)((s->st_size+511) / 512); //size in 512 byte blocks
+
+	FILETIME ft;
+	GetSystemTimeAsFileTime(&ft);
+	s->st_atime = FILETIME_TO_TIME_T(ft);
+	s->st_mtime = FILETIME_TO_TIME_T(ft);
+	s->st_ctime = FILETIME_TO_TIME_T(ft);
+
 
 	return true;
 }
@@ -151,6 +200,9 @@ int ProcIOHandler::GetDirEnts64(linux::dirent64 * de, int maxbytes)
 	if(m_ProcObjectType != TypeDir)
 		return 0;
 
+	if(m_dwDataOffset >= m_dwDataSize)
+		return 0;
+
 	//return one entry
 
 	de->d_ino = 1; //dummy value
@@ -164,21 +216,30 @@ int ProcIOHandler::GetDirEnts64(linux::dirent64 * de, int maxbytes)
 	StringCbCopy(de->d_name, sizeof(de->d_name), (char*)&m_pProcObjectData[m_dwDataOffset]);
 
 //	filled += de->d_reclen;
+	while(m_pProcObjectData[m_dwDataOffset]!=NULL)
+		m_dwDataOffset++;
+	m_dwDataOffset++; //skip over the null terminator
 
 	return 1;
 }
 
-DWORD ProcIOHandler::Length()
+ULONGLONG ProcIOHandler::Length()
 {
 	return m_dwDataSize;
 }
 
-DWORD ProcIOHandler::Seek(DWORD offset, DWORD method)
+ULONGLONG ProcIOHandler::Seek(ULONGLONG uoffset, DWORD method)
 {
+	DWORD offset;
+	if(uoffset > ULONG_MAX)
+		offset = ULONG_MAX;
+	else
+		offset = (DWORD)uoffset;
+
 	switch(method) //Win32 methods
 	{
 	case FILE_END:
-		m_dwDataOffset = m_dwDataSize - offset;
+		m_dwDataOffset = (m_dwDataSize-1) - offset;
 		if(m_dwDataOffset > m_dwDataSize)
 			m_dwDataOffset = m_dwDataSize;
 		break;
@@ -205,6 +266,8 @@ bool ProcIOHandler::CalculateProcObject()
 	if(m_pProcObjectData)
 		delete m_pProcObjectData;
 	m_pProcObjectData = NULL;
+	m_dwDataSize = 0;
+	m_dwDataOffset = 0;
 
 	char * pProcPath = strdup(m_Path.CurrentFileSystemUnixPath());
 	if(!pProcPath)
@@ -225,8 +288,8 @@ bool ProcIOHandler::CalculateProcObject()
 
 		m_ProcObjectType = TypeDir;
 
-		//make a dummy directory contents - just filenames
-		const char proc_root_common[] = "cpuinfo\0meminfo\0\0";
+		//make a dummy directory contents - just filenames (include . and ..)
+		const char proc_root_common[] = ".\0..\0self\0cpuinfo\0meminfo\0uptime\0stat";
 
 		//allow a 5byte pid and a null per process + common stuff
 		m_pProcObjectData = new BYTE[MAX_PROCESSES*6 + sizeof(proc_root_common)];
@@ -251,10 +314,15 @@ bool ProcIOHandler::CalculateProcObject()
 		ok = true;
 	}
 	else
-	if(isdigit(*p))
+	if(isdigit(*p)
+	|| strcmp(p, "self")==0)
 	{
 		//is a pid sub-directory
-		int pid = atoi(p);
+		int pid;
+		if(isdigit(*p))
+			pid = atoi(p);
+		else
+			pid = pProcessData->PID; //self
 
 		//what pid object?
 		p = strtok(NULL, "/");
@@ -264,8 +332,8 @@ bool ProcIOHandler::CalculateProcObject()
 			//just the pid directory
 			m_ProcObjectType = TypeDir;
 
-			//make a dummy directory contents - just filenames
-			const char proc_pid_files[] = "cmdline\0cwd\0environ\0exe\0fd\0maps\0mem\0root\0stat\0statm\0status\0\0";
+			//make a dummy directory contents - just filenames (include . and ..)
+			const char proc_pid_files[] = ".\0..\0cmdline\0cwd\0environ\0exe\0fd\0maps\0mem\0root\0stat\0statm\0status";
 
 			m_dwDataSize = sizeof(proc_pid_files);
 			m_pProcObjectData = new BYTE[m_dwDataSize];
@@ -276,39 +344,198 @@ bool ProcIOHandler::CalculateProcObject()
 		else
 		if(strcmp(p,"cmdline")==0)
 		{
-			m_dwDataSize = 0;
-			for(int i=0; pKernelSharedData->ProcessTable[pid].argv[i]!=0; ++i) {
-				//include room for a space
-				if(i>0)
-					m_dwDataSize++;
-				m_dwDataSize += strlen(pKernelSharedData->ProcessTable[pid].argv[i]);
-			}
-
+			//TODO: get full commandline
+			m_ProcObjectType = TypeData;
+			m_dwDataSize = sizeof(pKernelSharedData->ProcessTable[pid].ProgramPath);
 			m_pProcObjectData = new BYTE[m_dwDataSize];
-			char *p = (char*)m_pProcObjectData;
-			for(i=0; pKernelSharedData->ProcessTable[pid].argv[i]!=0; ++i) {
-				//space seperated
-				if(i>0) {
-					*p = ' ';
-					p++;
-				}
-				int len = strlen(pKernelSharedData->ProcessTable[pid].argv[i]);
-				memcpy(p, pKernelSharedData->ProcessTable[pid].argv[i], len+1); //include the null
-				p+=len;
-			}
-
+			memcpy(m_pProcObjectData, pKernelSharedData->ProcessTable[pid].ProgramPath, m_dwDataSize);
+			m_dwDataSize = strlen((char*)m_pProcObjectData)+1; //include null
 			ok = true;
 		}
 		else
+		if(strcmp(p,"cwd")==0)
 		{
-			//unknown
-			ok = false;
+			m_ProcObjectType = TypeSymLink;
+			m_dwDataSize = sizeof(pKernelSharedData->ProcessTable[pid].unix_pwd);
+			m_pProcObjectData = new BYTE[m_dwDataSize];
+			memcpy(m_pProcObjectData, pKernelSharedData->ProcessTable[pid].unix_pwd, m_dwDataSize);
+			m_dwDataSize = strlen((char*)m_pProcObjectData)+1; //include null
+			ok = true;
+		}
+		else
+		if(strcmp(p,"environ")==0)
+		{
+		}
+		else
+		if(strcmp(p,"exe")==0)
+		{
+		}
+		else
+		if(strcmp(p,"fd")==0)
+		{
+		}
+		else
+		if(strcmp(p,"maps")==0)
+		{
+		}
+		else
+		if(strcmp(p,"mem")==0)
+		{
+		}
+		else
+		if(strcmp(p,"root")==0)
+		{
+		}
+		else
+		if(strcmp(p,"stat")==0)
+		{
+		}
+		else
+		if(strcmp(p,"statm")==0)
+		{
+		}
+		else
+		if(strcmp(p,"status")==0)
+		{
 		}
 	}
 	else
+	if(strcmp(p,"meminfo")==0)
 	{
-		//system-wide proc entry
+		//build a buffer of info
+		//eg:
+		//           total:      used:      free:
+		//  Mem:   737132544  370999296  366133248
+		//  Swap:  301989888   32059392  269930496
+		//  MemTotal:         719856 kB
+		//  MemFree:          357552 kB
+		//  MemShared:             0 kB
+		//  SwapTotal:        294912 kB
+		//  SwapFree:         263604 kB
+
+		m_ProcObjectType = TypeData;
+
+		m_dwDataSize = 4000; //more than enough?
+		m_pProcObjectData = new BYTE[m_dwDataSize];
+
+		MEMORYSTATUS ms;
+		ms.dwLength = sizeof(ms);
+		GlobalMemoryStatus(&ms);
+
+		StringCbPrintf((char*)m_pProcObjectData, m_dwDataSize,
+				"\t  total:  \t   used:  \t   free: \x0a"
+				"Mem: \t%10ld \t%10ld \t%10ld \x0a"
+				"Swap:\t%10ld \t%10ld \t%10ld \x0a"
+				"MemTotal: \t%10ld kB\x0a"
+				"MemFree:  \t%10ld kB\x0a"
+				"MemShared:\t%10ld kB\x0a"
+				"SwapTotal:\t%10ld kB\x0a"
+				"SwapFree: \t%10ld kB\x0a"
+				, ms.dwTotalPhys, ms.dwTotalPhys-ms.dwAvailPhys, ms.dwAvailPhys
+				, ms.dwTotalPageFile, ms.dwTotalPageFile-ms.dwAvailPageFile, ms.dwAvailPageFile
+				, ms.dwTotalPhys / 1024
+				, ms.dwAvailPhys / 1024
+				, 0 //shared how to determine?
+				, ms.dwTotalPageFile / 1024
+				, ms.dwAvailPageFile / 1024
+				);
+
+		m_dwDataSize = strlen((char*)m_pProcObjectData);
+
+		ok = true;
 	}
+	else
+	if(strcmp(p,"cpuinfo")==0)
+	{
+		//build a buffer of info
+		//eg:
+		//  processor       : 0
+		//  vendor_id       : GenuineIntel
+		//  bogomips        : 2193
+		//  fpu             : yes
+
+		m_ProcObjectType = TypeData;
+
+		m_dwDataSize = 4000; //more than enough?
+		m_pProcObjectData = new BYTE[m_dwDataSize];
+
+		SYSTEM_INFO si;
+		GetSystemInfo(&si);
+
+		unsigned int dwLen = m_dwDataSize;
+		char * pData = (char*)m_pProcObjectData;
+		char * pDataEnd = 0;
+
+		for(DWORD cpu=0; cpu<si.dwNumberOfProcessors; ++cpu)
+		{
+			StringCbPrintfEx(pData, dwLen, &pDataEnd, &dwLen, 0,
+					"processor : %d\x0a"
+					"vendor_id : %s\x0a"
+					"bobomips  : %d\x0a"
+					"cpu count : %d\x0a"
+					"fpu       : %s\x0a"
+					, cpu
+					, "Intel compatible (keow)"
+					, pKernelSharedData->BogoMips
+					, si.dwNumberOfProcessors
+					, IsProcessorFeaturePresent(PF_FLOATING_POINT_EMULATED) ? "no" : "yes"
+					);
+		}
+
+		m_dwDataSize = strlen((char*)m_pProcObjectData);
+
+		ok = true;
+	}
+	else
+	if(strcmp(p,"uptime")==0)
+	{
+		//build a buffer of info
+
+		m_ProcObjectType = TypeData;
+
+		m_dwDataSize = 1000; //more than enough?
+		m_pProcObjectData = new BYTE[m_dwDataSize];
+
+		float uptime = GetTickCount() / (float)1000;  //tick count is ms since booted
+		float idletime = uptime/2;  //50% :-)   we aren't reading performance stuff yet
+
+		StringCbPrintf((char*)m_pProcObjectData, m_dwDataSize,
+				"%.2lf %.2lf\x0a"
+				, uptime
+				, idletime
+				);
+
+		m_dwDataSize = strlen((char*)m_pProcObjectData);
+
+		ok = true;
+	}
+	else
+	if(strcmp(p,"stat")==0)
+	{
+		//build a buffer of info
+
+		m_ProcObjectType = TypeData;
+
+		m_dwDataSize = 1000; //more than enough?
+		m_pProcObjectData = new BYTE[m_dwDataSize];
+
+		DWORD user, nice, sys, idle;
+		user = nice = sys = idle = 0;
+
+		StringCbPrintf((char*)m_pProcObjectData, m_dwDataSize,
+				"cpu %ld %ld %ld %ld\x0a"
+				"btime %ld\x0a"
+				"processes %ld\x0a"
+				, user, nice, sys, idle
+				, GetTickCount()/1000
+				, pKernelSharedData->ForksSinceBoot
+				);
+
+		m_dwDataSize = strlen((char*)m_pProcObjectData);
+
+		ok = true;
+	}
+
 
 	free(pProcPath);
 	return ok;

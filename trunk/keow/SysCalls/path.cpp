@@ -171,8 +171,10 @@ void Path::CalculateWin32Path()
 
 		h->ApplyPathElement(*this, pStart);
 
-		//changed?
-		if(m_nMountPoint != -1)
+		//get correct handler
+		if(m_nMountPoint == -1)
+			h = FileSystemHandler::RootFileSystemHandler;
+		else
 			h = FileSystemHandler::Get( pKernelSharedData->MountPoints[m_nMountPoint].nFsHandler );
 
 		ktrace("fs:%s, ApplyPathElement:%s => %s\n", h->Name(), pStart, m_Win32Path);
@@ -225,4 +227,10 @@ int Path::GetUnixFileType()
 {
 	CalculateWin32Path();
 	return GetFileSystemHandler()->GetUnixFileType(*this);
+}
+
+DWORD Path::GetFileAttributes()
+{
+	CalculateWin32Path();
+	return GetFileSystemHandler()->GetFileAttributes(*this);
 }

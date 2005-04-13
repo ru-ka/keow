@@ -34,6 +34,24 @@ void ProcFs::ApplyPathElement(Path& path, const char *pStr)
 {
 	//we don't use Win32Path, just Unix Path
 	//so not updating required.
+	//but we do it to make debug messages readable (they use win32path)
+	StringCbCat(path.m_Win32Path, MAX_PATH-strlen(path.m_Win32Path), "/");
+	StringCbCat(path.m_Win32Path, MAX_PATH-strlen(path.m_Win32Path), pStr);
+
+	//some things in proc are symlinks to real directories
+	ProcIOHandler ioh(path);
+	if(ioh.Type() == ProcIOHandler::TypeSymLink)
+	{
+		Path newP;
+		newP = path;
+		DWORD dwRead = 0;
+		ioh.Read(newP.m_UnixPath, sizeof(newP.m_UnixPath), &dwRead);
+		newP.m_UnixPath[dwRead] = 0;
+		newP.CalculateWin32Path();
+		
+		memcpy(path.m_Win32Path, newP.m_Win32Path, sizeof(path.m_Win32Path));
+		path.m_nMountPoint = newP.m_nMountPoint;
+	}
 
 
 	//check that the name we currently have is not a mount point we need to resolve
@@ -71,12 +89,46 @@ IOHandler* ProcFs::CreateIOHandler(Path& path)
 
 bool ProcFs::IsSymbolicLink(Path& path)
 {
-	return false;
+	ProcIOHandler p(path);
+	return p.Type() == ProcIOHandler::TypeSymLink;
 }
 
 int ProcFs::GetUnixFileType(Path& path)
 {
-	//TODO: proc fs stuff
-	return S_IFREG;
+	ProcIOHandler p(path);
+	switch(p.Type())
+	{
+	case ProcIOHandler::TypeSymLink:
+		return S_IFLNK;
+
+	case ProcIOHandler::TypeDir:
+		return S_IFDIR;
+
+	case ProcIOHandler::TypeData:
+	default:
+		return S_IFREG;
+	}
 }
 
+DWORD ProcFs::GetFileAttributes(Path& path)
+{
+	ProcIOHandler p(path);
+	DWORD attr = 0;
+	switch(p.Type())
+	{
+	case ProcIOHandler::TypeSymLink:
+		//attr |= ?;
+		break;
+
+	case ProcIOHandler::TypeDir:
+		attr |= FILE_ATTRIBUTE_DIRECTORY;
+		break;
+
+	case ProcIOHandler::TypeData:
+	default:
+		break;
+	}
+		
+	attr |= FILE_ATTRIBUTE_READONLY;
+	return attr;
+}
