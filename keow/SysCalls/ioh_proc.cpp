@@ -27,6 +27,8 @@
 #include "kernel.h"
 #include "iohandler.h"
 
+static const int Jiffies = 100;
+
 /******************************************************************************/
 /* Populators for each /proc entry */
 
@@ -111,8 +113,6 @@ static bool Populate_proc_pid_stat(int pid, BYTE *& pProcObjectData, DWORD& dwDa
 	dwDataSize = MAX_PATH + 4000; //more than enough?
 	pProcObjectData = new BYTE[dwDataSize];
 
-	const int Jiffies = 100; //from kernel?
-
 	DWORD starttime = FILETIME_TO_TIME_T(pKernelSharedData->ProcessTable[pid].StartedTime) * Jiffies;
 	int priority=10, nice=0;
 
@@ -158,6 +158,28 @@ static bool Populate_proc_pid_stat(int pid, BYTE *& pProcObjectData, DWORD& dwDa
 			,0	//cnswap %lu\x0a,
 			,SIGCHLD	//exit_signal %d\x0a,
 			,0	//processor %d\x0a,
+			);
+
+	dwDataSize = strlen((char*)pProcObjectData);
+
+	return true;
+}
+
+static bool Populate_proc_pid_statm(int pid, BYTE *& pProcObjectData, DWORD& dwDataOffset, DWORD &dwDataSize)
+{
+	dwDataSize = 100; //more than enough?
+	pProcObjectData = new BYTE[dwDataSize];
+
+	//TODO: fill out missing statm fields
+	StringCbPrintf((char*)pProcObjectData, dwDataSize,
+			"%ld %ld %ld %ld %ld %ld %ld\x0a"
+			,0	//size
+			,0	//resident
+			,0	//share
+			,0	//trs
+			,0	//drs
+			,0	//lrs
+			,0	//dt
 			);
 
 	dwDataSize = strlen((char*)pProcObjectData);
@@ -263,8 +285,12 @@ static bool Populate_proc_stat(int pid, BYTE *& pProcObjectData, DWORD& dwDataOf
 	dwDataSize = 1000; //more than enough?
 	pProcObjectData = new BYTE[dwDataSize];
 
+	DWORD uptime = GetTickCount() / 1000;  //tick count is ms since booted
+
 	DWORD user, nice, sys, idle;
-	user = nice = sys = idle = 0;
+	user = nice = sys = 0;
+
+	idle = uptime * Jiffies;
 
 	StringCbPrintf((char*)pProcObjectData, dwDataSize,
 			"cpu %ld %ld %ld %ld\x0a"
@@ -280,6 +306,24 @@ static bool Populate_proc_stat(int pid, BYTE *& pProcObjectData, DWORD& dwDataOf
 	return true;
 }
 
+static bool Populate_proc_loadavg(int pid, BYTE *& pProcObjectData, DWORD& dwDataOffset, DWORD &dwDataSize)
+{
+	//build a buffer of info
+
+	dwDataSize = 100; //more than enough?
+	pProcObjectData = new BYTE[dwDataSize];
+
+	StringCbPrintf((char*)pProcObjectData, dwDataSize,
+			"%ld %ld %ld\x0a"
+			,1
+			,1
+			,1
+			);
+
+	dwDataSize = strlen((char*)pProcObjectData);
+
+	return true;
+}
 
 static PopulateDataProc Populators[] = {
 	Populate_proc_,
@@ -289,11 +333,13 @@ static PopulateDataProc Populators[] = {
 	Populate_proc_pid_cwd,
 	Populate_proc_pid_exe,
 	Populate_proc_pid_stat,
+	Populate_proc_pid_statm,
 
 	Populate_proc_meminfo,
 	Populate_proc_cpuinfo,
 	Populate_proc_uptime,
 	Populate_proc_stat,
+	Populate_proc_loadavg,
 
 	NULL
 };
@@ -654,6 +700,9 @@ bool ProcIOHandler::CalculateProcObject()
 		else
 		if(strcmp(p,"statm")==0)
 		{
+			m_ProcObjectType = TypeData;
+			m_nPopulator = GetPopulatorIndex(Populate_proc_pid_statm);
+			ok = true;
 		}
 		else
 		if(strcmp(p,"status")==0)
@@ -686,6 +735,13 @@ bool ProcIOHandler::CalculateProcObject()
 	{
 		m_ProcObjectType = TypeData;
 		m_nPopulator = GetPopulatorIndex(Populate_proc_stat);
+		ok = true;
+	}
+	else
+	if(strcmp(p,"loadavg")==0)
+	{
+		m_ProcObjectType = TypeData;
+		m_nPopulator = GetPopulatorIndex(Populate_proc_loadavg);
 		ok = true;
 	}
 
