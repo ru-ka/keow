@@ -51,6 +51,7 @@ public:
 	virtual IOHandler* CreateIOHandler(Path& path) = 0;
 	virtual bool IsSymbolicLink(Path& path) = 0;
 	virtual int GetUnixFileType(Path& path) = 0;
+	virtual DWORD GetFileAttributes(Path& path) = 0;
 
 	static FileSystemHandler * RootFileSystemHandler;
 	static FileSystemHandler * FileSystemTable[];
@@ -79,6 +80,7 @@ protected:
 	virtual IOHandler* CreateIOHandler(Path& path);
 	virtual bool IsSymbolicLink(Path& path);
 	virtual int GetUnixFileType(Path& path);
+	virtual DWORD GetFileAttributes(Path& path);
 };
 
 class ProcFs : public FileSystemHandler
@@ -92,6 +94,7 @@ protected:
 	virtual IOHandler* CreateIOHandler(Path& path);
 	virtual bool IsSymbolicLink(Path& path);
 	virtual int GetUnixFileType(Path& path);
+	virtual DWORD GetFileAttributes(Path& path);
 };
 
 class DevFs : public FileSystemHandler
@@ -105,6 +108,7 @@ protected:
 	virtual IOHandler* CreateIOHandler(Path& path);
 	virtual bool IsSymbolicLink(Path& path);
 	virtual int GetUnixFileType(Path& path);
+	virtual DWORD GetFileAttributes(Path& path);
 };
 
 

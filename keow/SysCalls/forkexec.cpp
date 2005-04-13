@@ -550,6 +550,9 @@ DWORD DoFork(CONTEXT *pCtx)
 	}
 
 
+	//forking
+	pKernelSharedData->ForksSinceBoot++;
+
 	//initial process data
 	*p = *pProcessData; //clone, then fix up
 

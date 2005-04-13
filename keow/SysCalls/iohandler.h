@@ -57,8 +57,8 @@ public:
 	virtual bool HasException() = 0;
 
 	virtual int GetDirEnts64(linux::dirent64 *, int maxbytes) = 0;
-	virtual DWORD Length() = 0;
-	virtual DWORD Seek(DWORD offset, DWORD method) = 0;
+	virtual ULONGLONG Length() = 0;
+	virtual ULONGLONG Seek(ULONGLONG offset, DWORD method) = 0;
 
 
 	bool Stat(linux::stat *); //not virtual - relies on virtual Stat64
@@ -102,8 +102,8 @@ public:
 	bool Stat64(linux::stat64 *);
 
 	int GetDirEnts64(linux::dirent64 *, int maxbytes);
-	DWORD Length();
-	DWORD Seek(DWORD offset, DWORD method);
+	ULONGLONG Length();
+	ULONGLONG Seek(ULONGLONG offset, DWORD method);
 
 	bool CanRead();
 	bool CanWrite();
@@ -134,8 +134,8 @@ public:
 	bool Stat64(linux::stat64 *);
 
 	int GetDirEnts64(linux::dirent64 *, int maxbytes);
-	DWORD Length();
-	DWORD Seek(DWORD offset, DWORD method);
+	ULONGLONG Length();
+	ULONGLONG Seek(ULONGLONG offset, DWORD method);
 
 	bool CanRead();
 	bool CanWrite();
@@ -162,8 +162,8 @@ public:
 	bool Stat64(linux::stat64 *);
 
 	int GetDirEnts64(linux::dirent64 *, int maxbytes);
-	DWORD Length();
-	DWORD Seek(DWORD offset, DWORD method);
+	ULONGLONG Length();
+	ULONGLONG Seek(ULONGLONG offset, DWORD method);
 
 	bool CanRead();
 	bool CanWrite();
@@ -195,8 +195,8 @@ public:
 	bool Stat64(linux::stat64 *);
 
 	int GetDirEnts64(linux::dirent64 *, int maxbytes);
-	DWORD Length();
-	DWORD Seek(DWORD offset, DWORD method);
+	ULONGLONG Length();
+	ULONGLONG Seek(ULONGLONG offset, DWORD method);
 
 	bool CanRead();
 	bool CanWrite();
@@ -221,8 +221,8 @@ public:
 	bool Stat64(linux::stat64 *);
 
 	int GetDirEnts64(linux::dirent64 *, int maxbytes);
-	DWORD Length();
-	DWORD Seek(DWORD offset, DWORD method);
+	ULONGLONG Length();
+	ULONGLONG Seek(ULONGLONG offset, DWORD method);
 
 	bool CanRead();
 	bool CanWrite();
@@ -248,21 +248,24 @@ public:
 	bool Stat64(linux::stat64 *);
 
 	int GetDirEnts64(linux::dirent64 *, int maxbytes);
-	DWORD Length();
-	DWORD Seek(DWORD offset, DWORD method);
+	ULONGLONG Length();
+	ULONGLONG Seek(ULONGLONG offset, DWORD method);
 
 	bool CanRead();
 	bool CanWrite();
 	bool HasException();
 
-protected:
-	bool CalculateProcObject();
-
+public:
 	enum ProcObjectTypeEnum {
 		TypeData,
 		TypeSymLink,
 		TypeDir
 	};
+
+	ProcObjectTypeEnum Type() { return m_ProcObjectType; }
+
+protected:
+	bool CalculateProcObject();
 
 	Path m_Path;
 	ProcObjectTypeEnum m_ProcObjectType;

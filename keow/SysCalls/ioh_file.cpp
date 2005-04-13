@@ -145,7 +145,7 @@ bool FileIOHandler::Stat64(linux::stat64 * s)
 	if(fi.dwFileAttributes & FILE_ATTRIBUTE_READONLY)
 		s->st_mode = 0555;  // r-xr-xr-x
 	else
-		s->st_mode = 0755;  // rwxrwxrwx
+		s->st_mode = 0755;  // rwxr-xr-x
 	s->st_mode |= m_Path.GetUnixFileType();
 
 	s->st_nlink = fi.nNumberOfLinks;
@@ -175,16 +175,18 @@ bool FileIOHandler::Stat64(linux::stat64 * s)
 }
 
 
-DWORD FileIOHandler::Length()
+ULONGLONG FileIOHandler::Length()
 {
 	return GetFileSize(m_Handle, NULL);
 }
 
 
 
-DWORD FileIOHandler::Seek(DWORD offset, DWORD method)
+ULONGLONG FileIOHandler::Seek(ULONGLONG offset, DWORD method)
 {
-	return SetFilePointer(m_Handle, offset, 0, method);
+	LARGE_INTEGER li;
+	li.QuadPart = offset;
+	return SetFilePointer(m_Handle, li.LowPart, &li.HighPart, method);
 }
 
 

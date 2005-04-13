@@ -168,7 +168,7 @@ void  sys_access(CONTEXT* pCtx)
 
 	p.SetUnixPath((const char*)pCtx->Ebx);
 
-	attr = GetFileAttributes(p.Win32Path());
+	attr = p.GetFileAttributes();
 	if(attr==INVALID_FILE_ATTRIBUTES)
 	{
 		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
@@ -895,7 +895,7 @@ void sys_readlink(CONTEXT* pCtx)
 	p.FollowSymLinks(false);
 	p.SetUnixPath((const char*)pCtx->Ebx);
 
-	if(GetFileAttributes(p.Win32Path())==INVALID_FILE_ATTRIBUTES)
+	if(p.GetFileAttributes()==INVALID_FILE_ATTRIBUTES)
 	{
 		pCtx->Eax = -ENOENT; //no file
 	}
@@ -1063,9 +1063,9 @@ void sys__llseek(CONTEXT* pCtx)
 	SetLastError(0);
 
 	ULARGE_INTEGER li;
-	li.LowPart = SetFilePointer(ioh->GetHandle(), offset_low, &offset_high, method);
+	li.LowPart = offset_low;
 	li.HighPart = offset_high;
-	*result = li.QuadPart;
+	*result = ioh->Seek(li.QuadPart, method);
 
 	if(GetLastError()==0)
 		pCtx->Eax = 0;

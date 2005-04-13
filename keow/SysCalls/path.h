@@ -42,6 +42,7 @@ public:
 	IOHandler* CreateIOHandler();
 	bool IsSymbolicLink();
 	int GetUnixFileType();
+	DWORD GetFileAttributes();
 
 	const char * UnixPath();
 	const char * Win32Path();
