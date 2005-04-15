@@ -46,7 +46,7 @@ bool DevNullIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 		*pRead = 0;
 	//never can read from /dev/null, block if we can
 	//TODO: wake on signals
-	while((m_Flags&O_NONBLOCK)==0)
+	while((m_Flags&O_NONBLOCK)==0 && pProcessData->NeedSyscallInterrupt==false)
 		Sleep(10000);
 	return true;
 }

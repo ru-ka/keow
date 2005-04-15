@@ -348,7 +348,7 @@ void kernel_term()
 {
 	if(pProcessData)
 	{
-		//not part of the exec process (pid sharing)? this is us right?
+		//not part of the exec process (pid sharing)? this is us, right?
 		if(pProcessData->Win32PID == GetCurrentProcessId())
 		{
 			pProcessData->in_use = false;
@@ -387,63 +387,102 @@ void kernel_term()
  */
 DWORD HandleExceptionInELF(DWORD ExceptionCode, LPEXCEPTION_POINTERS pEP)
 {
-	if(ExceptionCode==EXCEPTION_ACCESS_VIOLATION)
+	switch(ExceptionCode)
 	{
-		//is this an INT 80 linux SYSCALL?
-
-		union u {
-			struct {
-				BYTE byte1;
-				BYTE byte2;
-				BYTE byte3;
-				BYTE byte4;
-			} b;
-			struct {
-				WORD word1;
-				WORD word2;
-			} w;
-			DWORD dword;
-		} *instruction;
-
-		if(IsBadCodePtr((FARPROC)pEP->ExceptionRecord->ExceptionAddress))
+	case EXCEPTION_ACCESS_VIOLATION:
 		{
-			//instruction not addressable
-			ktrace("Jump to invalid execution address 0x%08lx\n", pEP->ExceptionRecord->ExceptionAddress);
+			//is this an INT 80 linux SYSCALL?
 
-			//try to get actual return address from the stack
-			if(!IsBadReadPtr((void*)pEP->ContextRecord->Esp ,sizeof(DWORD))) 
+			union u {
+				struct {
+					BYTE byte1;
+					BYTE byte2;
+					BYTE byte3;
+					BYTE byte4;
+				} b;
+				struct {
+					WORD word1;
+					WORD word2;
+				} w;
+				DWORD dword;
+			} *instruction;
+
+			if(IsBadCodePtr((FARPROC)pEP->ExceptionRecord->ExceptionAddress))
 			{
-				DWORD addr = *((DWORD*)(pEP->ContextRecord->Esp));
-				ktrace("Possibly from a call @ 0x%08lx\n", addr);
+				//instruction not addressable
+				ktrace("Jump to invalid execution address 0x%08lx\n", pEP->ExceptionRecord->ExceptionAddress);
+
+				//try to get actual return address from the stack
+				if(!IsBadReadPtr((void*)pEP->ContextRecord->Esp ,sizeof(DWORD))) 
+				{
+					DWORD addr = *((DWORD*)(pEP->ContextRecord->Esp));
+					ktrace("Possibly from a call @ 0x%08lx\n", addr);
+				}
+
+				SendSignal(pProcessData->PID, SIGSEGV); //access violation
+				return EXCEPTION_EXECUTE_HANDLER;
 			}
 
-			return EXCEPTION_EXECUTE_HANDLER;
-		}
+			instruction = (union u*)pEP->ExceptionRecord->ExceptionAddress;
+			if(instruction->w.word1 == 0x80CD)
+			{
+				//handle it
+				HandleSysCall(pEP->ContextRecord);
 
-		instruction = (union u*)pEP->ExceptionRecord->ExceptionAddress;
-		if(instruction->w.word1 == 0x80CD)
-		{
-			//handle it
-			HandleSysCall(pEP->ContextRecord);
+				//skip over the INT instruction
+				pEP->ContextRecord->Eip += 2;
 
-			//skip over the INT instruction
-			pEP->ContextRecord->Eip += 2;
+				//resume 
+				return EXCEPTION_CONTINUE_EXECUTION;
+			}
+			else
+			{
+				ktrace("Access violation (not: int 80h)\n");
+				SendSignal(pProcessData->PID, SIGSEGV); //access violation
+				return EXCEPTION_EXECUTE_HANDLER;
+			}
+		}
+		break;
 
-			//resume 
-			return EXCEPTION_CONTINUE_EXECUTION;
-		}
-		else
-		{
-			//just a regular exception, pass the the elf code
-			SendSignal(pProcessData->PID, SIGSEGV);
-			return EXCEPTION_CONTINUE_EXECUTION;
-		}
+	case EXCEPTION_FLT_DENORMAL_OPERAND:
+	case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+	case EXCEPTION_FLT_INEXACT_RESULT:
+	case EXCEPTION_FLT_INVALID_OPERATION:
+	case EXCEPTION_FLT_OVERFLOW:
+	case EXCEPTION_FLT_STACK_CHECK:
+	case EXCEPTION_FLT_UNDERFLOW:
+	case EXCEPTION_INT_DIVIDE_BY_ZERO:
+	case EXCEPTION_INT_OVERFLOW:
+		ktrace("math exception\n");
+		SendSignal(pProcessData->PID, SIGFPE);
+		SuspendThread(GetCurrentThread());
+		return EXCEPTION_CONTINUE_EXECUTION;
+
+	case EXCEPTION_PRIV_INSTRUCTION:
+	case EXCEPTION_ILLEGAL_INSTRUCTION:
+		ktrace("instruction exception\n");
+		SendSignal(pProcessData->PID, SIGILL);
+		SuspendThread(GetCurrentThread());
+		return EXCEPTION_CONTINUE_EXECUTION;
+
+	case EXCEPTION_NONCONTINUABLE_EXCEPTION:
+	case EXCEPTION_IN_PAGE_ERROR:
+	case EXCEPTION_STACK_OVERFLOW:
+	case EXCEPTION_GUARD_PAGE:
+		ktrace("page access exception\n");
+		SendSignal(pProcessData->PID, SIGSEGV);
+		SuspendThread(GetCurrentThread());
+		return EXCEPTION_CONTINUE_EXECUTION;
+
 	}
 
-	//unhandled exception
+	//get here on any unhandled exception
 	ktrace("Unhandled exception type 0x%08lx @ 0x%08lx\n", ExceptionCode, pEP->ExceptionRecord->ExceptionAddress);
-	return EXCEPTION_EXECUTE_HANDLER;
+	SendSignal(pProcessData->PID, SIGILL); //use illegal instruction
+	SuspendThread(GetCurrentThread());
+	return EXCEPTION_CONTINUE_EXECUTION;
 }
+
 
 EXCEPTION_DISPOSITION __cdecl my_except_handler (
     struct _EXCEPTION_RECORD *ExceptionRecord,
@@ -477,7 +516,37 @@ EXCEPTION_DISPOSITION __cdecl my_except_handler (
 
 	if(pProcessData)
 		pProcessData->ptrace_ctx_valid = false;
+
 	return ret;
+}
+
+
+static void InstallExceptionHandler(EXCEPTION_REGISTRATION_RECORD &except_reg)
+{
+	//install raw handler - not msvc one
+	DWORD tmp;
+	__asm { //preserve old exception pointer
+		mov eax, fs:[0]
+		mov tmp, eax
+	}
+	except_reg.pNext = (PEXCEPTION_REGISTRATION_RECORD)tmp;
+	except_reg.pfnHandler = (FARPROC)my_except_handler;
+	tmp = (DWORD)&except_reg;
+	__asm { //store new handler
+		mov eax, tmp
+		mov fs:[0], eax
+	}
+}
+
+
+static void RemoveExceptionHandler(EXCEPTION_REGISTRATION_RECORD &except_reg)
+{
+	//remove raw handler
+	DWORD tmp = (DWORD)except_reg.pNext;
+	__asm { //restore original except reg
+		mov eax, tmp
+		mov fs:[0], eax
+	}
 }
 
 
@@ -519,7 +588,7 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 	//OUR data
 	pProcessData = &pKernelSharedData->ProcessTable[pid];
 	pProcessData->PID = pid;
-	pProcessData->exitcode = -SIGSEGV; //in case no set later
+	pProcessData->exitcode = -SIGABRT; //in case not set later
 	GetSystemTimeAsFileTime(&pProcessData->StartedTime);
 	//need originater to set this or exec etc: pProcessData->MainThreadID = GetCurrentThreadId();
 	pProcessData->hKernelDebugFile = INVALID_HANDLE_VALUE;
@@ -550,8 +619,8 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 
 
 	//DEBUG
-//	if(pProcessData->PID == 2)
-//		DebugBreak();
+	//if(pProcessData->PID == 1)
+	//	DebugBreak();
 
 
 	//we need to know where the original stack is (before we do anything to play with it)
@@ -578,7 +647,10 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 
 	//install exception handler for capturing INT 80h Linux kernel syscalls
 	//need this installed early before stack diversifies (because of how we fork)
-#undef USE_MSCV_TRY_EXCEPT
+	EXCEPTION_REGISTRATION_RECORD except_reg;
+	InstallExceptionHandler(except_reg);
+/*
+#define USE_MSCV_TRY_EXCEPT
 #ifdef USE_MSCV_TRY_EXCEPT
 	__try 
 	{
@@ -597,7 +669,7 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 		mov fs:[0], eax
 	}
 #endif
-
+*/
 		if(strcmp(keyword,"FORK") == 0)
 		{
 			//init file handles prior to copying any that are required
@@ -606,7 +678,7 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 			ForkChildCopyFromParent();
 
 			ktrace("FAIL! Fork should never get here\n");
-			ExitProcess(-11);
+			ExitProcess(-SIGABRT);
 		}
 
 		if(strcmp(keyword, "RUN")==0	//when starting the first program
@@ -626,7 +698,6 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 				ZeroMemory(&pProcessData->signal_action[i].sa_mask, sizeof(pProcessData->signal_action[i].sa_mask));
 			}
 			ZeroMemory(&pProcessData->sigmask, sizeof(pProcessData->sigmask));
-			ZeroMemory(&pProcessData->signal_blocked, sizeof(pProcessData->signal_blocked));
 			pProcessData->signal_depth = 0;
 
 			//we need a thread to handle signals
@@ -653,7 +724,7 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 		else
 		{
 			ktrace("Invalid Process_Init keyword: %s\n", keyword);
-			ExitProcess((UINT)-SIGSEGV);
+			ExitProcess((UINT)-SIGABRT);
 		}
 
 		//really starting?
@@ -663,11 +734,14 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 			TransferControlToELFCode();
 		}
 
+	//handler no longer required
+	RemoveExceptionHandler(except_reg);
+/*
 #ifdef USE_MSCV_TRY_EXCEPT
 	}
 	__except( HandleExceptionInELF(GetExceptionCode(), GetExceptionInformation()) ) {
 		ktrace("Exiting with unhandled SIGSEGV\n");
-		ExitProcess((UINT)-11); //SIGSEGV
+		ExitProcess((UINT)-SIGABRT);
 	}
 #else
 	//remove raw handler
@@ -677,6 +751,7 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 		mov fs:[0], eax
 	}
 #endif
+	*/
 }
 
 
@@ -706,7 +781,13 @@ extern "C" _declspec(dllexport) void HandleSysCall( CONTEXT * pCtx )
 			SendSignal(pProcessData->PID, SIGTRAP);
 		}
 
+
+		///
+		///
 		syscall_handlers[syscall](pCtx);
+		///
+		///
+
 		
 		if(pProcessData->ptrace_owner_pid
 		&& pProcessData->ptrace_request == PTRACE_SYSCALL )

@@ -61,7 +61,7 @@ void SetForkChildContext()
 	if(SuspendThread(hMainThread)==-1)
 	{
 		ktrace("Terminating process, cannot suspend main thread to install context\n");
-		ExitProcess(-11);
+		ExitProcess(-SIGABRT);
 	}
 
 
@@ -72,7 +72,7 @@ void SetForkChildContext()
 	if(!SetThreadContext(hMainThread, &Fork_ContextParentMain))
 	{
 		ktrace("Terminating process, cannot set thread context\n");
-		ExitProcess(-11);
+		ExitProcess(-SIGABRT);
 	}
 
 	pProcessData->in_setup = false; //running for real now
@@ -81,7 +81,7 @@ void SetForkChildContext()
 	if(ResumeThread(hMainThread)==-1)
 	{
 		ktrace("Terminating process, cannot resume thread \n");
-		ExitProcess(-11);
+		ExitProcess(-SIGABRT);
 	}
 
 	CloseHandle(hMainThread);
@@ -303,7 +303,7 @@ void ForkChildCopyFromParent()
 	if(pProcessData->original_stack_esp != pParentProcess->original_stack_esp)
 	{
 		ktrace("PANIC fork() child has incompatable stack!\n");
-		ExitProcess((UINT)-SIGSEGV);
+		ExitProcess((UINT)-SIGABRT);
 	}
 
 	//we need a thread to handle signals
@@ -319,7 +319,7 @@ void ForkChildCopyFromParent()
 	if(!WaitForThreadToSuspend(hParentMain))
 	{
 		ktrace("fork child - parent gone?\n");
-		ExitProcess((UINT)-SIGSEGV);
+		ExitProcess((UINT)-SIGABRT);
 	}
 
 	//parent context
@@ -338,7 +338,7 @@ void ForkChildCopyFromParent()
 	if(!GetThreadContext(hParentMain, &Fork_ContextParentMain))
 	{
 		ktrace("fork() child cannot read parent context\n");
-		ExitProcess((UINT)-SIGSEGV);
+		ExitProcess((UINT)-SIGABRT);
 	}
 
 	//take a copy of the parent's stack
@@ -348,7 +348,7 @@ void ForkChildCopyFromParent()
 	if(!ReadMemory(Fork_ParentStack, hParent, Fork_StackStart, Fork_StackSize))
 	{
 		ktrace("fork() failed to copy stack\n");
-		ExitProcess((UINT)-11);
+		ExitProcess((UINT)-SIGABRT);
 	}
 
 	//copy relavent TIB data
@@ -380,7 +380,7 @@ void ForkChildCopyFromParent()
 		if(!ReadMemory((ADDR)&MemAlloc, hParent, (ADDR)MemAlloc.next, sizeof(MemAlloc)))
 		{
 			ktrace("fork() child copy memalloc from parent failed\n");
-			ExitProcess((UINT)-SIGSEGV);
+			ExitProcess((UINT)-SIGABRT);
 		}
 
 		switch(MemAlloc.type)
@@ -393,7 +393,7 @@ void ForkChildCopyFromParent()
 			{
 				ktrace("fork() child copy data from parent failed: err %ld\n", GetLastError());
 				//TODO: do we fail on part memory read - what is actually going on?
-				//ExitProcess((UINT)-SIGSEGV);
+				//ExitProcess((UINT)-SIGABRT);
 			}
 			break;
 		case MemoryAllocRecord::RecType::MMap:
@@ -422,7 +422,7 @@ void ForkChildCopyFromParent()
 			if(!ReadMemory((ADDR)&buf, hParent, (ADDR)pParentProcess->FileHandlers[i], sizeof(buf)))
 			{
 				ktrace("fork() child copy iohandler basic from parent failed\n");
-				ExitProcess((UINT)-SIGSEGV);
+				ExitProcess((UINT)-SIGABRT);
 			}
 
 			//read the real copy
@@ -431,7 +431,7 @@ void ForkChildCopyFromParent()
 			{
 				ktrace("fork() child copy iohandler actual from parent failed\n");
 				delete (char*)iohcopy;
-				ExitProcess((UINT)-SIGSEGV);
+				ExitProcess((UINT)-SIGABRT);
 			}
 
 			//keep copy - but only if handle was marked as inheritable
@@ -476,7 +476,7 @@ void ForkChildCopyFromParent()
 
 	//should never get here, ktrace probably fails with our temp stack anyway
 	ktrace("fork() failed to resume correct thread context\n");
-	ExitProcess((UINT)-11);
+	ExitProcess((UINT)-SIGABRT);
 }
 
 
@@ -662,7 +662,7 @@ void CopyParentHandlesForExec()
 	if(!WaitForThreadToSuspend(hParentMain))
 	{
 		ktrace("execve child - parent gone?\n");
-		ExitProcess((UINT)-SIGSEGV);
+		ExitProcess((UINT)-SIGABRT);
 	}
 
 	ktrace("execve child copying parent info\n");
@@ -681,7 +681,7 @@ void CopyParentHandlesForExec()
 			if(!ReadMemory((ADDR)&buf, hParent, (ADDR)pProcessData->FileHandlers[i], sizeof(buf)))
 			{
 				ktrace("execve() child copy iohandler basic from parent failed\n");
-				ExitProcess((UINT)-SIGSEGV);
+				ExitProcess((UINT)-SIGABRT);
 			}
 
 			//read the real copy
@@ -690,7 +690,7 @@ void CopyParentHandlesForExec()
 			{
 				ktrace("execve() child copy iohandler actual from parent failed\n");
 				delete (char*)iohcopy;
-				ExitProcess((UINT)-SIGSEGV);
+				ExitProcess((UINT)-SIGABRT);
 			}
 
 			//keep copy - but only if handle was marked as inheritable

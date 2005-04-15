@@ -23,12 +23,15 @@
 
 #include "kernel.h"
 
+HINSTANCE hinstSysCallsDll;
+
 
 BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID p )
 {
 	switch(dwReason)
 	{
 	case DLL_PROCESS_ATTACH:
+		hinstSysCallsDll = hInstance;
 		CoInitialize(0);
 		kernel_init();
 		break;

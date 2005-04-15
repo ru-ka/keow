@@ -28,8 +28,10 @@
 #include "kernel.h"
 #include "forkexec.h"
 
+
 /*
  * this part of the signal handler runs in the elf code thread
+ * runs with C calling convention - caller pops arguments from the stack
  */
 static void _cdecl HandleSignal(int sig)
 {
@@ -76,12 +78,12 @@ static void _cdecl HandleSignal(int sig)
 	//DebugBreak();
 
 	//signal is blocked by this function?
-	if(pProcessData->signal_blocked[sig] > 0)
-	{
-		ktrace("signal not delivered - currently blocked\n");
-		pProcessData->current_signal = 0;
-		return;
-	}
+	//if(pProcessData->signal_blocked[sig] > 0)
+	//{
+	//	ktrace("signal not delivered - currently blocked\n");
+	//	pProcessData->current_signal = 0;
+	//	return;
+	//}
 
 	//is this process ignoring this signal?
 	linux::sigset_t mask = pProcessData->sigmask[pProcessData->signal_depth];
@@ -95,7 +97,6 @@ static void _cdecl HandleSignal(int sig)
 
 	//interrupt wait?
 	SetEvent(WaitTerminatingEvent);
-
 
 	//nested
 	pProcessData->signal_depth++;
@@ -145,6 +146,7 @@ static void _cdecl HandleSignal(int sig)
 		case SIGPOLL:
 		case SIGPROF:
 			pProcessData->killed_by_sig = sig;
+			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			ExitProcess(-sig);
 			break;
 
@@ -163,6 +165,7 @@ static void _cdecl HandleSignal(int sig)
 		case SIGBUS:
 		case SIGSYS:
 			pProcessData->killed_by_sig = sig;
+			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			GenerateCoreDump();
 			ExitProcess(-sig);
 			break;
@@ -170,6 +173,7 @@ static void _cdecl HandleSignal(int sig)
 		default:
 			pProcessData->killed_by_sig = sig;
 			ktrace("IMPLEMENT default action for signal %d\n", sig);
+			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			ExitProcess(-sig);
 			break;
 		}
@@ -185,7 +189,13 @@ static void _cdecl HandleSignal(int sig)
 		ktrace("dispatching to signal handler @ 0x%08lx\n", pProcessData->signal_action[sig].sa_handler);
 
 		//supposed to supress the signal whilst in the handler?
-		pProcessData->signal_blocked[sig]++;
+		//linux just sets to SIG_DFL? (see man 2 signal)
+		linux::__sighandler_t handler = pProcessData->signal_action[sig].sa_handler;
+
+		//restore handler?
+		if((pProcessData->signal_action[sig].sa_flags & SA_ONESHOT)
+		|| (pProcessData->signal_action[sig].sa_flags & SA_RESETHAND) )
+			pProcessData->signal_action[sig].sa_handler = SIG_DFL;
 
 		//dispatch to custom handler
 		if(pProcessData->signal_action[sig].sa_flags & SA_SIGINFO)
@@ -205,22 +215,15 @@ static void _cdecl HandleSignal(int sig)
 			sigset_t	  uc_sigmask;	/* mask last for extensibility */
 			ktrace("IMPLEMENT correct signal sa_action ucontext stuff\n");
 
-			((void (_cdecl *)(int, linux::siginfo *, void *))pProcessData->signal_action[sig].sa_handler)(sig, &si, /*&ct*/0);
+			((void (_cdecl *)(int, linux::siginfo *, void *))handler)(sig, &si, /*&ct*/0);
 		}
 		else
 		{
 			//pProcessData->signal_action[sig].sa_handler(sig);
-			((void (_cdecl *)(int))pProcessData->signal_action[sig].sa_handler)(sig);
+			((void (_cdecl *)(int))handler)(sig);
 		}
 
-		//unblock
-		pProcessData->signal_blocked[sig]--;
 	}
-
-	//restore handler?
-	if((pProcessData->signal_action[sig].sa_flags & SA_ONESHOT)
-	|| (pProcessData->signal_action[sig].sa_flags & SA_RESETHAND) )
-		pProcessData->signal_action[sig].sa_handler = SIG_DFL;
 
 		
 	//un-nest
@@ -244,12 +247,12 @@ __declspec(naked) static void HandleSignalEntry()
 		mov ebp, esp
 		pushfd
 		pushad
-		
+
 		//call handler
 		mov eax, [ebp+4]
 		push eax //signal argument
 		call HandleSignal
-		pop eax //signal argument
+		pop eax //signal argument - _cdecl caller pops stack
 
 		//restore
 		popad
@@ -282,6 +285,7 @@ static void DispatchSignal(int sig)
 		ExitProcess((UINT)-sig);
 	}
 
+
 	//pause the thread, get its execution context,
 	//update the context to call to a signal handler
 	//let the thread resume
@@ -305,7 +309,7 @@ static void DispatchSignal(int sig)
 		if(SuspendThread(hMainThread)==-1)
 		{
 			ktrace("Terminating process, cannot suspend main thread to install signal handler\n");
-			ExitProcess(-11);
+			ExitProcess(-SIGABRT);
 		}
 
 		CONTEXT Ctx;
@@ -313,9 +317,13 @@ static void DispatchSignal(int sig)
 		if(!GetThreadContext(hMainThread, &Ctx))
 		{
 			ktrace("Terminating process, cannot get thread context\n");
-			ExitProcess(-11);
+			ExitProcess(-SIGABRT);
 		}
 
+
+		//debug for testing naked asm in HandleSignalEntry
+		ktrace("injecting signal handler into elf\n");
+		ktrace("was eip 0x%08lx, esp 0x%08lx\n", Ctx.Eip, Ctx.Esp);
 
 		//save context info on the threads stack for restoring later
 		//save EIP
@@ -333,12 +341,12 @@ static void DispatchSignal(int sig)
 		if(!SetThreadContext(hMainThread, &Ctx))
 		{
 			ktrace("Terminating process, cannot set thread context\n");
-			ExitProcess(-11);
+			ExitProcess(-SIGABRT);
 		}
 		if(ResumeThread(hMainThread)==-1)
 		{
 			ktrace("Terminating process, cannot resume thread \n");
-			ExitProcess(-11);
+			ExitProcess(-SIGABRT);
 		}
 
 		pProcessData->in_setup = SavedInSetup; //stopped fiddling
@@ -367,7 +375,7 @@ DWORD WINAPI SignalThreadMain(LPVOID param)
 			break;
 
 		case WM_KERNEL_SETFORKCONTEXT:
-			//main thread has asked us to set it's thread context for child of a fork			
+			//main thread has asked us to set it's thread context for child of a fork
 			SetForkChildContext();
 			break;
 
@@ -388,6 +396,9 @@ bool SendSignal(int pid, int sig)
 {
 	ktrace("sending signal %d to pid %d\n", sig, pid);
 
+//test because we now don't want to dispatch signals whilst in non-ELF code
+#define SELF_SIGNALS_SPECIAL
+#ifdef SELF_SIGNALS_SPECIAL
 	if(pid==pProcessData->PID
 	&& pProcessData->MainThreadID==GetCurrentThreadId())
 	{
@@ -396,6 +407,7 @@ bool SendSignal(int pid, int sig)
 		return true;
 	}
 	else
+#endif
 	{
 		//not interrupting the current thread, so must dispatch via handler thread
 		return PostThreadMessage(pKernelSharedData->ProcessTable[pid].SignalThreadID, WM_KERNEL_SIGNAL, sig, 0) != 0;

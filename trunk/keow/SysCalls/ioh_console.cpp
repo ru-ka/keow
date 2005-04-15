@@ -177,7 +177,7 @@ bool ConsoleIOHandler::ReadChar(bool canblock, char &c)
 
 //	ok = true;
 
-	while(canblock) 
+	do //while(canblock) 
 	{
 retry:
 		if(!canblock)
@@ -310,7 +310,8 @@ retry:
 			}
 			return true;
 		}
-	}
+	} while(canblock);
+
 	return false;
 }
 
@@ -336,12 +337,23 @@ bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 				break;
 		}
 		else
-		{
-			if(!ReadChar(true, *p))
-			{
-				ok = false;
-				break;
+		{ //blocking
+			//if(!ReadChar(true, *p))
+			//{
+			//	ok = false;
+			//	break;
+			//}
+			ok = false;
+			while(!pProcessData->NeedSyscallInterrupt) {
+				if(ReadChar(false, *p))
+				{
+					ok = true;
+					break;
+				}
+				Sleep(10);
 			}
+			if(!ok)
+				break;
 		}
 
 
@@ -958,6 +970,9 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 			return 0;
 		}
 		break;
+
+	case TCXONC: //TODO:
+		return 0;
 
 	default:
 		ktrace("IMPLEMENT sys_ioctl 0x%lx for ConsoleIOHandler\n", request);

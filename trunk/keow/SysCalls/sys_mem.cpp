@@ -124,7 +124,11 @@ void sys_mmap(CONTEXT* pCtx)
 			return;
 		}
 
-		dwFileSize = ioh->Length();
+		ULONGLONG len = ioh->Length();
+		if(len>LONG_MAX)
+			dwFileSize = LONG_MAX;
+		else
+			dwFileSize = (DWORD)len;
 	}
 
 
