@@ -170,13 +170,13 @@ static bool Populate_proc_pid_statm(int pid, BYTE *& pProcObjectData, DWORD& dwD
 	dwDataSize = 100; //more than enough?
 	pProcObjectData = new BYTE[dwDataSize];
 
-	//TODO: fill out missing statm fields
+	//TODO: fill out missing statm fields (measured in 4k pages?)
 	StringCbPrintf((char*)pProcObjectData, dwDataSize,
 			"%ld %ld %ld %ld %ld %ld %ld\x0a"
-			,0	//size
-			,0	//resident
+			,2	//size
+			,1	//resident
 			,0	//share
-			,0	//trs
+			,1	//trs
 			,0	//drs
 			,0	//lrs
 			,0	//dt

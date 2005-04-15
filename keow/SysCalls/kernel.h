@@ -37,8 +37,6 @@ typedef unsigned char * ADDR;
 #include "util.h"
 #include "path.h"
 
-#include <stdio.h>
-
 
 
 #define MAX_SIGNALS			_NSIG
@@ -77,14 +75,17 @@ public:
 //Put eveything that needs to survive a fork() here
 //
 struct ProcessDataStruct {
+
 	DWORD Win32PID;
 	DWORD MainThreadID;
 	DWORD SignalThreadID;
 	bool in_use;
 	bool in_setup;				//still initialising process
+	bool in_syscall;			//executing win32/kernel code, not elf
 	int exitcode;
 	int killed_by_sig, current_signal;
 	bool core_dumped;
+	bool NeedSyscallInterrupt;	//need to interrupt in-progress syscall?
 
 	int uid, gid;				//real uid/gid
 	int euid, egid;				//effective uid/gid
@@ -131,7 +132,6 @@ struct ProcessDataStruct {
 
 	linux::sigaction signal_action[MAX_SIGNALS];
 	linux::sigset_t sigmask[MAX_PENDING_SIGNALS];
-	int signal_blocked[MAX_SIGNALS];
 	int signal_depth;
 
 	FILETIME StartedTime;
@@ -241,7 +241,9 @@ void GenerateCoreDump();
 bool IsThreadSuspended(HANDLE hThread);
 bool WaitForThreadToSuspend(HANDLE hThread);
 
+
 _declspec(dllexport) bool SendSignal(int pid, int sig);
+//helpers
 
 
 //These ones are 'extern C' to make them easier to load manually in ProcessStub

@@ -264,14 +264,15 @@ void sys_wait4(CONTEXT* pCtx)
 	else
 	{
 		pProcessHandles[NumHandles] = WaitTerminatingEvent;
+		//not increment NumHandles+
 
 		//wait until interrupted or child terminates
 		while(result < 0)
 		{
-			DWORD dwRet = WaitForMultipleObjects(NumHandles, pProcessHandles, FALSE, options&WNOHANG?0:10);
+			DWORD dwRet = WaitForMultipleObjects(NumHandles+1, pProcessHandles, FALSE, options&WNOHANG?0:10);
 			if(dwRet>=WAIT_OBJECT_0 && dwRet<=WAIT_OBJECT_0+NumHandles)
 			{
-				if(dwRet==WAIT_OBJECT_0+NumHandles)
+				if(dwRet==WAIT_OBJECT_0+NumHandles) //(NumHandles+1)-1
 				{
 					//received a signal that stops wait()
 					result = -EINTR;
@@ -284,6 +285,26 @@ void sys_wait4(CONTEXT* pCtx)
 				{
 					result = pid;
 					break;
+				}
+				//maybe died without updating table?
+				HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pKernelSharedData->ProcessTable[pid].Win32PID);
+				if(hProc==NULL)
+				{
+					pKernelSharedData->ProcessTable[pid].in_use=false;
+					result = pid;
+					break;
+				}
+				else
+				{
+					DWORD dwCode;
+					if(GetExitCodeProcess(hProc, &dwCode)==0
+					|| dwCode != STILL_ACTIVE)
+					{
+						pKernelSharedData->ProcessTable[pid].in_use=false;
+						result = pid;
+						break;
+					}
+					CloseHandle(hProc);
 				}
 				//else try again
 			}
