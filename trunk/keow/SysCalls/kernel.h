@@ -85,7 +85,6 @@ struct ProcessDataStruct {
 	int exitcode;
 	int killed_by_sig, current_signal;
 	bool core_dumped;
-	bool NeedSyscallInterrupt;	//need to interrupt in-progress syscall?
 
 	int uid, gid;				//real uid/gid
 	int euid, egid;				//effective uid/gid

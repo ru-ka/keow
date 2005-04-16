@@ -32,26 +32,32 @@
 //bit manipulation helpers for fd_set etc
 //based on linux kernel versions
 inline void LINUX_FD_SET(int fd, linux::fd_set * pSet) {
-	DWORD* addr = (DWORD*)pSet;
 	__asm {
+		push ebx
 		mov eax,fd
-		bts [addr],eax
+		mov ebx, pSet
+		bts [ebx],eax
+		pop ebx
 	}
 }
 inline void LINUX_FD_CLR(int fd, linux::fd_set * pSet) {
-	DWORD* addr = (DWORD*)pSet;
 	__asm {
+		push ebx
 		mov eax,fd
-		btr [addr],eax
+		mov ebx, pSet
+		btr [ebx],eax
+		pop ebx
 	}
 }
 inline BYTE LINUX_FD_ISSET(int fd, linux::fd_set * pSet) {
-	DWORD* addr = (DWORD*)pSet;
 	BYTE result;
 	__asm {
+		push ebx
 		mov eax,fd
-		bt [addr],eax
+		mov ebx, pSet;
+		bt [ebx],eax
 		setb result
+		pop ebx
 	}
 	return result;
 }
@@ -1119,14 +1125,16 @@ void sys__newselect(CONTEXT* pCtx)
 	LINUX_FD_ZERO(&WriteResults);
 	LINUX_FD_ZERO(&ExceptResults);
 
-	//ktrace("IMPLEMENT sys__newselect\n");
-	//pCtx->Eax = -ENOSYS;
 
 	DWORD dwWait;
-	if(pTimeout==0)
+	if(pTimeout==0) {
 		dwWait = INFINITE;
-	else
-		dwWait = pTimeout->tv_sec + pTimeout->tv_usec*100; //correct?
+		ktrace("new_select wait forever\n");
+	}
+	else {
+		dwWait = pTimeout->tv_sec*1000L + pTimeout->tv_usec/1000; //correct?
+		ktrace("new_select wait (%ld,%ld) = %ldms\n", pTimeout->tv_sec, pTimeout->tv_usec, dwWait);
+	}
 
 	DWORD dwEnd = GetTickCount() + dwWait; //wrap around will cause a quick return - oops :-)
 	bool foundData = false;
@@ -1162,9 +1170,13 @@ void sys__newselect(CONTEXT* pCtx)
 			break;
 
 		//loop
+		if(dwWait==0)
+			break;
 		//Sleep( (pTimeout->tv_sec*1000L + pTimeout->tv_usec) / 10 );
 		Sleep(50);
 	}
+
+	ktrace("new_select found data: %d\n", foundData);
 
 	//store results
 	if(pReadFds)

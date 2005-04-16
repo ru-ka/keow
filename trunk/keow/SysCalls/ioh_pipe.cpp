@@ -65,7 +65,6 @@ DebugBreak();
 
 bool PipeIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 {
-	/*
 	if((m_Flags&O_NONBLOCK) == 0)
 	{
 		if(ReadFile(m_Handle, address, size, pRead, NULL)!=FALSE)
@@ -76,21 +75,18 @@ bool PipeIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 			return true;
 		}
 		return false;
-	}*/
+	}
 
 	DWORD dwBytes;
-	do {
-		if(!PeekNamedPipe(m_Handle, NULL,0, NULL, &dwBytes, NULL))
+	if(!PeekNamedPipe(m_Handle, NULL,0, NULL, &dwBytes, NULL))
+	{
+		if(GetLastError()==ERROR_BROKEN_PIPE)
 		{
-			if(GetLastError()==ERROR_BROKEN_PIPE)
-			{
-				*pRead = 0;
-				return true;
-			}
-			return false;
+			*pRead = 0;
+			return true;
 		}
-		Sleep(100);
-	} while((m_Flags&O_NONBLOCK)==0 && pProcessData->NeedSyscallInterrupt==false);
+		return false;
+	}
 
 	if(dwBytes > size)
 		dwBytes = size;

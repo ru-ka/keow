@@ -474,6 +474,11 @@ DWORD HandleExceptionInELF(DWORD ExceptionCode, LPEXCEPTION_POINTERS pEP)
 		SuspendThread(GetCurrentThread());
 		return EXCEPTION_CONTINUE_EXECUTION;
 
+#ifdef _DEBUG
+	case EXCEPTION_BREAKPOINT:
+		return EXCEPTION_CONTINUE_SEARCH; //let debugger deal with it
+#endif
+
 	}
 
 	//get here on any unhandled exception
