@@ -1,0 +1,12 @@
+#define __ver_alloc_netdev	smp_06215dfd
+#define alloc_netdev	_set_ver(alloc_netdev)
+#define __ver_init_etherdev	smp_27e9f87a
+#define init_etherdev	_set_ver(init_etherdev)
+#define __ver_alloc_etherdev	smp_0e634bd5
+#define alloc_etherdev	_set_ver(alloc_etherdev)
+#define __ver_ether_setup	smp_1b464793
+#define ether_setup	_set_ver(ether_setup)
+#define __ver_register_netdev	smp_19a13c33
+#define register_netdev	_set_ver(register_netdev)
+#define __ver_unregister_netdev	smp_af91a19f
+#define unregister_netdev	_set_ver(unregister_netdev)
