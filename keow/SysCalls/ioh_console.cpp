@@ -338,22 +338,11 @@ bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 		}
 		else
 		{ //blocking
-			//if(!ReadChar(true, *p))
-			//{
-			//	ok = false;
-			//	break;
-			//}
-			ok = false;
-			while(!pProcessData->NeedSyscallInterrupt) {
-				if(ReadChar(false, *p))
-				{
-					ok = true;
-					break;
-				}
-				Sleep(10);
-			}
-			if(!ok)
+			if(!ReadChar(true, *p))
+			{
+				ok = false;
 				break;
+			}
 		}
 
 
@@ -1001,6 +990,7 @@ bool ConsoleIOHandler::CanRead()
 	INPUT_RECORD buf;
 	if(!PeekConsoleInput(m_Handle, &buf, 1, &dwRead))
 		return false;
+ktrace("console::CanRead dwRead = %lx\n", dwRead);
 	return dwRead != 0;
 }
 
