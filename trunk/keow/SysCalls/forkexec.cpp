@@ -83,6 +83,7 @@ void SetForkChildContext()
 		ktrace("Terminating process, cannot resume thread \n");
 		ExitProcess(-SIGABRT);
 	}
+	ktrace("main thread resumed\n");
 
 	CloseHandle(hMainThread);
 }

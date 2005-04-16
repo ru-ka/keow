@@ -219,7 +219,6 @@ static void _cdecl HandleSignal(int sig)
 		}
 		else
 		{
-			//pProcessData->signal_action[sig].sa_handler(sig);
 			((void (_cdecl *)(int))handler)(sig);
 		}
 
