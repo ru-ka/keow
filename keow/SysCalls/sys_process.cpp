@@ -269,7 +269,7 @@ void sys_wait4(CONTEXT* pCtx)
 		//wait until interrupted or child terminates
 		while(result < 0)
 		{
-			DWORD dwRet = WaitForMultipleObjects(NumHandles+1, pProcessHandles, FALSE, options&WNOHANG?0:10);
+			DWORD dwRet = WaitForMultipleObjects(NumHandles+1, pProcessHandles, FALSE, options&WNOHANG?0:50);
 			if(dwRet>=WAIT_OBJECT_0 && dwRet<=WAIT_OBJECT_0+NumHandles)
 			{
 				if(dwRet==WAIT_OBJECT_0+NumHandles) //(NumHandles+1)-1
