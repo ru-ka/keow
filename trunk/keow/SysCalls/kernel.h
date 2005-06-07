@@ -101,6 +101,7 @@ struct ProcessDataStruct {
 	ADDR interpreter_max;		//max address loaded for interpreter
 	ADDR interpreter_entry;		//interpreter start address
 	ADDR program_entry;			//address of start of executable
+	bool is_aout_format;		//executable is an a.out format. (not elf)
 
 	ADDR original_stack_esp;	//stack location (ESP)
 	ADDR elf_start_esp;			//ESP when first transfer to elf code occurs
@@ -228,7 +229,7 @@ extern HANDLE hKernelLock;
 
 void kernel_init();
 void kernel_term();
-void ktrace(const char * format, ...);
+void _cdecl ktrace(const char * format, ...);
 
 int Win32ErrToUnixError(DWORD err);
 int AllocatePID();

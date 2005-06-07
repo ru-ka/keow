@@ -220,7 +220,17 @@ static void _cdecl HandleSignal(int sig)
 		else
 		{
 			((void (_cdecl *)(int))handler)(sig);
+			ktrace("sig_handler(sig %d) returned\n",sig);
 		}
+
+		//use restorer
+		//in linux this is a call to sys_sigreturn ?
+		//to return to user-land?
+		//documented as 'dont use'
+		//if(pProcessData->signal_action[sig].sa_flags & SA_RESTORER)
+		//{
+		//	((void (_cdecl *)(void))pProcessData->signal_action[sig].sa_restorer)();
+		//}
 
 	}
 
@@ -234,6 +244,8 @@ static void _cdecl HandleSignal(int sig)
 }
 
 //initial code injected into the ELF code so cause a jump to the signal handler in the correct thread context
+static char * handler_entry_message = "HandleSignalEntry\n";
+static char * handler_exit_message = "HandleSignalEntry exit\n";
 __declspec(naked) static void HandleSignalEntry()
 {
 	//on entry stack has
@@ -247,11 +259,23 @@ __declspec(naked) static void HandleSignalEntry()
 		pushfd
 		pushad
 
+		//ktrace on entry - to debug injection
+		mov eax, handler_entry_message
+		push eax
+		call ktrace
+		pop eax
+
 		//call handler
 		mov eax, [ebp+4]
 		push eax //signal argument
 		call HandleSignal
 		pop eax //signal argument - _cdecl caller pops stack
+
+		//ktrace on entry - to debug injection
+		mov eax, handler_exit_message
+		push eax
+		call ktrace
+		pop eax
 
 		//restore
 		popad
@@ -396,7 +420,7 @@ bool SendSignal(int pid, int sig)
 	ktrace("sending signal %d to pid %d\n", sig, pid);
 
 //test because we now don't want to dispatch signals whilst in non-ELF code
-#define SELF_SIGNALS_SPECIAL
+#undef SELF_SIGNALS_SPECIAL
 #ifdef SELF_SIGNALS_SPECIAL
 	if(pid==pProcessData->PID
 	&& pProcessData->MainThreadID==GetCurrentThreadId())
