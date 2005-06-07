@@ -1,0 +1,2 @@
+#define __ver_dm_kdevname	smp_c0303d1a
+#define dm_kdevname	_set_ver(dm_kdevname)
