@@ -1,0 +1,10 @@
+#define __ver_vcc_sklist	smp_9c38b765
+#define vcc_sklist	_set_ver(vcc_sklist)
+#define __ver_vcc_sklist_lock	smp_5c98b8cc
+#define vcc_sklist_lock	_set_ver(vcc_sklist_lock)
+#define __ver_vcc_insert_socket	smp_ba4a0469
+#define vcc_insert_socket	_set_ver(vcc_insert_socket)
+#define __ver_vcc_remove_socket	smp_0db0f4ff
+#define vcc_remove_socket	_set_ver(vcc_remove_socket)
+#define __ver_vcc_release_async	smp_634e469b
+#define vcc_release_async	_set_ver(vcc_release_async)

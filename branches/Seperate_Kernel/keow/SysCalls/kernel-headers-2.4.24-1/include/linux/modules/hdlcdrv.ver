@@ -1,0 +1,10 @@
+#define __ver_hdlcdrv_receiver	smp_4da3c17a
+#define hdlcdrv_receiver	_set_ver(hdlcdrv_receiver)
+#define __ver_hdlcdrv_transmitter	smp_f73be021
+#define hdlcdrv_transmitter	_set_ver(hdlcdrv_transmitter)
+#define __ver_hdlcdrv_arbitrate	smp_09648584
+#define hdlcdrv_arbitrate	_set_ver(hdlcdrv_arbitrate)
+#define __ver_hdlcdrv_register_hdlcdrv	smp_b2e6122a
+#define hdlcdrv_register_hdlcdrv	_set_ver(hdlcdrv_register_hdlcdrv)
+#define __ver_hdlcdrv_unregister_hdlcdrv	smp_eb03af11
+#define hdlcdrv_unregister_hdlcdrv	_set_ver(hdlcdrv_unregister_hdlcdrv)
