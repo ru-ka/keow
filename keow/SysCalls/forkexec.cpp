@@ -117,9 +117,10 @@ void TransferControlToELFCode()
 	pProcessData->elf_start_esp = start_esp;
 
 
-	if(pProcessData->interpreter_entry == 0)
+	if(pProcessData->is_aout_format)
 	{
 		program_entry = pProcessData->program_entry;
+		ktrace("no interpreter: entry @ 0x%08lx\n", program_entry);
 		__asm {
 
 			//need to clear registers, so to get correct jump
@@ -143,6 +144,8 @@ void TransferControlToELFCode()
 	}
 	else
 	{
+		//assuming ELF format
+
 		char * dummy_envp[1] = {NULL};
 		char * dummy_argv[2] = {(char*)pProcessData->ProgramPath, NULL};
 		phdr = pProcessData->phdr;
@@ -162,6 +165,16 @@ void TransferControlToELFCode()
 		for(cntargv=0; argv[cntargv]; ++cntargv)
 			;
 
+		if(interpreter_entry==0)
+		{
+			interpreter_base = pProcessData->program_base;
+			interpreter_entry = pProcessData->program_entry;
+			ktrace("elf, no interpreter: entry @ 0x%08lx\n", interpreter_entry);
+		}
+		else
+		{
+			ktrace("using interpreter: entry @ 0x%08lx\n", interpreter_entry);
+		}
 		__asm {
 			//Place some ELF interpreter start info onto the stack
 			//and then jump to the start of the program
@@ -782,7 +795,11 @@ DWORD DoExecve(const char * filename, char* argv[], char* envp[])
 		return Win32ErrToUnixError(err);
 	}
 
-	if(!LoadELFFile(pElf, filename, false))
+	if(LoadELFFile(pElf, filename, false))
+	{
+		p->is_aout_format = false;
+	}
+	else
 	{
 		TerminateProcess(pElf->pinfo.hProcess,-1);
 		CloseHandle(pElf->pinfo.hThread);

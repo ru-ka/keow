@@ -140,6 +140,7 @@ int LoadProgram(FILE * fElf, PELF_Data pElf, bool LoadAsLibrary)
 		pBaseAddr = (ADDR)( ((DWORD)pBaseAddr + (SIZE64k-1)) & (~(SIZE64k-1)) ); 
 		pElf->interpreter_base = pBaseAddr;
 	}
+	ktrace("using base address 0x%08lx\n", pBaseAddr);
 
 	pElf->start_addr = pElf->hdr.e_entry + pBaseAddr;
 

@@ -76,7 +76,7 @@ void  sys_sigaction(CONTEXT* pCtx)
 		pProcessData->signal_action[signum].sa_restorer    = act->sa_restorer;
 		pProcessData->signal_action[signum].sa_mask.sig[0] = act->sa_mask;
 
-		ktrace("set handler for signal %d : 0x%08lx\n", signum, act->sa_handler);
+		ktrace("set old_sigaction handler for signal %d : 0x%08lx\n", signum, act->sa_handler);
 	}
 
 	pCtx->Eax = 0;

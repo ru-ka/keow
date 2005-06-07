@@ -426,7 +426,7 @@ DWORD HandleExceptionInELF(DWORD ExceptionCode, LPEXCEPTION_POINTERS pEP)
 			instruction = (union u*)pEP->ExceptionRecord->ExceptionAddress;
 			if(instruction->w.word1 == 0x80CD)
 			{
-				//handle it
+				//handle int 80h
 				HandleSysCall(pEP->ContextRecord);
 
 				//skip over the INT instruction
@@ -624,8 +624,9 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 
 
 	//DEBUG
-	//if(pProcessData->PID == 1)
-	//	DebugBreak();
+	//if(pProcessData->PID == 2)
+	if(strstr(pProcessData->ProgramPath, "awk") )
+		DebugBreak();
 
 
 	//we need to know where the original stack is (before we do anything to play with it)
@@ -868,7 +869,7 @@ int Win32ErrToUnixError(DWORD err)
 /*
  * kernel debug tracing
  */
-void ktrace(const char * format, ...)
+void _cdecl ktrace(const char * format, ...)
 {
 	if(pKernelSharedData && pKernelSharedData->KernelDebug==0)
 		return;
