@@ -17,6 +17,7 @@ root=path
 
 init=path
 		Specifies the unix path of the process to start as 'init'.
+		Default is /sbin/init
 
 automount=letters
 		Specifies which Windows drive letters should automatically

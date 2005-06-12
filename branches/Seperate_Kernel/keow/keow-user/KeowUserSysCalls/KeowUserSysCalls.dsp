@@ -38,7 +38,7 @@ RSC=rc.exe
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "../Release"
+# PROP Output_Dir "../../Release"
 # PROP Intermediate_Dir "Release"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
@@ -64,7 +64,7 @@ LINK32=link.exe
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 1
-# PROP Output_Dir "../Debug"
+# PROP Output_Dir "../../Debug"
 # PROP Intermediate_Dir "Debug"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
@@ -79,7 +79,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib shell32.lib shlwapi.lib ole32.lib /nologo /base:"0x60000000" /dll /map /debug /machine:I386 /pdbtype:sept
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib shell32.lib shlwapi.lib ole32.lib /nologo /base:"0x69000000" /dll /map /debug /machine:I386 /pdbtype:sept
 # SUBTRACT LINK32 /nodefaultlib
 
 !ENDIF 
@@ -251,46 +251,6 @@ SOURCE=.\util.h
 # Begin Group "Resource Files"
 
 # PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
-# End Group
-# Begin Group "docs"
-
-# PROP Default_Filter "*.txt"
-# Begin Source File
-
-SOURCE=..\research\ELF_File_Format.txt
-# End Source File
-# Begin Source File
-
-SOURCE=..\research\entry.S
-# End Source File
-# Begin Source File
-
-SOURCE="..\INSTALL-bootstrap.txt"
-# End Source File
-# Begin Source File
-
-SOURCE="..\INSTALL-keow.txt"
-# End Source File
-# Begin Source File
-
-SOURCE=..\LICENSE.txt
-# End Source File
-# Begin Source File
-
-SOURCE=..\Overview.txt
-# End Source File
-# Begin Source File
-
-SOURCE=..\research\phrack_elf_x86.txt
-# End Source File
-# Begin Source File
-
-SOURCE=..\TODO.txt
-# End Source File
-# End Group
-# Begin Group "linux"
-
-# PROP Default_Filter ""
 # End Group
 # End Target
 # End Project

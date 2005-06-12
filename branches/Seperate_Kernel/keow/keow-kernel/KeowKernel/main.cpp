@@ -22,10 +22,9 @@
  */
 
 #include <windows.h>
-#include <stdio.h>
 
-#include "syscalls\kernel.h"
-#include "syscalls\loadelf.h"
+#include "kernel.h"
+#include "loadelf.h"
 
 
 typedef void (*ARG_HANDLER)(const char *);
@@ -34,7 +33,7 @@ const char * InitProgram = "/sbin/init";
 char * AutoMount = NULL;
 
 char KernelInstance[MAX_PATH];
-KernelSharedDataStruct * pKernelSharedData;
+//extern KernelSharedDataStruct * pKernelSharedData;
 
 char * InitialEnv[] = {
 	"OLDPWD=/",
@@ -416,7 +415,6 @@ struct {
 
 
 
-
 int main(int argc, char ** argv)
 {
 	int i;
@@ -532,3 +530,10 @@ int main(int argc, char ** argv)
 	halt();
 	return -1; //never get here
 }
+
+
+int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, LPSTR lpCmdLine, int nCmdShow)
+{
+	return 1;
+}
+
