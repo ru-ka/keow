@@ -1,0 +1,16 @@
+#define __ver_arc_proto_map	smp_92ace645
+#define arc_proto_map	_set_ver(arc_proto_map)
+#define __ver_arc_proto_default	smp_7e0856ae
+#define arc_proto_default	_set_ver(arc_proto_default)
+#define __ver_arc_bcast_proto	smp_1f238c6c
+#define arc_bcast_proto	_set_ver(arc_bcast_proto)
+#define __ver_arc_proto_null	smp_3bde18b7
+#define arc_proto_null	_set_ver(arc_proto_null)
+#define __ver_arcnet_unregister_proto	smp_dda882cc
+#define arcnet_unregister_proto	_set_ver(arcnet_unregister_proto)
+#define __ver_arcnet_debug	smp_6534792a
+#define arcnet_debug	_set_ver(arcnet_debug)
+#define __ver_arcdev_setup	smp_f7419142
+#define arcdev_setup	_set_ver(arcdev_setup)
+#define __ver_arcnet_interrupt	smp_0ebd300a
+#define arcnet_interrupt	_set_ver(arcnet_interrupt)

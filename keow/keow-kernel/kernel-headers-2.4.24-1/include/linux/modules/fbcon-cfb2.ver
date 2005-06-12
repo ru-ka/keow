@@ -1,0 +1,14 @@
+#define __ver_fbcon_cfb2	smp_19657a6d
+#define fbcon_cfb2	_set_ver(fbcon_cfb2)
+#define __ver_fbcon_cfb2_setup	smp_f9830c7e
+#define fbcon_cfb2_setup	_set_ver(fbcon_cfb2_setup)
+#define __ver_fbcon_cfb2_bmove	smp_b97ab1b5
+#define fbcon_cfb2_bmove	_set_ver(fbcon_cfb2_bmove)
+#define __ver_fbcon_cfb2_clear	smp_410db2bb
+#define fbcon_cfb2_clear	_set_ver(fbcon_cfb2_clear)
+#define __ver_fbcon_cfb2_putc	smp_7353d357
+#define fbcon_cfb2_putc	_set_ver(fbcon_cfb2_putc)
+#define __ver_fbcon_cfb2_putcs	smp_bfc06f20
+#define fbcon_cfb2_putcs	_set_ver(fbcon_cfb2_putcs)
+#define __ver_fbcon_cfb2_revc	smp_a6d3eb2b
+#define fbcon_cfb2_revc	_set_ver(fbcon_cfb2_revc)

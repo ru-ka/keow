@@ -1,0 +1,8 @@
+#define __ver_gendisk_head	smp_3b2e98de
+#define gendisk_head	_set_ver(gendisk_head)
+#define __ver_add_gendisk	smp_1bc09013
+#define add_gendisk	_set_ver(add_gendisk)
+#define __ver_del_gendisk	smp_a77f1432
+#define del_gendisk	_set_ver(del_gendisk)
+#define __ver_get_gendisk	smp_70e4b6b4
+#define get_gendisk	_set_ver(get_gendisk)

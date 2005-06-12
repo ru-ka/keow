@@ -1,0 +1,8 @@
+#define __ver_dm_get_device	smp_f946f3b1
+#define dm_get_device	_set_ver(dm_get_device)
+#define __ver_dm_put_device	smp_57f6329b
+#define dm_put_device	_set_ver(dm_put_device)
+#define __ver_dm_table_event	smp_30f20f58
+#define dm_table_event	_set_ver(dm_table_event)
+#define __ver_dm_table_get_mode	smp_40ae272b
+#define dm_table_get_mode	_set_ver(dm_table_get_mode)
