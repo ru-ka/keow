@@ -3,7 +3,7 @@ Microsoft Developer Studio Workspace File, Format Version 6.00
 
 ###############################################################################
 
-Project: "KernelEmulationOnWindows"=".\KernelEmulationOnWindows.dsp" - Package Owner=<4>
+Project: "KeowKernel"=".\keow-kernel\KeowKernel\KeowKernel.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -11,17 +11,11 @@ Package=<5>
 
 Package=<4>
 {{{
-    Begin Project Dependency
-    Project_Dep_Name ProcessStub
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name SysCalls
-    End Project Dependency
 }}}
 
 ###############################################################################
 
-Project: "ProcessStub"=".\ProcessStub\ProcessStub.dsp" - Package Owner=<4>
+Project: "KeowUserStub"=".\keow-user\KeowUserStub\KeowUserStub.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -29,14 +23,11 @@ Package=<5>
 
 Package=<4>
 {{{
-    Begin Project Dependency
-    Project_Dep_Name SysCalls
-    End Project Dependency
 }}}
 
 ###############################################################################
 
-Project: "SysCalls"=".\SysCalls\SysCalls.dsp" - Package Owner=<4>
+Project: "KeowUserSysCalls"=".\keow-user\KeowUserSysCalls\KeowUserSysCalls.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
