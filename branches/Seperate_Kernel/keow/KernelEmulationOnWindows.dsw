@@ -3,6 +3,21 @@ Microsoft Developer Studio Workspace File, Format Version 6.00
 
 ###############################################################################
 
+Project: "KeowConsole"=".\keow-kernel\KeowConsole\KeowConsole.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name KeowKernel
+    End Project Dependency
+}}}
+
+###############################################################################
+
 Project: "KeowKernel"=".\keow-kernel\KeowKernel\KeowKernel.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -23,6 +38,9 @@ Package=<5>
 
 Package=<4>
 {{{
+    Begin Project Dependency
+    Project_Dep_Name KeowUserSysCalls
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -35,6 +53,12 @@ Package=<5>
 
 Package=<4>
 {{{
+    Begin Project Dependency
+    Project_Dep_Name KeowKernel
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name KeowConsole
+    End Project Dependency
 }}}
 
 ###############################################################################
