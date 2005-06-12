@@ -1,24 +1,24 @@
-# Microsoft Developer Studio Project File - Name="KernelEmulationOnWindows" - Package Owner=<4>
+# Microsoft Developer Studio Project File - Name="KeowKernel" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) Console Application" 0x0103
 
-CFG=KernelEmulationOnWindows - Win32 Debug
+CFG=KeowKernel - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "KernelEmulationOnWindows.mak".
+!MESSAGE NMAKE /f "KeowKernel.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "KernelEmulationOnWindows.mak" CFG="KernelEmulationOnWindows - Win32 Debug"
+!MESSAGE NMAKE /f "KeowKernel.mak" CFG="KeowKernel - Win32 Debug"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "KernelEmulationOnWindows - Win32 Release" (based on "Win32 (x86) Console Application")
-!MESSAGE "KernelEmulationOnWindows - Win32 Debug" (based on "Win32 (x86) Console Application")
+!MESSAGE "KeowKernel - Win32 Release" (based on "Win32 (x86) Console Application")
+!MESSAGE "KeowKernel - Win32 Debug" (based on "Win32 (x86) Console Application")
 !MESSAGE 
 
 # Begin Project
@@ -28,7 +28,7 @@ CFG=KernelEmulationOnWindows - Win32 Debug
 CPP=cl.exe
 RSC=rc.exe
 
-!IF  "$(CFG)" == "KernelEmulationOnWindows - Win32 Release"
+!IF  "$(CFG)" == "KeowKernel - Win32 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
@@ -52,7 +52,7 @@ LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
 # ADD LINK32 $(OutDir)\SysCalls.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /version:0.1 /stack:0x400000 /subsystem:console /machine:I386
 
-!ELSEIF  "$(CFG)" == "KernelEmulationOnWindows - Win32 Debug"
+!ELSEIF  "$(CFG)" == "KeowKernel - Win32 Debug"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
@@ -80,8 +80,8 @@ LINK32=link.exe
 
 # Begin Target
 
-# Name "KernelEmulationOnWindows - Win32 Release"
-# Name "KernelEmulationOnWindows - Win32 Debug"
+# Name "KeowKernel - Win32 Release"
+# Name "KeowKernel - Win32 Debug"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
