@@ -94,7 +94,7 @@ void sys_mount(CONTEXT* pCtx)
 		}
 
 		//for now we just keep a table of mounts - a fixed number are available
-		if(pKernelSharedData->NumCurrentMounts >= MAX_MOUNTS)
+		if(g_KernelData.NumCurrentMounts >= MAX_MOUNTS)
 		{
 			pCtx->Eax = ENOMEM;
 			return;
@@ -104,7 +104,7 @@ void sys_mount(CONTEXT* pCtx)
 		//no work to do for keow, just remember the mount point
 
 		//record the mount
-		MountPointDataStruct& mnt = pKernelSharedData->MountPoints[pKernelSharedData->NumCurrentMounts];
+		MountPointDataStruct& mnt = g_KernelData.MountPoints[g_KernelData.NumCurrentMounts];
 		strncpy(mnt.Destination, target, MAX_PATH);
 		mnt.DestinatinLen = strlen(mnt.Destination); 
 		if(mnt.Destination[mnt.DestinatinLen-1]=='/')
@@ -114,7 +114,7 @@ void sys_mount(CONTEXT* pCtx)
 		mnt.Flags = mountflags;
 		strncpy(mnt.Data, (char*)data, sizeof(mnt.Data)-1);
 		mnt.nFsHandler = FileSystemHandler::GetIndex("keow");
-		pKernelSharedData->NumCurrentMounts++;
+		g_KernelData.NumCurrentMounts++;
 
 		pCtx->Eax = 0;
 	}
@@ -144,18 +144,18 @@ void sys_umount(CONTEXT* pCtx)
 		len--; //don't want to match the slash
 
 	int m;
-	for(m=0; m<pKernelSharedData->NumCurrentMounts; ++m)
+	for(m=0; m<g_KernelData.NumCurrentMounts; ++m)
 	{
-		if(strcmp(target, pKernelSharedData->MountPoints[m].Destination)==0)
+		if(strcmp(target, g_KernelData.MountPoints[m].Destination)==0)
 		{
 			//remove this mount from the table,
 			//move others to fill the space
 
-			while(m<pKernelSharedData->NumCurrentMounts-1) {
-				pKernelSharedData->MountPoints[m] = pKernelSharedData->MountPoints[m+1];
+			while(m<g_KernelData.NumCurrentMounts-1) {
+				g_KernelData.MountPoints[m] = g_KernelData.MountPoints[m+1];
 				++m;
 			}
-			--pKernelSharedData->NumCurrentMounts;
+			--g_KernelData.NumCurrentMounts;
 			pCtx->Eax = 0;
 			return;
 		}

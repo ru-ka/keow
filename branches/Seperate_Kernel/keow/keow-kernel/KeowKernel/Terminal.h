@@ -21,30 +21,42 @@
  *
  */
 
-/*
- * generate core dumps
- */
+// Terminal.h: interface for the Terminal class.
+//
+//////////////////////////////////////////////////////////////////////
+
+#if !defined(AFX_TERMINAL_H__8DA03BC5_F1B5_4DF2_B7C7_4F92F9C1B8C2__INCLUDED_)
+#define AFX_TERMINAL_H__8DA03BC5_F1B5_4DF2_B7C7_4F92F9C1B8C2__INCLUDED_
+
+#if _MSC_VER > 1000
+#pragma once
+#endif // _MSC_VER > 1000
+
 #include "kernel.h"
-#include "loadelf.h"
 
 
-void GenerateCoreDump()
+//
+// info needed to be kept for terminal devices
+//
+
+class Terminal  
 {
-	KeowProcess()->core_dumped = true;
+public:
+	void printf(const char * format, ...);
 
-	HANDLE hCore = CreateFile("core",GENERIC_WRITE,0,0,CREATE_ALWAYS,0,0);
-	if(hCore==INVALID_HANDLE_VALUE)
-	{
-		ktrace("FAIL writing core file: err %lx\n", GetLastError());
-		return;
-	}
+	Terminal();
+	virtual ~Terminal();
 
-	//TODO implement a real core dump
-	DWORD written;
-	WriteFile(hCore, "Core dump of ", 13, &written, 0);
-	WriteFile(hCore, (char*)KeowProcess()->ProgramPath, strlen((char*)KeowProcess()->ProgramPath), &written, 0);
-	WriteFile(hCore, "\x0a", 1, &written, 0);
+	//What process is running the terminal (eg KeowConsole)
+	DWORD	dwTerminalProcess;
+	//Need read/write handles for the terminal
+	HANDLE	hTerminalRead, hTerminalWrite;
 
 
-	CloseHandle(hCore);
-}
+	//Linux process information for the terminal
+	linux::termios	TermIOs;
+	DWORD			ProcessGroup;
+
+};
+
+#endif // !defined(AFX_TERMINAL_H__8DA03BC5_F1B5_4DF2_B7C7_4F92F9C1B8C2__INCLUDED_)

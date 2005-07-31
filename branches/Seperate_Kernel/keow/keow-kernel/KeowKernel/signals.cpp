@@ -35,24 +35,24 @@
  */
 static void _cdecl HandleSignal(int sig)
 {
-	ktrace("signal handler starting for %d (depth %d)\n", sig, pProcessData->signal_depth);
+	ktrace("signal handler starting for %d (depth %d)\n", sig, KeowProcess()->signal_depth);
 
-	pProcessData->current_signal = sig;
+	KeowProcess()->current_signal = sig;
 
 	//participate in ptrace()
-	if(pProcessData->ptrace_owner_pid)
+	if(KeowProcess()->ptrace_owner_pid)
 	{
 		ktrace("stopping for ptrace in HandleSignal\n");
-		pProcessData->ptrace_new_signal = sig;
-		SendSignal(pProcessData->ptrace_owner_pid, SIGCHLD);
+		KeowProcess()->ptrace_new_signal = sig;
+		SendSignal(KeowProcess()->ptrace_owner_pid, SIGCHLD);
 		SuspendThread(GetCurrentThread());
 
 		ktrace("resumed from ptrace stop in HandleSignal\n");
 		//did tracer alter the signal to deliver?
-		if(sig != pProcessData->ptrace_new_signal)
+		if(sig != KeowProcess()->ptrace_new_signal)
 		{
-			sig = pProcessData->ptrace_new_signal;
-			pProcessData->current_signal = sig;
+			sig = KeowProcess()->ptrace_new_signal;
+			KeowProcess()->current_signal = sig;
 			ktrace("ptrace replacement signal %d\n", sig);
 			if(sig==0)
 				return;
@@ -64,7 +64,7 @@ static void _cdecl HandleSignal(int sig)
 	{
 	case SIGKILL:
 		ktrace("killed - sigkill\n");
-		pProcessData->killed_by_sig = sig;
+		KeowProcess()->killed_by_sig = sig;
 		ExitProcess((UINT)-sig);
 		return;
 	case SIGSTOP:
@@ -78,41 +78,38 @@ static void _cdecl HandleSignal(int sig)
 	//DebugBreak();
 
 	//signal is blocked by this function?
-	//if(pProcessData->signal_blocked[sig] > 0)
+	//if(KeowProcess()->signal_blocked[sig] > 0)
 	//{
 	//	ktrace("signal not delivered - currently blocked\n");
-	//	pProcessData->current_signal = 0;
+	//	KeowProcess()->current_signal = 0;
 	//	return;
 	//}
 
 	//is this process ignoring this signal?
-	linux::sigset_t mask = pProcessData->sigmask[pProcessData->signal_depth];
+	linux::sigset_t mask = KeowProcess()->sigmask[KeowProcess()->signal_depth];
 	if( (mask.sig[(sig-1)/_NSIG_BPW]) & (1 << (sig-1)%_NSIG_BPW) )
 	{
 		ktrace("signal not delivered - currently masked\n");
-		pProcessData->current_signal = 0;
+		KeowProcess()->current_signal = 0;
 		return;
 	}
 
 
-	//interrupt wait?
-	SetEvent(WaitTerminatingEvent);
-
 	//nested
-	pProcessData->signal_depth++;
-	if(pProcessData->signal_depth >= MAX_PENDING_SIGNALS)
+	KeowProcess()->signal_depth++;
+	if(KeowProcess()->signal_depth >= MAX_PENDING_SIGNALS)
 	{
-		pProcessData->signal_depth = MAX_PENDING_SIGNALS-1;
+		KeowProcess()->signal_depth = MAX_PENDING_SIGNALS-1;
 		ktrace("WARN overflow in nested signal handling\n");
 	}
-	pProcessData->sigmask[pProcessData->signal_depth] = pProcessData->signal_action[sig].sa_mask;
+	KeowProcess()->sigmask[KeowProcess()->signal_depth] = KeowProcess()->signal_action[sig].sa_mask;
 
 	//is there a signal handler registered for this signal?
-	//	pProcessData->signal_action[signum].sa_handler     = act->sa_handler;
-	//	pProcessData->signal_action[signum].sa_flags       = act->sa_flags;
-	//	pProcessData->signal_action[signum].sa_restorer    = act->sa_restorer;
-	//	pProcessData->signal_action[signum].sa_mask.sig[0] = act->sa_mask;
-	if(pProcessData->signal_action[sig].sa_handler == SIG_DFL)
+	//	KeowProcess()->signal_action[signum].sa_handler     = act->sa_handler;
+	//	KeowProcess()->signal_action[signum].sa_flags       = act->sa_flags;
+	//	KeowProcess()->signal_action[signum].sa_restorer    = act->sa_restorer;
+	//	KeowProcess()->signal_action[signum].sa_mask.sig[0] = act->sa_mask;
+	if(KeowProcess()->signal_action[sig].sa_handler == SIG_DFL)
 	{
 		//default action for this signal
 		ktrace("executing default action for signal\n");
@@ -145,14 +142,14 @@ static void _cdecl HandleSignal(int sig)
 		case SIGUSR2:
 		case SIGPOLL:
 		case SIGPROF:
-			pProcessData->killed_by_sig = sig;
+			KeowProcess()->killed_by_sig = sig;
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			ExitProcess(-sig);
 			break;
 
 		//ptrace
 		case SIGTRAP:
-			if(pProcessData->ptrace_owner_pid)
+			if(KeowProcess()->ptrace_owner_pid)
 				break; //ignore
 			//else drop thru to core dump
 
@@ -164,14 +161,14 @@ static void _cdecl HandleSignal(int sig)
 		case SIGSEGV:
 		case SIGBUS:
 		case SIGSYS:
-			pProcessData->killed_by_sig = sig;
+			KeowProcess()->killed_by_sig = sig;
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			GenerateCoreDump();
 			ExitProcess(-sig);
 			break;
 
 		default:
-			pProcessData->killed_by_sig = sig;
+			KeowProcess()->killed_by_sig = sig;
 			ktrace("IMPLEMENT default action for signal %d\n", sig);
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			ExitProcess(-sig);
@@ -179,26 +176,26 @@ static void _cdecl HandleSignal(int sig)
 		}
 	}
 	else
-	if(pProcessData->signal_action[sig].sa_handler == SIG_IGN)
+	if(KeowProcess()->signal_action[sig].sa_handler == SIG_IGN)
 	{
 		//ignore the signal
 		ktrace("ignoring signal - sig_ign\n");
 	}
 	else
 	{
-		ktrace("dispatching to signal handler @ 0x%08lx\n", pProcessData->signal_action[sig].sa_handler);
+		ktrace("dispatching to signal handler @ 0x%08lx\n", KeowProcess()->signal_action[sig].sa_handler);
 
 		//supposed to supress the signal whilst in the handler?
 		//linux just sets to SIG_DFL? (see man 2 signal)
-		linux::__sighandler_t handler = pProcessData->signal_action[sig].sa_handler;
+		linux::__sighandler_t handler = KeowProcess()->signal_action[sig].sa_handler;
 
 		//restore handler?
-		if((pProcessData->signal_action[sig].sa_flags & SA_ONESHOT)
-		|| (pProcessData->signal_action[sig].sa_flags & SA_RESETHAND) )
-			pProcessData->signal_action[sig].sa_handler = SIG_DFL;
+		if((KeowProcess()->signal_action[sig].sa_flags & SA_ONESHOT)
+		|| (KeowProcess()->signal_action[sig].sa_flags & SA_RESETHAND) )
+			KeowProcess()->signal_action[sig].sa_handler = SIG_DFL;
 
 		//dispatch to custom handler
-		if(pProcessData->signal_action[sig].sa_flags & SA_SIGINFO)
+		if(KeowProcess()->signal_action[sig].sa_flags & SA_SIGINFO)
 		{
 			linux::siginfo si;
 			si.si_signo = sig;
@@ -227,20 +224,20 @@ static void _cdecl HandleSignal(int sig)
 		//in linux this is a call to sys_sigreturn ?
 		//to return to user-land?
 		//documented as 'dont use'
-		//if(pProcessData->signal_action[sig].sa_flags & SA_RESTORER)
+		//if(KeowProcess()->signal_action[sig].sa_flags & SA_RESTORER)
 		//{
-		//	((void (_cdecl *)(void))pProcessData->signal_action[sig].sa_restorer)();
+		//	((void (_cdecl *)(void))KeowProcess()->signal_action[sig].sa_restorer)();
 		//}
 
 	}
 
 		
 	//un-nest
-	pProcessData->signal_depth--;
+	KeowProcess()->signal_depth--;
 
-	pProcessData->current_signal = 0;
+	KeowProcess()->current_signal = 0;
 
-	ktrace("signal handler ending for %d (depth %d)\n", sig, pProcessData->signal_depth);
+	ktrace("signal handler ending for %d (depth %d)\n", sig, KeowProcess()->signal_depth);
 }
 
 //initial code injected into the ELF code so cause a jump to the signal handler in the correct thread context
@@ -304,7 +301,7 @@ static void DispatchSignal(int sig)
 	{
 		//no arguing here - just die
 		ktrace("killed - sigkill\n");
-		pProcessData->killed_by_sig = sig;
+		KeowProcess()->killed_by_sig = sig;
 		ExitProcess((UINT)-sig);
 	}
 
@@ -313,7 +310,7 @@ static void DispatchSignal(int sig)
 	//update the context to call to a signal handler
 	//let the thread resume
 
-	HANDLE hMainThread = OpenThread(THREAD_ALL_ACCESS, FALSE, pProcessData->MainThreadID);
+	HANDLE hMainThread = OpenThread(THREAD_ALL_ACCESS, FALSE, KeowProcess()->MainThreadID);
 
 	//SIGCONT is special - continues suspended process
 	if(sig==SIGCONT)
@@ -326,8 +323,8 @@ static void DispatchSignal(int sig)
 	}
 	else
 	{
-		bool SavedInSetup = pProcessData->in_setup;
-		pProcessData->in_setup = true; //because we are suspending and fiddling
+		bool SavedInSetup = KeowProcess()->in_setup;
+		KeowProcess()->in_setup = true; //because we are suspending and fiddling
 
 		if(SuspendThread(hMainThread)==-1)
 		{
@@ -372,7 +369,7 @@ static void DispatchSignal(int sig)
 			ExitProcess(-SIGABRT);
 		}
 
-		pProcessData->in_setup = SavedInSetup; //stopped fiddling
+		KeowProcess()->in_setup = SavedInSetup; //stopped fiddling
 
 	}
 
@@ -422,8 +419,8 @@ bool SendSignal(int pid, int sig)
 //test because we now don't want to dispatch signals whilst in non-ELF code
 #undef SELF_SIGNALS_SPECIAL
 #ifdef SELF_SIGNALS_SPECIAL
-	if(pid==pProcessData->PID
-	&& pProcessData->MainThreadID==GetCurrentThreadId())
+	if(pid==KeowProcess()->PID
+	&& KeowProcess()->MainThreadID==GetCurrentThreadId())
 	{
 		//signalling ourselves, just do it!
 		HandleSignal(sig);
@@ -433,6 +430,6 @@ bool SendSignal(int pid, int sig)
 #endif
 	{
 		//not interrupting the current thread, so must dispatch via handler thread
-		return PostThreadMessage(pKernelSharedData->ProcessTable[pid].SignalThreadID, WM_KERNEL_SIGNAL, sig, 0) != 0;
+		return PostThreadMessage(g_KernelData.ProcessTable[pid].SignalThreadID, WM_KERNEL_SIGNAL, sig, 0) != 0;
 	}
 }

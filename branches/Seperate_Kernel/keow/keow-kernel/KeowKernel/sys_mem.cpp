@@ -41,14 +41,14 @@
 void  sys_brk(CONTEXT* pCtx)
 {
 	ADDR p;
-	ADDR old_brk = pProcessData->brk;
+	ADDR old_brk = KeowProcess()->brk;
 	ADDR new_brk = (ADDR)pCtx->Ebx;
 
 	if(new_brk == 0)
 	{
 		//return current location
-		ktrace("brk(0) = 0x%08lx\n", pProcessData->brk);
-		pCtx->Eax = (DWORD)pProcessData->brk;
+		ktrace("brk(0) = 0x%08lx\n", KeowProcess()->brk);
+		pCtx->Eax = (DWORD)KeowProcess()->brk;
 		return;
 	}
 
@@ -74,8 +74,8 @@ void  sys_brk(CONTEXT* pCtx)
 		//ZeroMemory(old_brk, new_brk-old_brk);
 	}
 
-	pProcessData->brk = new_brk;
-	ktrace("brk(x) = 0x%08lx\n", pProcessData->brk);
+	KeowProcess()->brk = new_brk;
+	ktrace("brk(x) = 0x%08lx\n", KeowProcess()->brk);
 	pCtx->Eax = (DWORD)new_brk;
 	return;
 }
@@ -117,7 +117,7 @@ void sys_mmap(CONTEXT* pCtx)
 			pCtx->Eax = -EBADF;
 			return;
 		}
-		ioh = dynamic_cast<FileIOHandler*>(pProcessData->FileHandlers[args->fd]);
+		ioh = dynamic_cast<FileIOHandler*>(KeowProcess()->FileHandlers[args->fd]);
 		if(ioh==NULL)
 		{
 			pCtx->Eax = -EACCES; //not a simple file - can't handle that

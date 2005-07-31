@@ -60,7 +60,7 @@ const char * Path::CurrentFileSystemUnixPath()
 void Path::SetUnixPath(const char * unixp)
 {
 	if(unixp[0] != '/')
-		strncpy(m_UnixPath, pProcessData->unix_pwd, MAX_PATH-1);
+		strncpy(m_UnixPath, KeowProcess()->unix_pwd, MAX_PATH-1);
 	else
 		m_UnixPath[0] = 0;
 
@@ -148,7 +148,7 @@ void Path::CalculateWin32Path()
 		return;
 
 	//always start here
-	StringCbCopy(m_Win32Path, MAX_PATH, pKernelSharedData->LinuxFileSystemRoot);
+	StringCbCopy(m_Win32Path, MAX_PATH, g_KernelData.LinuxFileSystemRoot);
 
 	m_nMountPoint = -1; //none, root
 	FileSystemHandler* h = FileSystemHandler::RootFileSystemHandler;
@@ -175,7 +175,7 @@ void Path::CalculateWin32Path()
 		if(m_nMountPoint == -1)
 			h = FileSystemHandler::RootFileSystemHandler;
 		else
-			h = FileSystemHandler::Get( pKernelSharedData->MountPoints[m_nMountPoint].nFsHandler );
+			h = FileSystemHandler::Get( g_KernelData.MountPoints[m_nMountPoint].nFsHandler );
 
 		ktrace("fs:%s, ApplyPathElement:%s => %s\n", h->Name(), pStart, m_Win32Path);
 
@@ -205,7 +205,7 @@ FileSystemHandler * Path::GetFileSystemHandler()
 
 	FileSystemHandler* h = FileSystemHandler::RootFileSystemHandler;
 	if(m_nMountPoint != -1)
-		h = FileSystemHandler::Get( pKernelSharedData->MountPoints[m_nMountPoint].nFsHandler );
+		h = FileSystemHandler::Get( g_KernelData.MountPoints[m_nMountPoint].nFsHandler );
 
 	return h;
 }

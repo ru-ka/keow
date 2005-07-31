@@ -118,8 +118,8 @@ static void AddMemoryAllocRecord(MemoryAllocRecord::RecType type, ADDR addr, DWO
 	//join consecutive entries as one entry
 	MemoryAllocRecord *pPrev, *pCurr, *pNew;
 
-	pPrev = &pProcessData->m_MemoryAllocationsHeader;
-	pCurr = (MemoryAllocRecord *)pProcessData->m_MemoryAllocationsHeader.next;
+	pPrev = &KeowProcess()->m_MemoryAllocationsHeader;
+	pCurr = (MemoryAllocRecord *)KeowProcess()->m_MemoryAllocationsHeader.next;
 	while(pCurr)
 	{
 		if(pCurr->addr >= addr)
@@ -173,7 +173,7 @@ static void AddMemoryAllocRecord(MemoryAllocRecord::RecType type, ADDR addr, DWO
 void FreeMemoryAllocRecord(int type, ADDR addr, DWORD len)
 {
 	//find allocation block that covers this area
-	MemoryAllocRecord * pMem = &pProcessData->m_MemoryAllocationsHeader;
+	MemoryAllocRecord * pMem = &KeowProcess()->m_MemoryAllocationsHeader;
 	while(pMem->next)
 	{
 		pMem = (MemoryAllocRecord*)pMem->next;
@@ -313,7 +313,7 @@ bool ReadMemory(ADDR toAddr, HANDLE hFromProcess, ADDR fromAddr, int len)
  * the 2 dwords immediatly prior to the returned address
  * are a struct MemBlock.
  */
-char** CopyStringListToProcess(HANDLE hProcess, char * list[])
+char ** CopyStringListToProcess(HANDLE hProcess, char * list[] )
 {
 	int i, arraysize, items;
 	DWORD total;

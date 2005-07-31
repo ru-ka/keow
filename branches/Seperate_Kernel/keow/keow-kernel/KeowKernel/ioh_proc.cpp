@@ -49,7 +49,7 @@ static bool Populate_proc_(int pid, BYTE *& pProcObjectData, DWORD& dwDataOffset
 	dwDataSize = 0; //not filled yet
 	for(int i=0; i<MAX_PROCESSES; ++i)
 	{
-		if(pKernelSharedData->ProcessTable[i].in_use)
+		if(g_KernelData.ProcessTable[i].in_use)
 		{
 			StringCbPrintfA((char*)&pProcObjectData[dwDataSize], 6, "%d", i);
 			while(pProcObjectData[dwDataSize]!=NULL) {
@@ -80,9 +80,9 @@ static bool Populate_proc_pid_(int pid, BYTE *& pProcObjectData, DWORD& dwDataOf
 static bool Populate_proc_pid_cmdline(int pid, BYTE *& pProcObjectData, DWORD& dwDataOffset, DWORD &dwDataSize)
 {
 	//TODO: get full commandline
-	dwDataSize = sizeof(pKernelSharedData->ProcessTable[pid].ProgramPath);
+	dwDataSize = sizeof(g_KernelData.ProcessTable[pid].ProgramPath);
 	pProcObjectData = new BYTE[dwDataSize];
-	memcpy(pProcObjectData, pKernelSharedData->ProcessTable[pid].ProgramPath, dwDataSize);
+	memcpy(pProcObjectData, g_KernelData.ProcessTable[pid].ProgramPath, dwDataSize);
 	dwDataSize = strlen((char*)pProcObjectData)+1; //include null
 
 	return true;
@@ -90,9 +90,9 @@ static bool Populate_proc_pid_cmdline(int pid, BYTE *& pProcObjectData, DWORD& d
 
 static bool Populate_proc_pid_cwd(int pid, BYTE *& pProcObjectData, DWORD& dwDataOffset, DWORD &dwDataSize)
 {
-	dwDataSize = sizeof(pKernelSharedData->ProcessTable[pid].unix_pwd);
+	dwDataSize = sizeof(g_KernelData.ProcessTable[pid].unix_pwd);
 	pProcObjectData = new BYTE[dwDataSize];
-	memcpy(pProcObjectData, pKernelSharedData->ProcessTable[pid].unix_pwd, dwDataSize);
+	memcpy(pProcObjectData, g_KernelData.ProcessTable[pid].unix_pwd, dwDataSize);
 	dwDataSize = strlen((char*)pProcObjectData)+1; //include null
 
 	return true;
@@ -100,9 +100,9 @@ static bool Populate_proc_pid_cwd(int pid, BYTE *& pProcObjectData, DWORD& dwDat
 
 static bool Populate_proc_pid_exe(int pid, BYTE *& pProcObjectData, DWORD& dwDataOffset, DWORD &dwDataSize)
 {
-	dwDataSize = sizeof(pKernelSharedData->ProcessTable[pid].ProgramPath);
+	dwDataSize = sizeof(g_KernelData.ProcessTable[pid].ProgramPath);
 	pProcObjectData = new BYTE[dwDataSize];
-	memcpy(pProcObjectData, pKernelSharedData->ProcessTable[pid].ProgramPath, dwDataSize);
+	memcpy(pProcObjectData, g_KernelData.ProcessTable[pid].ProgramPath, dwDataSize);
 	dwDataSize = strlen((char*)pProcObjectData)+1; //include null
 
 	return true;
@@ -113,20 +113,20 @@ static bool Populate_proc_pid_stat(int pid, BYTE *& pProcObjectData, DWORD& dwDa
 	dwDataSize = MAX_PATH + 4000; //more than enough?
 	pProcObjectData = new BYTE[dwDataSize];
 
-	DWORD starttime = FILETIME_TO_TIME_T(pKernelSharedData->ProcessTable[pid].StartedTime) * Jiffies;
+	DWORD starttime = FILETIME_TO_TIME_T(g_KernelData.ProcessTable[pid].StartedTime) * Jiffies;
 	int priority=10, nice=0;
 
 	//TODO: fill out missing stat fields
 	StringCbPrintf((char*)pProcObjectData, dwDataSize,
 			"%d (%s) %c %d %d %d %d %d %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %ld 0 %ld %lu %lu %ld %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %d %d\x0a"
 			,pid
-			,pKernelSharedData->ProcessTable[pid].ProgramPath
+			,g_KernelData.ProcessTable[pid].ProgramPath
 			,'R'  //state, just using Running for now
-			,pKernelSharedData->ProcessTable[pid].ParentPID
-			,pKernelSharedData->ProcessTable[pid].ProcessGroupPID
+			,g_KernelData.ProcessTable[pid].ParentPID
+			,g_KernelData.ProcessTable[pid].ProcessGroupPID
 			,0    //session id
 			,0	  //tty number
-			,pKernelSharedData->ProcessTable[pid].ProcessGroupPID //tpgid 
+			,g_KernelData.ProcessTable[pid].ProcessGroupPID //tpgid 
 			,0    //flags
 			,0	//minflt %lu\x0a,
 			,0	//cminflt %lu\x0a,
@@ -144,15 +144,15 @@ static bool Populate_proc_pid_stat(int pid, BYTE *& pProcObjectData, DWORD& dwDa
 			,0	//vsize
 			,0	//rss %ld\x0a,
 			,0	//rlim %lu\x0a,
-			,pKernelSharedData->ProcessTable[pid].program_base //??
-			,pKernelSharedData->ProcessTable[pid].brk_base //??
-			,pKernelSharedData->ProcessTable[pid].original_stack_esp
+			,g_KernelData.ProcessTable[pid].program_base //??
+			,g_KernelData.ProcessTable[pid].brk_base //??
+			,g_KernelData.ProcessTable[pid].original_stack_esp
 			,0	//current stack ESP  kstkesp %lu\x0a,
 			,0	//current EIP  kstkeip %lu\x0a,
 			,0	// .signal %lu\x0a,
 			,0	//blocked %lu\x0a,
-			,0	//~(pKernelSharedData->ProcessTable[pid].sigmask) //sigignore
-			,0	//pKernelSharedData->ProcessTable[pid].sigmask //sigcatch %lu\x0a,
+			,0	//~(g_KernelData.ProcessTable[pid].sigmask) //sigignore
+			,0	//g_KernelData.ProcessTable[pid].sigmask //sigcatch %lu\x0a,
 			,0	//wchan %lu\x0a,
 			,0	//nswap %lu\x0a,
 			,0	//cnswap %lu\x0a,
@@ -246,7 +246,7 @@ static bool Populate_proc_cpuinfo(int pid, BYTE *& pProcObjectData, DWORD& dwDat
 				"fpu       : %s\x0a"
 				, cpu
 				, "Intel compatible (keow)"
-				, pKernelSharedData->BogoMips
+				, g_KernelData.BogoMips
 				, si.dwNumberOfProcessors
 				, IsProcessorFeaturePresent(PF_FLOATING_POINT_EMULATED) ? "no" : "yes"
 				);
@@ -298,7 +298,7 @@ static bool Populate_proc_stat(int pid, BYTE *& pProcObjectData, DWORD& dwDataOf
 			"processes %ld\x0a"
 			, user, nice, sys, idle
 			, GetTickCount()/1000
-			, pKernelSharedData->ForksSinceBoot
+			, g_KernelData.ForksSinceBoot
 			);
 
 	dwDataSize = strlen((char*)pProcObjectData);
@@ -639,7 +639,7 @@ bool ProcIOHandler::CalculateProcObject()
 		if(isdigit(*p))
 			m_RelaventPid = atoi(p);
 		else
-			m_RelaventPid = pProcessData->PID; //self
+			m_RelaventPid = KeowProcess()->PID; //self
 
 		//what pid object?
 		p = strtok(NULL, "/");

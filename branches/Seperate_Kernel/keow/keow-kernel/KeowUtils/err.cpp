@@ -20,31 +20,49 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
+#include "utils.h"
+
 
 /*
- * generate core dumps
+ * translate win32 gtlasterror value to linux errno
  */
-#include "kernel.h"
-#include "loadelf.h"
-
-
-void GenerateCoreDump()
+int Win32ErrToUnixError(DWORD err)
 {
-	KeowProcess()->core_dumped = true;
-
-	HANDLE hCore = CreateFile("core",GENERIC_WRITE,0,0,CREATE_ALWAYS,0,0);
-	if(hCore==INVALID_HANDLE_VALUE)
+	switch(err)
 	{
-		ktrace("FAIL writing core file: err %lx\n", GetLastError());
-		return;
+	case ERROR_SUCCESS:
+		return 0;
+
+	case ERROR_FILE_NOT_FOUND:
+	case ERROR_PATH_NOT_FOUND:
+		return ENOENT;
+
+	case ERROR_TOO_MANY_OPEN_FILES:
+		return EMFILE;
+
+	case ERROR_ACCESS_DENIED:
+		return EACCES;
+
+	case ERROR_INVALID_HANDLE:
+		return EBADF;
+
+	case ERROR_ARENA_TRASHED:
+	case ERROR_INVALID_BLOCK:
+		return EFAULT;
+
+	case ERROR_NOT_ENOUGH_MEMORY:
+	case ERROR_OUTOFMEMORY:
+		return ENOMEM;
+
+	case ERROR_INVALID_FUNCTION:
+		return ENOSYS;
+
+	case ERROR_BROKEN_PIPE:
+		return EIO;
+
+	default:
+		ktrace("Unhandled Win32 Error code %ld\n", err);
+		return EPERM; //generic
 	}
-
-	//TODO implement a real core dump
-	DWORD written;
-	WriteFile(hCore, "Core dump of ", 13, &written, 0);
-	WriteFile(hCore, (char*)KeowProcess()->ProgramPath, strlen((char*)KeowProcess()->ProgramPath), &written, 0);
-	WriteFile(hCore, "\x0a", 1, &written, 0);
-
-
-	CloseHandle(hCore);
 }
+

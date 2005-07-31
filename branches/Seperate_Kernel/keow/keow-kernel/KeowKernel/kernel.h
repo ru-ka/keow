@@ -24,17 +24,14 @@
 #ifndef KEOW_KERNEL_H
 #define KEOW_KERNEL_H
 
-//want Win2k functions
-#define _WIN32_WINNT 0x500
-
 
 typedef unsigned char * ADDR;
 
-
 #include "linux_includes.h"
+#include "terminal.h"
 #include "iohandler.h"
 #include "memory.h"
-#include "util.h"
+#include "utils.h"
 #include "path.h"
 
 
@@ -45,15 +42,13 @@ typedef unsigned char * ADDR;
 #define MAX_PENDING_SIGNALS	128
 
 #define NUM_CONSOLE_TERMINALS	1
-#define NUM_SERIAL_TERMINALS	1
 #define NUM_PTY_TERMINALS		255
-#define CONSOLE0_NUM	0
-#define SERIAL0_NUM		(NUM_CONSOLE_TERMINALS)
-#define PTY0_NUM		(SERIAL0_NUM+NUM_SERIAL_TERMINALS)
-#define MAX_TERMINALS	(PTY0_NUM+NUM_PTY_TERMINALS)
+
+#define MAX_TERMINALS	(NUM_CONSOLE_TERMINALS+NUM_PTY_TERMINALS)
 
 
-class MemoryAllocRecord : public LinkedListItem {
+class MemoryAllocRecord
+{
 public:
 	ADDR addr;
 	DWORD len;
@@ -71,17 +66,19 @@ public:
 
 
 //
-//Process specific data
-//Put eveything that needs to survive a fork() here
+// Process specific data
+// Put eveything that needs to survive a fork() here
 //
 struct ProcessDataStruct {
 
+	HANDLE hProcess;
 	DWORD Win32PID;
 	DWORD MainThreadID;
-	DWORD SignalThreadID;
+
 	bool in_use;
 	bool in_setup;				//still initialising process
 	bool in_syscall;			//executing win32/kernel code, not elf
+
 	int exitcode;
 	int killed_by_sig, current_signal;
 	bool core_dumped;
@@ -136,39 +133,13 @@ struct ProcessDataStruct {
 
 	FILETIME StartedTime;
 
-	//If you add or alter fields, also update all in forkexec.cpp and kernel.cpp
-
-
-	//-------------------------------------------------------------------------
-
-	//Data below this line cannot be safely duplicated (it is local pointers)
-	//It is recorded here to allow fork() child process to use ReadMemory to get it
 
 	IOHandler* FileHandlers[MAX_OPEN_FILES];
 
-	HANDLE hKernelDebugFile;
-
 	MemoryAllocRecord m_MemoryAllocationsHeader;
 
-	//If you add or alter fields, also update all in forkexec.cpp
 
-
-	//char PadingTo4k[1]; //we should do this and implement memory protection on the data;
-};
-
-extern ProcessDataStruct* pProcessData;
-
-
-//
-// info needed to be kept for terminal devices
-//
-struct TerminalDeviceDataStruct {
-	linux::termios	TermIOs;
-	DWORD			ProcessGroup;
-	DWORD			InputState; //for shared escape code handling
-	DWORD			OutputState; //for shared escape code handling
-	BYTE			InputStateData[32];
-	BYTE			OutputStateData[32];
+	//If you add or alter fields, also update all in forkexec.cpp and kernel.cpp
 };
 
 
@@ -192,7 +163,7 @@ struct MountPointDataStruct {
 //shared kernel data
 //this will be in shared memory across all processes
 //
-struct KernelSharedDataStruct {
+struct KernelDataStruct {
 	ProcessDataStruct ProcessTable[MAX_PROCESSES];
 
 	int LastAllocatedPID;
@@ -201,7 +172,6 @@ struct KernelSharedDataStruct {
 	DWORD BogoMips;
 	DWORD ForksSinceBoot;
 
-	char KernelInstanceName[MAX_PATH];
 	int KernelDebug;
 
 	char LinuxFileSystemRoot[MAX_PATH];
@@ -209,14 +179,25 @@ struct KernelSharedDataStruct {
 
 	char ProcessStubFilename[MAX_PATH];
 
-	TerminalDeviceDataStruct TerminalDeviceData[MAX_TERMINALS];
+	class Terminal* Terminals[MAX_TERMINALS];
 
 	MountPointDataStruct MountPoints[MAX_MOUNTS];
 	int NumCurrentMounts;
 };
 
-extern KernelSharedDataStruct* pKernelSharedData;
-extern HANDLE hKernelLock;
+
+extern KernelDataStruct g_KernelData;
+extern HANDLE g_hKernelLock;
+extern Terminal g_Console;
+
+
+//helper that always return the keow process this thread is currently servicing
+_declspec(thread) extern ProcessDataStruct* gt_CurrentThreadKeowProcess;
+
+inline ProcessDataStruct* KeowProcess() {
+	return gt_CurrentThreadKeowProcess;
+}
+
 
 
 #define SIZE64k 0x10000
@@ -227,28 +208,12 @@ extern HANDLE hKernelLock;
 #define instanceof(var,type) (dynamic_cast<type*>(var) != 0)
 
 
-void kernel_init();
-void kernel_term();
-void _cdecl ktrace(const char * format, ...);
 
-int Win32ErrToUnixError(DWORD err);
-int AllocatePID();
-int FindFreeFD();
-
-void MemoryDump(const char *msg, const void * from_addr, DWORD sz);
-void GenerateCoreDump();
-
-bool IsThreadSuspended(HANDLE hThread);
-bool WaitForThreadToSuspend(HANDLE hThread);
-
-
-_declspec(dllexport) bool SendSignal(int pid, int sig);
-//helpers
-
-
-//These ones are 'extern C' to make them easier to load manually in ProcessStub
+//These ones are 'extern C' to make them easier to load manually in KeowUserStub
 extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, const char * KernelInstance);
 extern "C" _declspec(dllexport) void HandleSysCall( CONTEXT * pCtx );
+
+bool SendSignal(int pid, int sig);
 
 
 typedef void (*SYSCALL_HANDLER)(CONTEXT* pCtx);
@@ -256,18 +221,11 @@ typedef void (*SYSCALL_HANDLER)(CONTEXT* pCtx);
 extern SYSCALL_HANDLER syscall_handlers[NR_syscalls];
 extern const char* syscall_names[NR_syscalls];
 
-extern HANDLE WaitTerminatingEvent;
-
 
 //unix time base
 #define FILETIME_TO_TIME_T(t) (unsigned long)( (((ULARGE_INTEGER*)&t)->QuadPart - Time1Jan1970.QuadPart) / 10000000L)
 extern ULARGE_INTEGER Time1Jan1970;
 
-
-
-//messages for signal thread
-#define WM_KERNEL_SIGNAL			WM_USER+0x200		//a unix signal
-#define WM_KERNEL_SETFORKCONTEXT	WM_USER+0x201		//used for fork
 
 
 //syscall prototypes

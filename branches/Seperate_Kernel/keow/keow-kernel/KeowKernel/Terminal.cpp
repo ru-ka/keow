@@ -1,0 +1,25 @@
+// Terminal.cpp: implementation of the Terminal class.
+//
+//////////////////////////////////////////////////////////////////////
+
+#include "Terminal.h"
+
+//////////////////////////////////////////////////////////////////////
+// Construction/Destruction
+//////////////////////////////////////////////////////////////////////
+
+Terminal::Terminal()
+{
+
+}
+
+Terminal::~Terminal()
+{
+
+}
+
+void Terminal::printf(const char *format, ...)
+{
+	DWORD dwWritten;
+	WriteFile(hTerminalWrite, format, strlen(format), &dwWritten, NULL);
+}
