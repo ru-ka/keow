@@ -11,14 +11,11 @@ Package=<5>
 
 Package=<4>
 {{{
-    Begin Project Dependency
-    Project_Dep_Name KeowKernel
-    End Project Dependency
 }}}
 
 ###############################################################################
 
-Project: "KeowKernel"=".\keow-kernel\KeowKernel\KeowKernel.dsp" - Package Owner=<4>
+Project: "KeowKernel"=".\KEOW-KERNEL\KeowKernel\KeowKernel.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -54,11 +51,20 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name KeowKernel
-    End Project Dependency
-    Begin Project Dependency
     Project_Dep_Name KeowConsole
     End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "KeowUtils"=".\KEOW-KERNEL\KeowUtils\KeowUtils.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
 }}}
 
 ###############################################################################
