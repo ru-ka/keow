@@ -110,7 +110,7 @@ void sys_write(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 	if(ioh == NULL)
 	{
 		pCtx->Eax = -EBADF;
@@ -144,7 +144,7 @@ void  sys_read(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 	if(ioh == NULL)
 	{
 		pCtx->Eax = -EBADF;
@@ -256,7 +256,7 @@ void  sys_open(CONTEXT* pCtx)
 	}
 
 
-	pProcessData->FileHandlers[fd] = ioh;
+	KeowProcess()->FileHandlers[fd] = ioh;
 	pCtx->Eax = fd;
 
 	//more flags
@@ -290,7 +290,7 @@ void  sys_close(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 	if(ioh == NULL)
 	{
 		pCtx->Eax = -EBADF;
@@ -305,7 +305,7 @@ void  sys_close(CONTEXT* pCtx)
 
 	//free 
 	delete ioh;
-	pProcessData->FileHandlers[fd] = NULL;
+	KeowProcess()->FileHandlers[fd] = NULL;
 
 	pCtx->Eax = 0;
 }
@@ -332,7 +332,7 @@ void  sys_writev(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 	if(ioh == NULL)
 	{
 		pCtx->Eax = -EBADF;
@@ -388,7 +388,7 @@ void  sys_ioctl(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 	if(ioh == NULL)
 	{
 		pCtx->Eax = -EBADF;
@@ -407,7 +407,7 @@ void  sys_ioctl(CONTEXT* pCtx)
  */
 void  sys_getcwd(CONTEXT* pCtx)
 {
-	StringCbCopy((char*)pCtx->Ebx, pCtx->Ecx, pProcessData->unix_pwd);
+	StringCbCopy((char*)pCtx->Ebx, pCtx->Ecx, KeowProcess()->unix_pwd);
 	pCtx->Eax = 0;
 }
 
@@ -432,7 +432,7 @@ void  sys_chdir(CONTEXT* pCtx)
 
 	ktrace("chdir %s\n", p.UnixPath());
 
-	StringCbCopy(pProcessData->unix_pwd, sizeof(pProcessData->unix_pwd), p.UnixPath());
+	StringCbCopy(KeowProcess()->unix_pwd, sizeof(KeowProcess()->unix_pwd), p.UnixPath());
 	pCtx->Eax = 0;
 }
 
@@ -451,7 +451,7 @@ void sys_fchdir(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 
 	//delegate
 	pCtx->Ebx = (DWORD)ioh->GetUnixPath();
@@ -480,7 +480,7 @@ void  sys_fcntl(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 	if(ioh == NULL)
 	{
 		pCtx->Eax = -EBADF;
@@ -533,7 +533,7 @@ void  sys_fcntl(CONTEXT* pCtx)
 			pCtx->Ecx = fdnew;
 			sys_dup2(pCtx);
 			pCtx->Ecx = OldEcx;
-			pProcessData->FileHandlers[fdnew]->SetInheritable(false);
+			KeowProcess()->FileHandlers[fdnew]->SetInheritable(false);
 			//eax is already set with the result
 		}
 		break;
@@ -592,7 +592,7 @@ void  sys_dup2(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh_old = pProcessData->FileHandlers[fdold];
+	ioh_old = KeowProcess()->FileHandlers[fdold];
 	if(ioh_old == NULL)
 	{
 		pCtx->Eax = -EBADF;
@@ -608,11 +608,11 @@ void  sys_dup2(CONTEXT* pCtx)
 	}
 
 	//close any existing
-	if(pProcessData->FileHandlers[fdnew] != NULL)
+	if(KeowProcess()->FileHandlers[fdnew] != NULL)
 	{
-		pProcessData->FileHandlers[fdnew]->Close();
-		delete pProcessData->FileHandlers[fdnew];
-		pProcessData->FileHandlers[fdnew] = NULL;
+		KeowProcess()->FileHandlers[fdnew]->Close();
+		delete KeowProcess()->FileHandlers[fdnew];
+		KeowProcess()->FileHandlers[fdnew] = NULL;
 	}
 	//make duplicate
 	IOHandler *ioh_new = ioh_old->Duplicate(GetCurrentProcess(), GetCurrentProcess());
@@ -621,7 +621,7 @@ void  sys_dup2(CONTEXT* pCtx)
 		pCtx->Eax = Win32ErrToUnixError(GetLastError());
 		return;
 	}
-	pProcessData->FileHandlers[fdnew] = ioh_new;
+	KeowProcess()->FileHandlers[fdnew] = ioh_new;
 	pCtx->Eax = fdnew;
 }
 
@@ -647,7 +647,7 @@ void sys_getdents64(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 
 	filled = ioh->GetDirEnts64(s, maxbytes);
 	if(filled >= 0)
@@ -757,7 +757,7 @@ void sys_fstat(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 
 	if(ioh->Stat(buf))
 	{
@@ -867,7 +867,7 @@ void sys_fstat64(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 	if(ioh==NULL)
 	{
 		pCtx->Eax = -EBADF;
@@ -958,9 +958,9 @@ void sys_pipe(CONTEXT* pCtx)
 	
 	//return fd entries
 	fds[0] = FindFreeFD();
-	pProcessData->FileHandlers[fds[0]] = new PipeIOHandler(hRead);
+	KeowProcess()->FileHandlers[fds[0]] = new PipeIOHandler(hRead);
 	fds[1] = FindFreeFD();
-	pProcessData->FileHandlers[fds[1]] = new PipeIOHandler(hWrite);
+	KeowProcess()->FileHandlers[fds[1]] = new PipeIOHandler(hWrite);
 
 	pCtx->Eax = 0;
 }
@@ -1043,7 +1043,7 @@ void sys__llseek(CONTEXT* pCtx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = KeowProcess()->FileHandlers[fd];
 	if(ioh == NULL)
 	{
 		pCtx->Eax = -EBADF;
@@ -1144,24 +1144,24 @@ void sys__newselect(CONTEXT* pCtx)
 		{
 			if( pReadFds
 			&&  LINUX_FD_ISSET(fd, pReadFds)
-			&&  pProcessData->FileHandlers[fd]!=NULL
-			&&  pProcessData->FileHandlers[fd]->CanRead() ) {
+			&&  KeowProcess()->FileHandlers[fd]!=NULL
+			&&  KeowProcess()->FileHandlers[fd]->CanRead() ) {
 				LINUX_FD_SET(fd, &ReadResults);
 				foundData = true;
 			}
 
 			if( pWriteFds
 			&&  LINUX_FD_ISSET(fd, pWriteFds)
-			&&  pProcessData->FileHandlers[fd]!=NULL
-			&&  pProcessData->FileHandlers[fd]->CanWrite() ) {
+			&&  KeowProcess()->FileHandlers[fd]!=NULL
+			&&  KeowProcess()->FileHandlers[fd]->CanWrite() ) {
 				LINUX_FD_SET(fd, &WriteResults);
 				foundData = true;
 			}
 
 			if( pExceptFds
 			&&  LINUX_FD_ISSET(fd, pExceptFds)
-			&&  pProcessData->FileHandlers[fd]!=NULL
-			&&  pProcessData->FileHandlers[fd]->HasException() ) {
+			&&  KeowProcess()->FileHandlers[fd]!=NULL
+			&&  KeowProcess()->FileHandlers[fd]->HasException() ) {
 				LINUX_FD_SET(fd, &ExceptResults);
 				foundData = true;
 			}

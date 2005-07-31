@@ -21,47 +21,20 @@
  *
  */
 
-#ifndef KEOW_UTIL_H
-#define KEOW_UTIL_H
+#ifndef KEOW_CONSOLE_TERMDATA_H
+#define KEOW_CONSOLE_TERMDATA_H
 
-class LinkedListItem
-{
-public:
-	LinkedListItem()	{next=prev=NULL;}
-
-	void AddAfter(LinkedListItem* other)
-	{
-		if(other)
-		{
-			next=other->next;
-			other->next = this;
-		}
-		else
-			next=NULL;
-		prev=other;
-		if(next)
-			next->prev = this;
-	}
-
-	void AddAtEnd(LinkedListItem* other)
-	{
-		//get to end of list
-		while(other->next)
-			other=other->next;
-
-		AddAfter(other);
-	}
-
-	void Remove()
-	{
-		if(next)
-			next->prev = prev;
-		if(prev)
-			prev->next = next;
-	}
-
-	LinkedListItem *next, *prev;
-};
+#include "linux_includes.h"
 
 
-#endif // KEOW_UTIL_H
+extern HANDLE g_hKernelTextOutput;
+extern HANDLE g_hKernelTextInput;
+extern HANDLE g_hStdIn, g_hStdOut;
+
+
+extern DWORD			g_InputState; //for shared escape code handling
+extern DWORD			g_OutputState; //for shared escape code handling
+extern BYTE			g_InputStateData[32];
+extern BYTE			g_OutputStateData[32];
+
+#endif // KEOW_CONSOLE_TERMDATA_H

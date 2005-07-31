@@ -56,7 +56,7 @@ void sys_uname(CONTEXT* pCtx)
  */
 void  sys_getpid(CONTEXT* pCtx)
 {
-	pCtx->Eax = pProcessData->PID;
+	pCtx->Eax = KeowProcess()->PID;
 }
 
 /*****************************************************************************/
@@ -66,7 +66,7 @@ void  sys_getpid(CONTEXT* pCtx)
  */
 void  sys_getppid(CONTEXT* pCtx)
 {
-	pCtx->Eax = pProcessData->ParentPID;
+	pCtx->Eax = KeowProcess()->ParentPID;
 }
 
 
@@ -77,8 +77,8 @@ void  sys_getppid(CONTEXT* pCtx)
  */
 void  sys_umask(CONTEXT* pCtx)
 {
-	pCtx->Eax = pProcessData->umask;
-	pProcessData->umask = pCtx->Ebx;
+	pCtx->Eax = KeowProcess()->umask;
+	KeowProcess()->umask = pCtx->Ebx;
 }
 
 
@@ -239,7 +239,7 @@ void sys_kill(CONTEXT* pCtx)
 	if(pid>0)
 	{
 		pCtx->Eax = -ESRCH;
-		if(pKernelSharedData->ProcessTable[pid].in_use)
+		if(g_KernelData.ProcessTable[pid].in_use)
 		{
 			if(DO_SIGNAL(pid,sig))
 				pCtx->Eax = 0;
@@ -252,7 +252,7 @@ void sys_kill(CONTEXT* pCtx)
 	{
 		for(int i=2; i<MAX_PROCESSES; ++i)
 		{
-			if(pKernelSharedData->ProcessTable[i].in_use)
+			if(g_KernelData.ProcessTable[i].in_use)
 			{
 				DO_SIGNAL(i, sig);
 			}
@@ -267,15 +267,15 @@ void sys_kill(CONTEXT* pCtx)
 	int pgrp = 0;
 
 	if(pid==0)
-		pgrp = pProcessData->PID;
+		pgrp = KeowProcess()->PID;
 	else
 		pgrp = -pid;
 
 
 	for(int i=2; i<MAX_PROCESSES; ++i)
 	{
-		if(pKernelSharedData->ProcessTable[i].in_use
-		&& pKernelSharedData->ProcessTable[i].ProcessGroupPID == pgrp)
+		if(g_KernelData.ProcessTable[i].in_use
+		&& g_KernelData.ProcessTable[i].ProcessGroupPID == pgrp)
 		{
 			DO_SIGNAL(i, sig);
 		}
@@ -326,15 +326,15 @@ void sys_ptrace(CONTEXT* pCtx)
 	{
 	case PTRACE_TRACEME:
 		ktrace("ptrace PTRACE_TRACEME\n");
-		pProcessData->ptrace_owner_pid = pProcessData->ParentPID;
-		pProcessData->ptrace_request = PTRACE_TRACEME;
+		KeowProcess()->ptrace_owner_pid = KeowProcess()->ParentPID;
+		KeowProcess()->ptrace_request = PTRACE_TRACEME;
 		pCtx->Eax = 0;
 		break;
 
 	case PTRACE_SYSCALL:
 		{
 			ktrace("ptrace PTRACE_SYSCALL pid %d\n", pid);
-			ProcessDataStruct * pChildData = &pKernelSharedData->ProcessTable[pid];
+			ProcessDataStruct * pChildData = &g_KernelData.ProcessTable[pid];
 			pChildData->ptrace_request = PTRACE_SYSCALL;
 			if((int)data!=0 && (int)data!=SIGSTOP)
 				pChildData->ptrace_new_signal = (int)data;
@@ -349,7 +349,7 @@ void sys_ptrace(CONTEXT* pCtx)
 	case PTRACE_CONT:
 		{
 			ktrace("ptrace PTRACE_CONT pid %d\n", pid);
-			ProcessDataStruct * pChildData = &pKernelSharedData->ProcessTable[pid];
+			ProcessDataStruct * pChildData = &g_KernelData.ProcessTable[pid];
 			pChildData->ptrace_request = 0;
 			if((int)data!=0 && (int)data!=SIGSTOP)
 				pChildData->ptrace_new_signal = (int)data;
@@ -373,7 +373,7 @@ void sys_ptrace(CONTEXT* pCtx)
 
 			//read data at offset 'addr' in the kernel 'user' struct (struct user in asm/user.h)
 			//we don't keep one of those so make one here
-			ProcessDataStruct * pChildData = &pKernelSharedData->ProcessTable[pid];
+			ProcessDataStruct * pChildData = &g_KernelData.ProcessTable[pid];
 			CONTEXT *pChildCtx;
 			CONTEXT TempCtx;
 			if(pChildData->ptrace_ctx_valid)
@@ -431,7 +431,7 @@ void sys_ptrace(CONTEXT* pCtx)
 	case PTRACE_PEEKDATA:
 		{
 			ktrace("ptrace PTRACE_PEEKDATA pid %d addr 0x%lx data 0x%08lx\n", pid, addr, data);
-			ProcessDataStruct * pChildData = &pKernelSharedData->ProcessTable[pid];
+			ProcessDataStruct * pChildData = &g_KernelData.ProcessTable[pid];
 			HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pChildData->Win32PID);
 			if(hProcess==INVALID_HANDLE_VALUE)
 				pCtx->Eax = -1;

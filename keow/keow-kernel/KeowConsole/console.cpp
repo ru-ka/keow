@@ -29,8 +29,8 @@
  * but still has most features we want.
  *
  */
-#include "kernel.h"
-#include "iohandler.h"
+#include "stdafx.h"
+#include "termdata.h"
 #include "winuser.h"
 
 
@@ -59,89 +59,39 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-ConsoleIOHandler::ConsoleIOHandler(int nDeviceNum, bool initialise)
-: IOHandler(sizeof(ConsoleIOHandler))
-, m_nTerminalNumber(nDeviceNum)
-, m_DeviceData( g_KernelData.TerminalDeviceData[nDeviceNum] )
+void InitConsole()
 {
-	ktrace("console using CONIN$,CONOUT$\n");
-
 	//open console
 
 	//one value must be set for all handles (why?)
 	DWORD dwConsoleMode = ENABLE_PROCESSED_OUTPUT|ENABLE_WRAP_AT_EOL_OUTPUT;
 
-	HANDLE h = CreateFile("CONIN$", GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
-	//can inherit handle....
-	if(h==INVALID_HANDLE_VALUE)
-	{
-		if(m_Handle!=INVALID_HANDLE_VALUE)
-			CloseHandle(m_Handle);
-		m_Handle = INVALID_HANDLE_VALUE;
-	}
-	else 
-	{
-		DuplicateHandle(GetCurrentProcess(), h, GetCurrentProcess(), &m_Handle, 0, TRUE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
-		//SetConsoleMode(m_Handle, dwConsoleMode);
-	}
+	SetConsoleMode(g_hStdIn, dwConsoleMode);
+	SetConsoleMode(g_hStdOut, dwConsoleMode);
 
-	h = CreateFile("CONOUT$", GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
-	//can inherit handle....
-	if(h==INVALID_HANDLE_VALUE)
-	{
-		if(m_HandleOut!=INVALID_HANDLE_VALUE)
-			CloseHandle(m_HandleOut);
-		m_HandleOut = INVALID_HANDLE_VALUE;
-	}
-	else
-	{
-		DuplicateHandle(GetCurrentProcess(), h, GetCurrentProcess(), &m_HandleOut, 0, TRUE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
-		//SetConsoleMode(m_HandleOut, dwConsoleMode);
-	}
+	g_TermIOs.c_iflag = IGNBRK|IGNPAR|IXOFF;
+	g_TermIOs.c_oflag = 0;
+	g_TermIOs.c_cflag = CS8;
+	g_TermIOs.c_lflag = ECHO;
+	g_TermIOs.c_line = N_TTY;
+	memset(g_TermIOs.c_cc, 0, sizeof(g_TermIOs.c_cc));
+	StringCbCopy((char*)g_TermIOs.c_cc, sizeof(g_TermIOs.c_cc), INIT_C_CC); //default special chars from kernel files
 
-	//init new device?
-	if(initialise)
-	{
-		SetConsoleMode(m_Handle, dwConsoleMode);
-		SetConsoleMode(m_HandleOut, dwConsoleMode);
+	//make normal chars work - reverse CR/LF
+	//g_TermIOs.c_iflag |= INLCR | ICRNL;
 
-		m_DeviceData.TermIOs.c_iflag = IGNBRK|IGNPAR|IXOFF;
-		m_DeviceData.TermIOs.c_oflag = 0;
-		m_DeviceData.TermIOs.c_cflag = CS8;
-		m_DeviceData.TermIOs.c_lflag = ECHO;
-		m_DeviceData.TermIOs.c_line = N_TTY;
-		memset(m_DeviceData.TermIOs.c_cc, 0, sizeof(m_DeviceData.TermIOs.c_cc));
-		StringCbCopy((char*)m_DeviceData.TermIOs.c_cc, sizeof(m_DeviceData.TermIOs.c_cc), INIT_C_CC); //default special chars from kernel files
+	g_ProcessGroup = 0;
 
-		//make normal chars work - reverse CR/LF
-		//m_DeviceData.TermIOs.c_iflag |= INLCR | ICRNL;
+	g_InputState=0;
+	g_OutputState=0;
 
-		m_DeviceData.ProcessGroup = KeowProcess()->ProcessGroupPID;
-
-		m_DeviceData.InputState=0;
-		m_DeviceData.OutputState=0;
-
-	}
 }
 
 
-bool ConsoleIOHandler::Open(Path& filepath, DWORD access, DWORD ShareMode, DWORD disposition, DWORD flags)
-{
-	//was always open
-	//TODO: move constructor stuff here. Do we need to?
-	return true;
-}
-bool ConsoleIOHandler::Close()
-{
-	CloseHandle(m_HandleOut); //additional one for us to free
-	return IOHandler::Close();
-}
-
-
-bool ConsoleIOHandler::PushForNextRead(const char * pString) 
+static bool PushForNextRead(const char * pString) 
 {
 	int len = strlen(pString);
-	if(m_DeviceData.InputState+len >= sizeof(m_DeviceData.InputState))
+	if(g_InputState+len >= sizeof(g_InputState))
 		return false; //no room in buffer
 
 	if(len==0)
@@ -151,24 +101,24 @@ bool ConsoleIOHandler::PushForNextRead(const char * pString)
 	const char *p = &pString[len-1];
 	while(p>=pString)
 	{
-		m_DeviceData.InputStateData[m_DeviceData.InputState] = *p;
-		++m_DeviceData.InputState;
+		g_InputStateData[g_InputState] = *p;
+		++g_InputState;
 		--p;
 	}
 	return true;
 }
 
 
-bool ConsoleIOHandler::ReadChar(bool canblock, char &c)
+static bool ReadChar(bool canblock, char &c)
 {
 //	bool ok;
 	DWORD dwRead;
 
 	//any pre-recorded input to send?
-	if(m_DeviceData.InputState > 0) 
+	if(g_InputState > 0) 
 	{
-		--m_DeviceData.InputState;
-		c = m_DeviceData.InputStateData[m_DeviceData.InputState];
+		--g_InputState;
+		c = g_InputStateData[g_InputState];
 		return true;
 	}
 
@@ -182,13 +132,13 @@ bool ConsoleIOHandler::ReadChar(bool canblock, char &c)
 retry:
 		if(!canblock)
 		{
-			if(!PeekConsoleInput(m_Handle, &buf, 1, &dwRead))
+			if(!PeekConsoleInput(g_hStdIn, &buf, 1, &dwRead))
 				continue;
 			if(dwRead==0)
 				continue;
 		}
 
-		if(!ReadConsoleInput(m_Handle, &buf, 1, &dwRead))
+		if(!ReadConsoleInput(g_hStdIn, &buf, 1, &dwRead))
 			continue;
 		if(dwRead==0)
 			continue;
@@ -316,7 +266,7 @@ retry:
 }
 
 
-bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
+bool Read(void* address, DWORD size, DWORD *pRead)
 {
 	bool ok;
 	DWORD cnt = 0;
@@ -331,12 +281,13 @@ bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 
 	ok=true;
 	do {
-		if((m_Flags&O_NONBLOCK) || cnt>0)
+		/*
+		if((g_Flags&O_NONBLOCK) || cnt>0)
 		{
 			if(!ReadChar(false, *p))
 				break;
 		}
-		else
+		else*/
 		{ //blocking
 			if(!ReadChar(true, *p))
 			{
@@ -361,19 +312,19 @@ bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 		//#define IXANY	0004000
 		//#define IXOFF	0010000
 		//#define IMAXBEL	0020000
-		if((m_DeviceData.TermIOs.c_iflag & ISTRIP))
+		if((g_TermIOs.c_iflag & ISTRIP))
 			*p &= 0x3F; //make 7-bit
 
-		if((m_DeviceData.TermIOs.c_iflag & IGNCR) && *p==CR)
+		if((g_TermIOs.c_iflag & IGNCR) && *p==CR)
 			continue;
 
-		if((m_DeviceData.TermIOs.c_iflag & INLCR) && *p==NL)
+		if((g_TermIOs.c_iflag & INLCR) && *p==NL)
 			PushForNextRead("\x0d"); //CR
 		else
-		if((m_DeviceData.TermIOs.c_iflag & ICRNL) && *p==CR)
+		if((g_TermIOs.c_iflag & ICRNL) && *p==CR)
 			PushForNextRead("\x0a"); //NL
 
-		if((m_DeviceData.TermIOs.c_iflag & IUCLC))
+		if((g_TermIOs.c_iflag & IUCLC))
 			*p = tolower(*p);
 
 
@@ -393,10 +344,10 @@ bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 		//#define FLUSHO	0010000
 		//#define PENDIN	0040000
 		//#define IEXTEN	0100000
-		if(m_DeviceData.TermIOs.c_lflag & ISIG)
+		if(g_TermIOs.c_lflag & ISIG)
 		{
-			if(*p==m_DeviceData.TermIOs.c_cc[VINTR])
-				SendSignal(KeowProcess()->PID, SIGINT);
+			//if(*p==g_TermIOs.c_cc[VINTR])
+			//	SendSignal(pProcessData->PID, SIGINT);
 			//others?
 			//VQUIT
 			//VERASE
@@ -415,12 +366,12 @@ bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 			//VLNEXT
 			//VEOL2 
 		}
-		if(m_DeviceData.TermIOs.c_lflag & ECHO)
+		if(g_TermIOs.c_lflag & ECHO)
 		{
-			if(m_DeviceData.TermIOs.c_lflag & ECHOE)
-				this->Write("\b \b", 3, NULL); //backspace-space-backspace
+			if(g_TermIOs.c_lflag & ECHOE)
+				Write("\b \b", 3, NULL); //backspace-space-backspace
 			else
-				this->Write(p, 1, NULL);
+				Write(p, 1, NULL);
 		}
 
 		//Output settings: c_oflag;
@@ -436,7 +387,7 @@ bool ConsoleIOHandler::Read(void* address, DWORD size, DWORD *pRead)
 	return ok;
 }
 
-bool ConsoleIOHandler::WriteChar(char c)
+static bool WriteChar(char c)
 {
 	DWORD dwWritten;
 	CONSOLE_SCREEN_BUFFER_INFO info;
@@ -450,25 +401,25 @@ bool ConsoleIOHandler::WriteChar(char c)
 	case BACKSPACE:
 	case TAB:
 	case CR:
-		WriteConsole(m_HandleOut, &c, 1, &dwWritten, NULL);
+		WriteConsole(g_hStdOut, &c, 1, &dwWritten, NULL);
 		return true;
 
 	case LF:
 	case FF:
 	case VT:
 		c=LF;
-		WriteConsole(m_HandleOut, &c, 1, &dwWritten, NULL);
+		WriteConsole(g_hStdOut, &c, 1, &dwWritten, NULL);
 		return true;
 
 	}
 
 	//state machine
-	switch(m_DeviceData.OutputState)
+	switch(g_OutputState)
 	{
 	case 0: //no special state
 		if(c==ESC)
 		{
-			m_DeviceData.OutputState = ESC;
+			g_OutputState = ESC;
 		}
 		else
 		{
@@ -478,10 +429,10 @@ bool ConsoleIOHandler::WriteChar(char c)
 			case FF:
 			case VT:
 				c=LF;
-				WriteConsole(m_HandleOut, &c, 1, &dwWritten, NULL);
+				WriteConsole(g_hStdOut, &c, 1, &dwWritten, NULL);
 				break;
 			default:
-				WriteConsole(m_HandleOut, &c, 1, &dwWritten, NULL);
+				WriteConsole(g_hStdOut, &c, 1, &dwWritten, NULL);
 				break;
 			}
 		}
@@ -491,29 +442,29 @@ bool ConsoleIOHandler::WriteChar(char c)
 		switch(c)
 		{
 		case '[':
-			m_DeviceData.OutputState = ESC<<8 | '[';
-			memset(m_DeviceData.OutputStateData, 0, sizeof(m_DeviceData.OutputStateData));
+			g_OutputState = ESC<<8 | '[';
+			memset(g_OutputStateData, 0, sizeof(g_OutputStateData));
 			break;
 		default:
 			//unknown value - end esc sequence
 			ktrace("Implement console code: ESC %c\n", c);
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 		}
 		break;
 
 	case ESC<<8 | '[':
 		//lots of sequences want this, so do it first
-		GetConsoleScreenBufferInfo(m_HandleOut, &info);
+		GetConsoleScreenBufferInfo(g_hStdOut, &info);
 		screenWidth = info.srWindow.Right - info.srWindow.Left + 1;
 		screenHeight = info.srWindow.Bottom - info.srWindow.Top + 1;
 		firstY = info.dwSize.Y - screenHeight - 1; //first line of actual screen (bottom-most lines of buffer)
-		//ktrace("ESC [  .... %c   %d\n", c,m_DeviceData.OutputStateData[0]);
+		//ktrace("ESC [  .... %c   %d\n", c,g_OutputStateData[0]);
 
 		switch(c)
 		{
 		case '=':
-			m_DeviceData.OutputState = '['<<8 | '=';
+			g_OutputState = '['<<8 | '=';
 			break;
 
 		case '0': //collect numeric parameters
@@ -527,14 +478,14 @@ bool ConsoleIOHandler::WriteChar(char c)
 		case '8':
 		case '9':
 			{
-				int cnt = m_DeviceData.OutputStateData[0];
+				int cnt = g_OutputStateData[0];
 				//add this digit to what we have
-				m_DeviceData.OutputStateData[cnt+1] *= 10;
-				m_DeviceData.OutputStateData[cnt+1] += c-'0';
+				g_OutputStateData[cnt+1] *= 10;
+				g_OutputStateData[cnt+1] += c-'0';
 			}
 			break;
 		case ';': //number seperator
-			++m_DeviceData.OutputStateData[0]; //next parameter
+			++g_OutputStateData[0]; //next parameter
 			break;
 
 		case 'J': // ESC [ J
@@ -547,9 +498,9 @@ bool ConsoleIOHandler::WriteChar(char c)
 				pos = info.dwCursorPosition;
 				len = screenWidth - pos.X;
 				len += (info.dwSize.Y - pos.Y) * info.dwSize.X;
-				FillConsoleOutputCharacter(m_HandleOut, ' ', len, pos, &dwWritten);
+				FillConsoleOutputCharacter(g_hStdOut, ' ', len, pos, &dwWritten);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 		case 'K': // ESC [ K
 			{
@@ -560,93 +511,93 @@ bool ConsoleIOHandler::WriteChar(char c)
 
 				pos = info.dwCursorPosition;
 				len = screenWidth - pos.X;
-				FillConsoleOutputCharacter(m_HandleOut, ' ', len, pos, &dwWritten);
+				FillConsoleOutputCharacter(g_hStdOut, ' ', len, pos, &dwWritten);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 
 		case '`': // ESC [ n `
 			{
 				//move cursor to col n in current row
-				int col = m_DeviceData.OutputStateData[1];
+				int col = g_OutputStateData[1];
 
 				pos.X = col-1;
 				pos.Y = info.dwCursorPosition.Y;
-				SetConsoleCursorPosition(m_HandleOut, pos);
+				SetConsoleCursorPosition(g_hStdOut, pos);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 		case 'H': // ESC [ n;n H
 			{
 				//move cursor to row,col
-				if(m_DeviceData.OutputStateData[0] == 0) {
+				if(g_OutputStateData[0] == 0) {
 					pos.X = 0;
 					pos.Y = firstY;
 				} else {
-					pos.X = m_DeviceData.OutputStateData[2] - 1;
-					pos.Y = m_DeviceData.OutputStateData[1] - 1 + firstY;
+					pos.X = g_OutputStateData[2] - 1;
+					pos.Y = g_OutputStateData[1] - 1 + firstY;
 ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 				}
-				SetConsoleCursorPosition(m_HandleOut, pos);
+				SetConsoleCursorPosition(g_hStdOut, pos);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 
 		case 'B': // ESC [ n B
 			{
 				//move cursor down
 				pos.X = info.dwCursorPosition.X;
-				if(m_DeviceData.OutputStateData[0] == 0)
+				if(g_OutputStateData[0] == 0)
 					pos.Y = info.dwCursorPosition.Y + 1;
 				else
-					pos.Y = info.dwCursorPosition.Y + m_DeviceData.OutputStateData[1];
-				SetConsoleCursorPosition(m_HandleOut, pos);
+					pos.Y = info.dwCursorPosition.Y + g_OutputStateData[1];
+				SetConsoleCursorPosition(g_hStdOut, pos);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 		case 'A': // ESC [ A
 			{
 				//move cursor up
 				pos.X = info.dwCursorPosition.X;
-				if(m_DeviceData.OutputStateData[0] == 0)
+				if(g_OutputStateData[0] == 0)
 					pos.Y = info.dwCursorPosition.Y - 1;
 				else
-					pos.Y = info.dwCursorPosition.Y - m_DeviceData.OutputStateData[1];
-				SetConsoleCursorPosition(m_HandleOut, pos);
+					pos.Y = info.dwCursorPosition.Y - g_OutputStateData[1];
+				SetConsoleCursorPosition(g_hStdOut, pos);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 		case 'C': // ESC [ C
 			{
 				//move cursor right
-				if(m_DeviceData.OutputStateData[0] == 0)
+				if(g_OutputStateData[0] == 0)
 					pos.X = info.dwCursorPosition.X + 1;
 				else
-					pos.X = info.dwCursorPosition.X + m_DeviceData.OutputStateData[1];
+					pos.X = info.dwCursorPosition.X + g_OutputStateData[1];
 				pos.Y = info.dwCursorPosition.Y;
-				SetConsoleCursorPosition(m_HandleOut, pos);
+				SetConsoleCursorPosition(g_hStdOut, pos);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 		case 'D': // ESC [ D
 			{
 				//move cursor left
-				if(m_DeviceData.OutputStateData[0] == 0)
+				if(g_OutputStateData[0] == 0)
 					pos.X = info.dwCursorPosition.X - 1;
 				else
-					pos.X = info.dwCursorPosition.X - m_DeviceData.OutputStateData[1];
+					pos.X = info.dwCursorPosition.X - g_OutputStateData[1];
 				pos.Y = info.dwCursorPosition.Y;
-				SetConsoleCursorPosition(m_HandleOut, pos);
+				SetConsoleCursorPosition(g_hStdOut, pos);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 
 		case 'E': // ESC [ E
 			{
 				//newline
-				WriteConsole(m_HandleOut, "\r\n", 2, &dwWritten, NULL);
+				WriteConsole(g_hStdOut, "\r\n", 2, &dwWritten, NULL);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 
 		case 'P': // ESC [ P
@@ -664,9 +615,9 @@ ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 				pos.Y = moveRect.Top;
 				fill.Attributes=info.wAttributes;
 				fill.Char.AsciiChar=' '; //space
-				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, pos, &fill);
+				ScrollConsoleScreenBuffer(g_hStdOut, &moveRect, NULL, pos, &fill);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 		case 'M': // ESC [ M
 			{
@@ -683,9 +634,9 @@ ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 				pos.Y = info.dwCursorPosition.Y;
 				fill.Attributes=info.wAttributes;
 				fill.Char.AsciiChar=' '; //space
-				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, pos, &fill);
+				ScrollConsoleScreenBuffer(g_hStdOut, &moveRect, NULL, pos, &fill);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 
 		case '@': // ESC [ @
@@ -703,9 +654,9 @@ ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 				pos.Y = moveRect.Top;
 				fill.Attributes=info.wAttributes;
 				fill.Char.AsciiChar=' '; //space
-				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, pos, &fill);
+				ScrollConsoleScreenBuffer(g_hStdOut, &moveRect, NULL, pos, &fill);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 		case 'L': // ESC [ L
 			{
@@ -722,15 +673,15 @@ ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 				pos.Y = info.dwCursorPosition.Y + 1;
 				fill.Attributes=info.wAttributes;
 				fill.Char.AsciiChar=' '; //space
-				ScrollConsoleScreenBuffer(m_HandleOut, &moveRect, NULL, pos, &fill);
+				ScrollConsoleScreenBuffer(g_hStdOut, &moveRect, NULL, pos, &fill);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 
 		case 'm': // ESC [ n m
 			{
 				//set attributes
-				int attr = m_DeviceData.OutputStateData[1];
+				int attr = g_OutputStateData[1];
 				switch(attr)
 				{
 				case 0: //     reset all attributes to their defaults
@@ -756,15 +707,15 @@ ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 
 				}
 
-				SetConsoleTextAttribute(m_HandleOut, info.wAttributes);
+				SetConsoleTextAttribute(g_hStdOut, info.wAttributes);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 
 		default:
 			// ESC [ n;n;n; X (unknown value) - end esc sequence
 			ktrace("Implement console code: ESC [ n %c\n", c);
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 		}
 		break;
@@ -783,22 +734,22 @@ ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 		case '8':
 		case '9':
 			{
-				int cnt = m_DeviceData.OutputStateData[0];
+				int cnt = g_OutputStateData[0];
 				//add this digit to what we have
-				m_DeviceData.OutputStateData[cnt+1] *= 10;
-				m_DeviceData.OutputStateData[cnt+1] += c-'0';
+				g_OutputStateData[cnt+1] *= 10;
+				g_OutputStateData[cnt+1] += c-'0';
 			}
 			break;
 		case ';': //number seperator
-			++m_DeviceData.OutputStateData[0];
+			++g_OutputStateData[0];
 			break;
 
 		case 'C': // ESC [ = n C
 			{
-				int n = m_DeviceData.OutputStateData[1];
+				int n = g_OutputStateData[1];
 
 				CONSOLE_CURSOR_INFO cinfo;
-				GetConsoleCursorInfo(m_HandleOut, &cinfo);
+				GetConsoleCursorInfo(g_hStdOut, &cinfo);
 
 				switch(n)
 				{
@@ -810,15 +761,15 @@ ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 					break;
 				}
 
-				SetConsoleCursorInfo(m_HandleOut, &cinfo);
+				SetConsoleCursorInfo(g_hStdOut, &cinfo);
 			}
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 
 		default:
 			// ESC [ = n;n;n; X (unknown value) - end esc sequence
 			ktrace("Implement console code: ESC [ = n %c\n", c);
-			m_DeviceData.OutputState = 0;
+			g_OutputState = 0;
 			break;
 		}
 		break;
@@ -827,7 +778,7 @@ ktrace("cursor pos %d,%d  first %d\n", pos.X, pos.Y, firstY);
 	return true;
 }
 
-bool ConsoleIOHandler::Write(const void* address, DWORD size, DWORD *pWritten)
+bool Write(const void* address, DWORD size, DWORD *pWritten)
 {
 	if(size!=0)
 	{
@@ -842,33 +793,19 @@ bool ConsoleIOHandler::Write(const void* address, DWORD size, DWORD *pWritten)
 }
 
 
-IOHandler* ConsoleIOHandler::Duplicate(HANDLE hFromProcess, HANDLE hToProcess)
-{
-	ConsoleIOHandler *ionew = new ConsoleIOHandler(m_nTerminalNumber, false);
-	if(ionew)
-	{
-		if(ionew->DupBaseData(*this,hFromProcess,hToProcess))
-			return ionew;
-
-		delete ionew;
-	}
-	return NULL;
-}
-
-
-DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
+DWORD ioctl(DWORD request, DWORD data)
 {
 	switch(request)
 	{
 	case TCGETS: //get stty stuff
 		{
 			linux::termios * arg = (linux::termios*)data;
-			arg->c_iflag = m_DeviceData.TermIOs.c_iflag;
-			arg->c_oflag = m_DeviceData.TermIOs.c_oflag;
-			arg->c_cflag = m_DeviceData.TermIOs.c_cflag;
-			arg->c_lflag = m_DeviceData.TermIOs.c_lflag;
-			arg->c_line = m_DeviceData.TermIOs.c_line;
-			memcpy(arg->c_cc, m_DeviceData.TermIOs.c_cc, NCCS);
+			arg->c_iflag = g_TermIOs.c_iflag;
+			arg->c_oflag = g_TermIOs.c_oflag;
+			arg->c_cflag = g_TermIOs.c_cflag;
+			arg->c_lflag = g_TermIOs.c_lflag;
+			arg->c_line = g_TermIOs.c_line;
+			memcpy(arg->c_cc, g_TermIOs.c_cc, NCCS);
 			return 0;
 		}
 		break;
@@ -879,17 +816,17 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 		//...fall through...
 	case TCSETSF:
 		//flush input & output
-		FlushConsoleInputBuffer(m_Handle);
+		FlushConsoleInputBuffer(g_hStdIn);
 		//...fall through...
 	case TCSETS: //set stty stuff
 		{
 			linux::termios * arg = (linux::termios*)data;
-			m_DeviceData.TermIOs.c_iflag = arg->c_iflag;
-			m_DeviceData.TermIOs.c_oflag = arg->c_oflag;
-			m_DeviceData.TermIOs.c_cflag = arg->c_cflag;
-			m_DeviceData.TermIOs.c_lflag = arg->c_lflag;
-			m_DeviceData.TermIOs.c_line = arg->c_line;
-			memcpy(m_DeviceData.TermIOs.c_cc, arg->c_cc, NCCS);
+			g_TermIOs.c_iflag = arg->c_iflag;
+			g_TermIOs.c_oflag = arg->c_oflag;
+			g_TermIOs.c_cflag = arg->c_cflag;
+			g_TermIOs.c_lflag = arg->c_lflag;
+			g_TermIOs.c_line = arg->c_line;
+			memcpy(g_TermIOs.c_cc, arg->c_cc, NCCS);
 			return 0;
 		}
 		break;
@@ -898,7 +835,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 		{
 			if(!data)
 				return -EFAULT;
-			*((linux::pid_t*)data) = m_DeviceData.ProcessGroup;
+			*((linux::pid_t*)data) = g_ProcessGroup;
 			return 0;
 		}
 		break;
@@ -906,7 +843,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 		{
 			if(!data)
 				return -EFAULT;
-			m_DeviceData.ProcessGroup = *((linux::pid_t*)data);
+			g_ProcessGroup = *((linux::pid_t*)data);
 			return 0;
 		}
 		break;
@@ -915,7 +852,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 		{
 			linux::winsize *pWS = (linux::winsize *)data;
 			CONSOLE_SCREEN_BUFFER_INFO Info;
-			if(!GetConsoleScreenBufferInfo(m_HandleOut, &Info))
+			if(!GetConsoleScreenBufferInfo(g_hStdOut, &Info))
 			{
 				ktrace("Cannot get screen buffer info, err %ld\n", GetLastError());
 				return Win32ErrToUnixError(GetLastError());
@@ -933,7 +870,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 			linux::winsize *pWS = (linux::winsize *)data;
 			ktrace("console set size %d,%d\n", pWS->ws_col, pWS->ws_row);
 			CONSOLE_SCREEN_BUFFER_INFO Info;
-			if(!GetConsoleScreenBufferInfo(m_HandleOut, &Info))
+			if(!GetConsoleScreenBufferInfo(g_hStdOut, &Info))
 			{
 				ktrace("Cannot get screen buffer info, err %ld\n", GetLastError());
 				return Win32ErrToUnixError(GetLastError());
@@ -941,7 +878,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 			COORD sz;
 			sz.X = pWS->ws_col;
 			sz.Y = Info.dwSize.Y - 1; //keep our history
-			if(!SetConsoleScreenBufferSize(m_HandleOut, sz))
+			if(!SetConsoleScreenBufferSize(g_hStdOut, sz))
 			{
 				ktrace("Cannot set screen buffer size, err %ld\n", GetLastError());
 				return Win32ErrToUnixError(GetLastError());
@@ -951,7 +888,7 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 			sr.Right = sz.X - 1;
 			sr.Bottom = sz.Y - 1;
 			sr.Top = sr.Bottom - (pWS->ws_row - 1);
-			if(!SetConsoleWindowInfo(m_HandleOut, true, &sr))
+			if(!SetConsoleWindowInfo(g_hStdOut, true, &sr))
 			{
 				ktrace("Cannot set screen window size, err %ld\n", GetLastError());
 				return Win32ErrToUnixError(GetLastError());
@@ -971,54 +908,16 @@ DWORD ConsoleIOHandler::ioctl(DWORD request, DWORD data)
 }
 
 
-bool ConsoleIOHandler::Stat64(linux::stat64 * s)
-{
-	if(!s)
-		return false;
-
-	IOHandler::BasicStat64(s, S_IFCHR);
-
-	return true;
-}
-
-bool ConsoleIOHandler::CanRead()
+bool CanRead()
 {
 	//any pre-recorded input to send?
-	if(m_DeviceData.InputState > 0) 
+	if(g_InputState > 0) 
 		return true;
 	DWORD dwRead;
 	INPUT_RECORD buf;
-	if(!PeekConsoleInput(m_Handle, &buf, 1, &dwRead))
+	if(!PeekConsoleInput(g_hStdIn, &buf, 1, &dwRead))
 		return false;
 ktrace("console::CanRead dwRead = %lx\n", dwRead);
 	return dwRead != 0;
 }
 
-bool ConsoleIOHandler::CanWrite()
-{
-	//always except to be able to write to the console?
-	return true;
-}
-
-bool ConsoleIOHandler::HasException()
-{
-	//TODO: what could this be?
-	return false;
-}
-
-
-
-int ConsoleIOHandler::GetDirEnts64(linux::dirent64 *, int maxbytes)
-{
-	return 0;
-}
-
-ULONGLONG ConsoleIOHandler::Length()
-{
-	return 0L;
-}
-
-ULONGLONG ConsoleIOHandler::Seek(ULONGLONG offset, DWORD method)
-{
-	return 0L;
-}

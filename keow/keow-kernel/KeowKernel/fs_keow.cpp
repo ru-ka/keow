@@ -70,9 +70,9 @@ void KeowFs::ApplyPathElement(Path& path, const char *pStr)
 	//!!! rely on pStr being a null terminated substring of m_UnixPath so if we examine
 	//!!!  m_UnixPath right now it will be null terminated right at the point we are
 	//!!!  currently considering
-	for(int m=0; m<pKernelSharedData->NumCurrentMounts; ++m)
+	for(int m=0; m<g_KernelData.NumCurrentMounts; ++m)
 	{
-		MountPointDataStruct &mnt = pKernelSharedData->MountPoints[m];
+		MountPointDataStruct &mnt = g_KernelData.MountPoints[m];
 
 		if(strcmp(mnt.Destination, path.m_UnixPath) == 0)
 		{
@@ -109,7 +109,7 @@ IOHandler* KeowFs::CreateIOHandler(Path& path)
 		}
 		return NULL; //no controlling tty?
 		*/
-		return new ConsoleIOHandler(CONSOLE0_NUM, false); //existing console window
+		return new ConsoleIOHandler(0, false); //existing console window
 	}
 	else
 	if(strncmp(UnixPath, tty_prefix, sizeof(tty_prefix)-1) == 0)
@@ -126,7 +126,7 @@ IOHandler* KeowFs::CreateIOHandler(Path& path)
 	else
 	if(strcmp(UnixPath, "/dev/console") == 0)
 	{
-		return new ConsoleIOHandler(CONSOLE0_NUM, false); //existing console window
+		return new ConsoleIOHandler(0, false); //existing console window
 	}
 	else
 	if(strcmp(UnixPath, "/dev/null") == 0)

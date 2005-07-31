@@ -21,30 +21,56 @@
  *
  */
 
-/*
- * generate core dumps
- */
-#include "kernel.h"
-#include "loadelf.h"
+#ifndef KEOW_UTILS_H
+#define KEOW_UTILS_H
+
+#include "windows.h"
+#include "linux_includes.h"
+
+extern int g_PID;
+
+void _cdecl ktrace(const char * format, ...);
+int Win32ErrToUnixError(DWORD err);
 
 
-void GenerateCoreDump()
+class LinkedListItem
 {
-	KeowProcess()->core_dumped = true;
+public:
+	LinkedListItem()	{next=prev=NULL;}
 
-	HANDLE hCore = CreateFile("core",GENERIC_WRITE,0,0,CREATE_ALWAYS,0,0);
-	if(hCore==INVALID_HANDLE_VALUE)
+	void AddAfter(LinkedListItem* other)
 	{
-		ktrace("FAIL writing core file: err %lx\n", GetLastError());
-		return;
+		if(other)
+		{
+			next=other->next;
+			other->next = this;
+		}
+		else
+			next=NULL;
+		prev=other;
+		if(next)
+			next->prev = this;
 	}
 
-	//TODO implement a real core dump
-	DWORD written;
-	WriteFile(hCore, "Core dump of ", 13, &written, 0);
-	WriteFile(hCore, (char*)KeowProcess()->ProgramPath, strlen((char*)KeowProcess()->ProgramPath), &written, 0);
-	WriteFile(hCore, "\x0a", 1, &written, 0);
+	void AddAtEnd(LinkedListItem* other)
+	{
+		//get to end of list
+		while(other->next)
+			other=other->next;
+
+		AddAfter(other);
+	}
+
+	void Remove()
+	{
+		if(next)
+			next->prev = prev;
+		if(prev)
+			prev->next = next;
+	}
+
+	LinkedListItem *next, *prev;
+};
 
 
-	CloseHandle(hCore);
-}
+#endif //KEOW_UTILS_H

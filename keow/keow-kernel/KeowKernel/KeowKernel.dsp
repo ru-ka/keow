@@ -2,7 +2,7 @@
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
-# TARGTYPE "Win32 (x86) Console Application" 0x0103
+# TARGTYPE "Win32 (x86) Application" 0x0101
 
 CFG=KeowKernel - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
@@ -17,8 +17,8 @@ CFG=KeowKernel - Win32 Debug
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "KeowKernel - Win32 Release" (based on "Win32 (x86) Console Application")
-!MESSAGE "KeowKernel - Win32 Debug" (based on "Win32 (x86) Console Application")
+!MESSAGE "KeowKernel - Win32 Release" (based on "Win32 (x86) Application")
+!MESSAGE "KeowKernel - Win32 Debug" (based on "Win32 (x86) Application")
 !MESSAGE 
 
 # Begin Project
@@ -26,6 +26,7 @@ CFG=KeowKernel - Win32 Debug
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
 CPP=cl.exe
+MTL=midl.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "KeowKernel - Win32 Release"
@@ -39,19 +40,20 @@ RSC=rc.exe
 # PROP Use_Debug_Libraries 0
 # PROP Output_Dir "Release"
 # PROP Intermediate_Dir "Release"
-# PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /GR /GX /O2 /I "../kernel-headers-2.4.24-1/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
+# ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /Yu"stdafx.h" /FD /c
+# ADD CPP /nologo /W3 /GX /O2 /I "..\KeowUtils" /I "..\kernel-headers-2.4.24-1\include" /I "..\kernel-headers-2.4.24-1" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX"kernel.h" /FD /c
+# SUBTRACT CPP /X
+# ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x1409 /d "NDEBUG"
 # ADD RSC /l 0x1409 /d "NDEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
-# ADD LINK32 kernel32.lib user32.lib advapi32.lib ole32.lib shell32.lib shlwapi.lib uuid.lib /nologo /version:0.1 /subsystem:windows /machine:I386
-# SUBTRACT LINK32 /pdb:none /nodefaultlib
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /machine:I386
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /machine:I386
 
 !ELSEIF  "$(CFG)" == "KeowKernel - Win32 Debug"
 
@@ -64,19 +66,20 @@ LINK32=link.exe
 # PROP Use_Debug_Libraries 1
 # PROP Output_Dir "Debug"
 # PROP Intermediate_Dir "Debug"
-# PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Gm /GR /GX /ZI /Od /I "../kernel-headers-2.4.24-1/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /FR /YX /FD /GZ /c
+# ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /Yu"stdafx.h" /FD /GZ /c
+# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "..\KeowUtils" /I "..\kernel-headers-2.4.24-1\include" /I "..\kernel-headers-2.4.24-1" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /FR /YX"kernel.h" /FD /GZ /c
+# SUBTRACT CPP /X
+# ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
+# ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x1409 /d "_DEBUG"
 # ADD RSC /l 0x1409 /d "_DEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib user32.lib advapi32.lib ole32.lib shell32.lib shlwapi.lib uuid.lib /nologo /version:0.1 /subsystem:windows /map /debug /machine:I386 /pdbtype:sept
-# SUBTRACT LINK32 /pdb:none /nodefaultlib
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /debug /machine:I386 /pdbtype:sept
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /debug /machine:I386 /pdbtype:sept
 
 !ENDIF 
 
@@ -137,15 +140,15 @@ SOURCE=.\ioh_proc.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\KeowKernel.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\kernel.cpp
 # End Source File
 # Begin Source File
 
 SOURCE=.\loadelf.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\main.cpp
 # End Source File
 # Begin Source File
 
@@ -199,6 +202,10 @@ SOURCE=.\sys_rtsig.cpp
 
 SOURCE=.\sys_sys.cpp
 # End Source File
+# Begin Source File
+
+SOURCE=.\Terminal.cpp
+# End Source File
 # End Group
 # Begin Group "Header Files"
 
@@ -221,10 +228,6 @@ SOURCE=.\kernel.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\linux_includes.h
-# End Source File
-# Begin Source File
-
 SOURCE=.\loadelf.h
 # End Source File
 # Begin Source File
@@ -237,24 +240,20 @@ SOURCE=.\path.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\resource.h
+SOURCE=.\Terminal.h
 # End Source File
 # Begin Source File
 
 SOURCE=.\tib.h
 # End Source File
-# Begin Source File
-
-SOURCE=.\types.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\util.h
-# End Source File
 # End Group
 # Begin Group "Resource Files"
 
 # PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
+# Begin Source File
+
+SOURCE=.\resource.h
+# End Source File
 # Begin Source File
 
 SOURCE=.\Resources.rc

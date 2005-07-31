@@ -37,7 +37,7 @@ ADDR AllocateMemAndProtectProcess(HANDLE hProcess, ADDR addr, DWORD size, DWORD 
 ADDR AllocateMemAndProtect(ADDR addr, DWORD size, DWORD prot);
 bool DeallocateMemory(ADDR addr, DWORD size);
 
-_declspec(dllexport) char** CopyStringListToProcess(HANDLE hProcess, char * list[]);
+char ** CopyStringListToProcess(HANDLE hProcess, char * list[]);
 
 
 struct MemBlock

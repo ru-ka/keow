@@ -27,15 +27,13 @@
 #include "tib.h"
 #include <excpt.h>
 
-ProcessDataStruct* pProcessData = NULL;
-
 
 SYSCALL_HANDLER syscall_handlers[NR_syscalls];
 const char* syscall_names[NR_syscalls];
 
 
 //shared kernel data
-struct KernelSharedDataStruct *pKernelSharedData = NULL;
+struct KernelDataStruct *pKernelSharedData = NULL;
 HANDLE hKernelLock;
 
 HANDLE WaitTerminatingEvent;
@@ -346,28 +344,28 @@ void kernel_init()
 
 void kernel_term()
 {
-	if(pProcessData)
+	if(KeowProcess())
 	{
 		//not part of the exec process (pid sharing)? this is us, right?
-		if(pProcessData->Win32PID == GetCurrentProcessId())
+		if(KeowProcess()->Win32PID == GetCurrentProcessId())
 		{
-			pProcessData->in_use = false;
+			KeowProcess()->in_use = false;
 
 			//parent should get SIGCHLD when we exit
-			if(pProcessData->PID != 1)
-				SendSignal(pProcessData->ParentPID, SIGCHLD);
+			if(KeowProcess()->PID != 1)
+				SendSignal(KeowProcess()->ParentPID, SIGCHLD);
 
 			//any children get inherited by init
 			//also we are not ptracing any more
 			for(int i=0; i<MAX_PROCESSES; i++)
 			{
-				if(pKernelSharedData->ProcessTable[i].ParentPID == pProcessData->PID)
-					pKernelSharedData->ProcessTable[i].ParentPID = 1; //init
-				if(pKernelSharedData->ProcessTable[i].ptrace_owner_pid == pProcessData->PID)
-					pKernelSharedData->ProcessTable[i].ptrace_owner_pid = 0; //no-one
+				if(g_KernelData.ProcessTable[i].ParentPID == KeowProcess()->PID)
+					g_KernelData.ProcessTable[i].ParentPID = 1; //init
+				if(g_KernelData.ProcessTable[i].ptrace_owner_pid == KeowProcess()->PID)
+					g_KernelData.ProcessTable[i].ptrace_owner_pid = 0; //no-one
 			}
 
-			ktrace("Process exit [code=%d, sig=%d]\n", pProcessData->exitcode, pProcessData->killed_by_sig);
+			ktrace("Process exit [code=%d, sig=%d]\n", KeowProcess()->exitcode, KeowProcess()->killed_by_sig);
 		}
 		else
 		{
@@ -376,7 +374,7 @@ void kernel_term()
 	}
 	else
 	{
-		ktrace("Process exit [no pProcessData]\n");
+		ktrace("Process exit [no KeowProcess()]\n");
 	}
 }
 
@@ -419,7 +417,7 @@ DWORD HandleExceptionInELF(DWORD ExceptionCode, LPEXCEPTION_POINTERS pEP)
 					ktrace("Possibly from a call @ 0x%08lx\n", addr);
 				}
 
-				SendSignal(pProcessData->PID, SIGSEGV); //access violation
+				SendSignal(KeowProcess()->PID, SIGSEGV); //access violation
 				return EXCEPTION_EXECUTE_HANDLER;
 			}
 
@@ -438,7 +436,7 @@ DWORD HandleExceptionInELF(DWORD ExceptionCode, LPEXCEPTION_POINTERS pEP)
 			else
 			{
 				ktrace("Access violation (not: int 80h)\n");
-				SendSignal(pProcessData->PID, SIGSEGV); //access violation
+				SendSignal(KeowProcess()->PID, SIGSEGV); //access violation
 				return EXCEPTION_EXECUTE_HANDLER;
 			}
 		}
@@ -454,14 +452,14 @@ DWORD HandleExceptionInELF(DWORD ExceptionCode, LPEXCEPTION_POINTERS pEP)
 	case EXCEPTION_INT_DIVIDE_BY_ZERO:
 	case EXCEPTION_INT_OVERFLOW:
 		ktrace("math exception\n");
-		SendSignal(pProcessData->PID, SIGFPE);
+		SendSignal(KeowProcess()->PID, SIGFPE);
 		SuspendThread(GetCurrentThread());
 		return EXCEPTION_CONTINUE_EXECUTION;
 
 	case EXCEPTION_PRIV_INSTRUCTION:
 	case EXCEPTION_ILLEGAL_INSTRUCTION:
 		ktrace("instruction exception\n");
-		SendSignal(pProcessData->PID, SIGILL);
+		SendSignal(KeowProcess()->PID, SIGILL);
 		SuspendThread(GetCurrentThread());
 		return EXCEPTION_CONTINUE_EXECUTION;
 
@@ -470,7 +468,7 @@ DWORD HandleExceptionInELF(DWORD ExceptionCode, LPEXCEPTION_POINTERS pEP)
 	case EXCEPTION_STACK_OVERFLOW:
 	case EXCEPTION_GUARD_PAGE:
 		ktrace("page access exception\n");
-		SendSignal(pProcessData->PID, SIGSEGV);
+		SendSignal(KeowProcess()->PID, SIGSEGV);
 		SuspendThread(GetCurrentThread());
 		return EXCEPTION_CONTINUE_EXECUTION;
 
@@ -483,7 +481,7 @@ DWORD HandleExceptionInELF(DWORD ExceptionCode, LPEXCEPTION_POINTERS pEP)
 
 	//get here on any unhandled exception
 	ktrace("Unhandled exception type 0x%08lx @ 0x%08lx\n", ExceptionCode, pEP->ExceptionRecord->ExceptionAddress);
-	SendSignal(pProcessData->PID, SIGILL); //use illegal instruction
+	SendSignal(KeowProcess()->PID, SIGILL); //use illegal instruction
 	SuspendThread(GetCurrentThread());
 	return EXCEPTION_CONTINUE_EXECUTION;
 }
@@ -496,10 +494,10 @@ EXCEPTION_DISPOSITION __cdecl my_except_handler (
     void * DispatcherContext
     )
 {
-	if(pProcessData)
+	if(KeowProcess())
 	{
-		pProcessData->ptrace_ctx = *ContextRecord;
-		pProcessData->ptrace_ctx_valid = true;
+		KeowProcess()->ptrace_ctx = *ContextRecord;
+		KeowProcess()->ptrace_ctx_valid = true;
 	}
 
 	EXCEPTION_POINTERS ep;
@@ -519,8 +517,8 @@ EXCEPTION_DISPOSITION __cdecl my_except_handler (
 		break;
 	}
 
-	if(pProcessData)
-		pProcessData->ptrace_ctx_valid = false;
+	if(KeowProcess())
+		KeowProcess()->ptrace_ctx_valid = false;
 
 	return ret;
 }
@@ -558,14 +556,14 @@ static void RemoveExceptionHandler(EXCEPTION_REGISTRATION_RECORD &except_reg)
 static void SetupStdHandles()
 {
 	//init file handles prior to copying any that are required
-	ZeroMemory(&pProcessData->FileHandlers, sizeof(pProcessData->FileHandlers));
+	ZeroMemory(&KeowProcess()->FileHandlers, sizeof(KeowProcess()->FileHandlers));
 	//standard unix file handles (stdin,stdout,stderr)
-	pProcessData->FileHandlers[0] = new ConsoleIOHandler(CONSOLE0_NUM, true);
-	pProcessData->FileHandlers[1] = pProcessData->FileHandlers[0]->Duplicate(GetCurrentProcess(), GetCurrentProcess());
-	pProcessData->FileHandlers[2] = pProcessData->FileHandlers[0]->Duplicate(GetCurrentProcess(), GetCurrentProcess());
-	pProcessData->FileHandlers[0]->SetInheritable(true);
-	pProcessData->FileHandlers[1]->SetInheritable(true);
-	pProcessData->FileHandlers[2]->SetInheritable(true);
+	KeowProcess()->FileHandlers[0] = new ConsoleIOHandler(CONSOLE0_NUM, true);
+	KeowProcess()->FileHandlers[1] = KeowProcess()->FileHandlers[0]->Duplicate(GetCurrentProcess(), GetCurrentProcess());
+	KeowProcess()->FileHandlers[2] = KeowProcess()->FileHandlers[0]->Duplicate(GetCurrentProcess(), GetCurrentProcess());
+	KeowProcess()->FileHandlers[0]->SetInheritable(true);
+	KeowProcess()->FileHandlers[1]->SetInheritable(true);
+	KeowProcess()->FileHandlers[2]->SetInheritable(true);
 
 }
 
@@ -580,7 +578,7 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 
 	//shared kernel data
 	HANDLE h = OpenFileMapping(GENERIC_READ|GENERIC_WRITE, FALSE, KernelInstance);
-	pKernelSharedData = (KernelSharedDataStruct*)MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0,0,0);
+	pKernelSharedData = (KernelDataStruct*)MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0,0,0);
 	//leave handle open
 
 	//synchronisation handles
@@ -591,72 +589,62 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 	WaitTerminatingEvent = CreateEvent(NULL, TRUE, FALSE, WaitTerminatingEventName);
 	
 	//OUR data
-	pProcessData = &pKernelSharedData->ProcessTable[pid];
-	pProcessData->PID = pid;
-	pProcessData->exitcode = -SIGABRT; //in case not set later
-	GetSystemTimeAsFileTime(&pProcessData->StartedTime);
-	//need originater to set this or exec etc: pProcessData->MainThreadID = GetCurrentThreadId();
-	pProcessData->hKernelDebugFile = INVALID_HANDLE_VALUE;
+	KeowProcess() = &g_KernelData.ProcessTable[pid];
+	KeowProcess()->PID = pid;
+	KeowProcess()->exitcode = -SIGABRT; //in case not set later
+	GetSystemTimeAsFileTime(&KeowProcess()->StartedTime);
+	//need originater to set this or exec etc: KeowProcess()->MainThreadID = GetCurrentThreadId();
+	KeowProcess()->hKernelDebugFile = INVALID_HANDLE_VALUE;
 
 	//need to ensure process table has no-one with use as parent (we are a new process after all!)
 	for(i=0; i<MAX_PROCESSES; i++)
 	{
-		if(pKernelSharedData->ProcessTable[i].ParentPID == pProcessData->PID)
-			pKernelSharedData->ProcessTable[i].ParentPID = 0;
+		if(g_KernelData.ProcessTable[i].ParentPID == KeowProcess()->PID)
+			g_KernelData.ProcessTable[i].ParentPID = 0;
 	}
 
 	//can use krace after we set hKernelDebugFile
 	ktrace("Process_Init: %s\n", keyword);
 	ktrace("pid %d, win32 pid %d, main thread x%X\n", pid, GetCurrentProcessId(), GetCurrentThreadId());
-	ktrace("%s\n", pProcessData->ProgramPath);
-	ktrace("arguments: @ 0x%08lx\n", pProcessData->argv);
-	if(pProcessData->argv)
+	ktrace("%s\n", KeowProcess()->ProgramPath);
+	ktrace("arguments: @ 0x%08lx\n", KeowProcess()->argv);
+	if(KeowProcess()->argv)
 	{
-		for(i=0; pProcessData->argv[i]; ++i)
-			ktrace("%5d %s\n", i, pProcessData->argv[i]);
+		for(i=0; KeowProcess()->argv[i]; ++i)
+			ktrace("%5d %s\n", i, KeowProcess()->argv[i]);
 	}
-	ktrace("environment: @ 0x%08lx\n", pProcessData->envp);
-	if(pProcessData->envp)
+	ktrace("environment: @ 0x%08lx\n", KeowProcess()->envp);
+	if(KeowProcess()->envp)
 	{
-		for(i=0; pProcessData->envp[i]; ++i)
-			ktrace("%5d %s\n", i, pProcessData->envp[i]);
+		for(i=0; KeowProcess()->envp[i]; ++i)
+			ktrace("%5d %s\n", i, KeowProcess()->envp[i]);
 	}
 
 
 	//DEBUG
-	//if(pProcessData->PID == 2)
-	if(strstr(pProcessData->ProgramPath, "bash") ) {
-		//DebugBreak();
-		//try to be single stepping
-		__asm {
-			pushfd
-			pop eax
-			or eax, 0x0100  //turn on the TF bit (single-step)
-			push eax
-			popfd
-		}
-	}
-
+	//if(KeowProcess()->PID == 2)
+	if(strstr(KeowProcess()->ProgramPath, "awk") )
+		DebugBreak();
 
 
 	//we need to know where the original stack is (before we do anything to play with it)
 	//this is so that we know details for copying it between processes during fork
 	ADDR stack;
 	__asm mov stack,esp
-	pProcessData->original_stack_esp = stack;
+	KeowProcess()->original_stack_esp = stack;
 	//TIB* pTIB;
 	//__asm {
 	//	mov eax, fs:[18h]
 	//	mov pTIB, eax
 	//}
-	//pProcessData->original_stack_esp = (ADDR)pTIB->pvStackUserTop;
-	ktrace("Stack ESP is @ 0x%08lx\n", pProcessData->original_stack_esp);
+	//KeowProcess()->original_stack_esp = (ADDR)pTIB->pvStackUserTop;
+	ktrace("Stack ESP is @ 0x%08lx\n", KeowProcess()->original_stack_esp);
 
 	//need to set current directory for the process?
 	if(strcmp(keyword, "INIT")!=0)
 	{
 		Path pwd;
-		pwd.SetUnixPath(pProcessData->unix_pwd);
+		pwd.SetUnixPath(KeowProcess()->unix_pwd);
 		SetCurrentDirectory(pwd.Win32Path());
 	}
 
@@ -689,7 +677,7 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 		if(strcmp(keyword,"FORK") == 0)
 		{
 			//init file handles prior to copying any that are required
-			ZeroMemory(&pProcessData->FileHandlers, sizeof(pProcessData->FileHandlers));
+			ZeroMemory(&KeowProcess()->FileHandlers, sizeof(KeowProcess()->FileHandlers));
 
 			ForkChildCopyFromParent();
 
@@ -708,32 +696,32 @@ extern "C" _declspec(dllexport) void Process_Init(const char* keyword, int pid, 
 
 			//default signal handling
 			for(i=0; i<MAX_SIGNALS; ++i) {
-				pProcessData->signal_action[i].sa_handler = SIG_DFL;
-				pProcessData->signal_action[i].sa_flags = NULL;
-				pProcessData->signal_action[i].sa_restorer = NULL;
-				ZeroMemory(&pProcessData->signal_action[i].sa_mask, sizeof(pProcessData->signal_action[i].sa_mask));
+				KeowProcess()->signal_action[i].sa_handler = SIG_DFL;
+				KeowProcess()->signal_action[i].sa_flags = NULL;
+				KeowProcess()->signal_action[i].sa_restorer = NULL;
+				ZeroMemory(&KeowProcess()->signal_action[i].sa_mask, sizeof(KeowProcess()->signal_action[i].sa_mask));
 			}
-			ZeroMemory(&pProcessData->sigmask, sizeof(pProcessData->sigmask));
-			pProcessData->signal_depth = 0;
+			ZeroMemory(&KeowProcess()->sigmask, sizeof(KeowProcess()->sigmask));
+			KeowProcess()->signal_depth = 0;
 
 			//we need a thread to handle signals
 			//(because windows doesn't seem to have an interruption mechanism like unix signals)
-			/*hSignalHandlerThread=*/ CreateThread(NULL, 0, SignalThreadMain, 0, 0, &pProcessData->SignalThreadID);
+			/*hSignalHandlerThread=*/ CreateThread(NULL, 0, SignalThreadMain, 0, 0, &KeowProcess()->SignalThreadID);
 
 
 			//Process was started with some memory allocated, but not recorded
 			//in our linked list.
 			//Add that now (ELF and Loaded memory)
-			ZeroMemory(&pProcessData->m_MemoryAllocationsHeader, sizeof(pProcessData->m_MemoryAllocationsHeader));
+			ZeroMemory(&KeowProcess()->m_MemoryAllocationsHeader, sizeof(KeowProcess()->m_MemoryAllocationsHeader));
 			if(strcmp(keyword, "INIT")!=0)
 			{
-				RecordMemoryAllocation(pProcessData->program_base, pProcessData->program_max-pProcessData->program_base, PAGE_EXECUTE_READWRITE);
-				RecordMemoryAllocation(pProcessData->interpreter_base, pProcessData->interpreter_max-pProcessData->interpreter_base, PAGE_EXECUTE_READWRITE);
+				RecordMemoryAllocation(KeowProcess()->program_base, KeowProcess()->program_max-KeowProcess()->program_base, PAGE_EXECUTE_READWRITE);
+				RecordMemoryAllocation(KeowProcess()->interpreter_base, KeowProcess()->interpreter_max-KeowProcess()->interpreter_base, PAGE_EXECUTE_READWRITE);
 				//argv,envp have a preceeding MemBlock to tell their info
 				MemBlock *pmb;
-				pmb=(MemBlock*)((char*)pProcessData->argv - sizeof(MemBlock));
+				pmb=(MemBlock*)((char*)KeowProcess()->argv - sizeof(MemBlock));
 				RecordMemoryAllocation(pmb->addr, pmb->len, PAGE_EXECUTE_READWRITE);
-				pmb=(MemBlock*)((char*)pProcessData->envp - sizeof(MemBlock));
+				pmb=(MemBlock*)((char*)KeowProcess()->envp - sizeof(MemBlock));
 				RecordMemoryAllocation(pmb->addr, pmb->len, PAGE_EXECUTE_READWRITE);
 			}
 		}
@@ -783,18 +771,18 @@ extern "C" _declspec(dllexport) void HandleSysCall( CONTEXT * pCtx )
 	{
 		ktrace("debug: syscall %d [%s] from @ 0x%08lx\n", pCtx->Eax, syscall_names[pCtx->Eax], pCtx->Eip);
 
-		if(pProcessData->ptrace_owner_pid
-		&& pProcessData->ptrace_request == PTRACE_SYSCALL )
+		if(KeowProcess()->ptrace_owner_pid
+		&& KeowProcess()->ptrace_request == PTRACE_SYSCALL )
 		{
 			ktrace("stopping for ptrace on syscall entry eax=%d\n", syscall);
 
 			//entry to syscall has eax as -ENOSYS
 			//original eax is available as saved value
 
-			pProcessData->ptrace_saved_eax = syscall;
-			pProcessData->ptrace_ctx.Eax = (DWORD)-ENOSYS; //this is what ptrace in the tracer sees as eax
+			KeowProcess()->ptrace_saved_eax = syscall;
+			KeowProcess()->ptrace_ctx.Eax = (DWORD)-ENOSYS; //this is what ptrace in the tracer sees as eax
 
-			SendSignal(pProcessData->PID, SIGTRAP);
+			SendSignal(KeowProcess()->PID, SIGTRAP);
 		}
 
 
@@ -805,18 +793,18 @@ extern "C" _declspec(dllexport) void HandleSysCall( CONTEXT * pCtx )
 		///
 
 		
-		if(pProcessData->ptrace_owner_pid
-		&& pProcessData->ptrace_request == PTRACE_SYSCALL )
+		if(KeowProcess()->ptrace_owner_pid
+		&& KeowProcess()->ptrace_request == PTRACE_SYSCALL )
 		{
 			ktrace("stopping for ptrace on syscall exit eax=%d, orig=%d\n", pCtx->Eax, syscall);
 
 			//return from syscall has eax as return value
 			//original eax is available as saved value
 
-			pProcessData->ptrace_ctx = *pCtx; //new state
-			pProcessData->ptrace_saved_eax = syscall;
+			KeowProcess()->ptrace_ctx = *pCtx; //new state
+			KeowProcess()->ptrace_saved_eax = syscall;
 
-			SendSignal(pProcessData->PID, SIGTRAP);
+			SendSignal(KeowProcess()->PID, SIGTRAP);
 		}
 	}
 	else
@@ -881,7 +869,7 @@ int Win32ErrToUnixError(DWORD err)
  */
 void _cdecl ktrace(const char * format, ...)
 {
-	if(pKernelSharedData && pKernelSharedData->KernelDebug==0)
+	if(pKernelSharedData && g_KernelData.KernelDebug==0)
 		return;
 
 	int bufsize = strlen(format) + 1000;
@@ -893,23 +881,23 @@ void _cdecl ktrace(const char * format, ...)
 	va_list va;
 	va_start(va, format);
 	StringCbPrintf(buf, bufsize, "[%d : %ld] %d:%02d:%02d.%04d ",
-					(pProcessData?pProcessData->PID:0), GetCurrentProcessId(),
+					(KeowProcess()?KeowProcess()->PID:0), GetCurrentProcessId(),
 					st.wHour, st.wMinute, st.wSecond, st.wMilliseconds );
 	StringCbVPrintf(&buf[strlen(buf)], bufsize-strlen(buf), format, va);
 	va_end(va);
 
-	if(pKernelSharedData && pProcessData)
+	if(pKernelSharedData && KeowProcess())
 	{
-		if(pProcessData->hKernelDebugFile==INVALID_HANDLE_VALUE)
+		if(KeowProcess()->hKernelDebugFile==INVALID_HANDLE_VALUE)
 		{
 			char n[MAX_PATH];
-			StringCbPrintf(n,sizeof(n),"%s\\..\\pid%05d.trace", pKernelSharedData->LinuxFileSystemRoot, pProcessData->PID);
-			pProcessData->hKernelDebugFile = CreateFile(n, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, ktrace_should_append?OPEN_ALWAYS:CREATE_ALWAYS, 0, 0);
+			StringCbPrintf(n,sizeof(n),"%s\\..\\pid%05d.trace", g_KernelData.LinuxFileSystemRoot, KeowProcess()->PID);
+			KeowProcess()->hKernelDebugFile = CreateFile(n, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, ktrace_should_append?OPEN_ALWAYS:CREATE_ALWAYS, 0, 0);
 		}
 		DWORD dw;
-		SetFilePointer(pProcessData->hKernelDebugFile, 0,0, FILE_END);
-		WriteFile(pProcessData->hKernelDebugFile, buf, strlen(buf), &dw ,0);
-		//FlushFileBuffers(pProcessData->hKernelDebugFile);
+		SetFilePointer(KeowProcess()->hKernelDebugFile, 0,0, FILE_END);
+		WriteFile(KeowProcess()->hKernelDebugFile, buf, strlen(buf), &dw ,0);
+		//FlushFileBuffers(KeowProcess()->hKernelDebugFile);
 	}
 
 	OutputDebugString(buf);
@@ -928,18 +916,18 @@ int AllocatePID()
 	WaitForSingleObject(hKernelLock, INFINITE);
 
 	int i, cnt;
-	i=pKernelSharedData->LastAllocatedPID+1;
+	i=g_KernelData.LastAllocatedPID+1;
 	for(cnt=0; cnt<MAX_PROCESSES; cnt++)
 	{
 		if(i>=MAX_PROCESSES)
 			i=1;
-		if(!pKernelSharedData->ProcessTable[i].in_use)
+		if(!g_KernelData.ProcessTable[i].in_use)
 		{
-			memset(&pKernelSharedData->ProcessTable[i], 0, sizeof(pKernelSharedData->ProcessTable[i]));
-			pKernelSharedData->ProcessTable[i].in_use = true;
-			pKernelSharedData->ProcessTable[i].PID = i;
+			memset(&g_KernelData.ProcessTable[i], 0, sizeof(g_KernelData.ProcessTable[i]));
+			g_KernelData.ProcessTable[i].in_use = true;
+			g_KernelData.ProcessTable[i].PID = i;
 			pid = i;
-			pKernelSharedData->LastAllocatedPID = i;
+			g_KernelData.LastAllocatedPID = i;
 			break;
 		}
 	}
@@ -957,7 +945,7 @@ int FindFreeFD()
 	int fd;
 	for(fd=0; fd<MAX_OPEN_FILES; ++fd)
 	{
-		if(pProcessData->FileHandlers[fd]==NULL)
+		if(KeowProcess()->FileHandlers[fd]==NULL)
 			break;
 	}
 	if(fd>=MAX_OPEN_FILES)

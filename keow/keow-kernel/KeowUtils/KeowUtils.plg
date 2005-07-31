@@ -1,0 +1,29 @@
+<html>
+<body>
+<pre>
+<h1>Build Log</h1>
+<h3>
+--------------------Configuration: KeowUtils - Win32 Debug--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating temporary file "C:\Temp\RSPFC.tmp" with contents
+[
+/nologo /MLd /W3 /Gm /GX /ZI /Od /I "..\kernel-headers-2.4.24-1\include" /I "..\kernel-headers-2.4.24-1" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /Fp"Debug/KeowUtils.pch" /YX /Fo"Debug/" /Fd"Debug/" /FD /GZ  /c 
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowUtils\err.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowUtils\trace.cpp"
+]
+Creating command line "cl.exe @C:\Temp\RSPFC.tmp" 
+Creating command line "link.exe -lib /nologo /out:"Debug\KeowUtils.lib"  ".\Debug\err.obj" ".\Debug\trace.obj" "
+<h3>Output Window</h3>
+Compiling...
+err.cpp
+trace.cpp
+Creating library...
+
+
+
+<h3>Results</h3>
+KeowUtils.lib - 0 error(s), 0 warning(s)
+</pre>
+</body>
+</html>

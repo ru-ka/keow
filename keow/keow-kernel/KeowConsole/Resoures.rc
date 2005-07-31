@@ -28,7 +28,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_NZ
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_TUX                 ICON    DISCARDABLE     "Tux.ico"
+IDI_ICON1               ICON    DISCARDABLE     "Tux.ico"
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -79,14 +79,14 @@ BEGIN
     BEGIN
         BLOCK "140904b0"
         BEGIN
-            VALUE "Comments", "\0"
+            VALUE "Comments", "keow console window provider.\0"
             VALUE "CompanyName", "\0"
-            VALUE "FileDescription", "KeowKernel\0"
+            VALUE "FileDescription", "KeowConsole\0"
             VALUE "FileVersion", "1, 0, 0, 1\0"
-            VALUE "InternalName", "KeowKernel\0"
+            VALUE "InternalName", "KeowConsole\0"
             VALUE "LegalCopyright", "Copyright © 2005\0"
             VALUE "LegalTrademarks", "\0"
-            VALUE "OriginalFilename", "KeowKernel.exe\0"
+            VALUE "OriginalFilename", "KeowConsole.exe\0"
             VALUE "PrivateBuild", "\0"
             VALUE "ProductName", "Kernel Emulation on Windows\0"
             VALUE "ProductVersion", "1, 0, 0, 1\0"

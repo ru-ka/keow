@@ -24,6 +24,7 @@
 #ifndef KEOW_FORKEXEC_H
 #define KEOW_FORKEXEC_H
 
+HANDLE StartNewProcess(int Pid, const char * filename, const char * commandline, const char *startdir, const char ** env);
 void TransferControlToELFCode();
 void ForkChildCopyFromParent();
 void SetForkChildContext();

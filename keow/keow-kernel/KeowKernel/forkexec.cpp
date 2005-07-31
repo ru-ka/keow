@@ -45,6 +45,97 @@ static unsigned char Fork_ParentStack[PROCESS_STUB_STACK_SIZE];
 
 
 /*
+ * Start a new process using the given pid, program, 
+ */
+HANDLE StartNewProcess(int Pid, const char * filename, const char * commandline, const char *startdir, const char * env[])
+{
+	PELF_Data pElf;
+
+	ProcessDataStruct *p = &g_KernelData.ProcessTable[Pid];
+
+
+	pElf = (PELF_Data)calloc(sizeof(struct ELF_Data), 1);
+	if(pElf==NULL)
+	{
+		perror("cannot allocate ELF_Data");
+		return INVALID_HANDLE_VALUE;
+	}
+
+	//A new process to start the code in
+	GetStartupInfo(&pElf->sinfo);
+	if(!CreateProcess(g_KernelData.ProcessStubFilename, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &pElf->sinfo, &pElf->pinfo))
+	{
+		DWORD err = GetLastError();
+		fprintf(stderr,"error %ld starting %s\n", err, filename);
+		free(pElf);
+		return INVALID_HANDLE_VALUE;
+	}
+
+	if(LoadELFFile(pElf, filename, false))
+	{
+		p->is_aout_format = false;
+	}
+	else
+	{
+		TerminateProcess(pElf->pinfo.hProcess,-1);
+		CloseHandle(pElf->pinfo.hThread);
+		CloseHandle(pElf->pinfo.hProcess);
+		free(pElf);
+		return INVALID_HANDLE_VALUE;
+	}
+
+	//initial process data
+	p->in_setup = true;
+
+	StringCbCopy(p->unix_pwd, sizeof(p->unix_pwd), startdir);
+	StringCbCopy(p->ProgramPath, sizeof(p->ProgramPath), filename);
+
+	p->program_base = pElf->program_base;
+	p->program_max = pElf->program_max;
+	p->interpreter_base = pElf->interpreter_base;
+	p->interpreter_max = pElf->last_lib_addr;
+	p->interpreter_entry = pElf->interpreter_start;
+	p->phdr = pElf->phdr_addr;
+	p->phent = pElf->hdr.e_phentsize;
+	p->phnum = pElf->hdr.e_phnum;
+	p->program_entry = pElf->start_addr;
+	p->uid = p->gid = 0; //root
+	p->euid = p->egid = 0; //root
+	p->sav_uid = p->sav_gid = 0; //root
+	p->brk = p->brk_base = pElf->brk;
+	p->PID = 1;
+	p->ParentPID = 0;
+	p->ProcessGroupPID = 1;
+
+	//register process in kernel data
+	p->in_use = true;
+	p->hProcess = pElf->pinfo.hProcess;
+	p->Win32PID = pElf->pinfo.dwProcessId;
+	p->MainThreadID = pElf->pinfo.dwThreadId;
+
+	//an initial environment
+	//got this by: cat -x /proc/1/environ on linux
+	char * initial_argv[] = {0,0};
+	initial_argv[0] = p->ProgramPath;
+	p->argv = CopyStringListToProcess(pElf->pinfo.hProcess, initial_argv);
+	p->envp = CopyStringListToProcess(pElf->pinfo.hProcess, (char**)env);
+
+
+	//start the process running
+	ResumeThread(pElf->pinfo.hThread);
+
+
+	//cleanup - close thread but leave the process open
+	HANDLE hRet = pElf->pinfo.hProcess;
+	CloseHandle(pElf->pinfo.hThread);
+
+	free(pElf);
+
+	return hRet;
+}
+
+
+/*
  * called by signal handler thread to set main thread context
  * see ForkChildCopyFromParent
  */
@@ -56,7 +147,7 @@ void SetForkChildContext()
 	//update the context 
 	//let the thread resume
 
-	HANDLE hMainThread = OpenThread(THREAD_ALL_ACCESS, FALSE, pProcessData->MainThreadID);
+	HANDLE hMainThread = OpenThread(THREAD_ALL_ACCESS, FALSE, KeowProcess()->MainThreadID);
 
 	if(SuspendThread(hMainThread)==-1)
 	{
@@ -75,7 +166,7 @@ void SetForkChildContext()
 		ExitProcess(-SIGABRT);
 	}
 
-	pProcessData->in_setup = false; //running for real now
+	KeowProcess()->in_setup = false; //running for real now
 
 
 	if(ResumeThread(hMainThread)==-1)
@@ -95,7 +186,7 @@ void SetForkChildContext()
  */
 void TransferControlToELFCode()
 {
-	//local variables so we don't need to do pProcessData->xxxx from _asm block
+	//local variables so we don't need to do KeowProcess()->xxxx from _asm block
 	ADDR phdr;
 	DWORD phent;
 	DWORD phnum;
@@ -110,16 +201,16 @@ void TransferControlToELFCode()
 	ADDR start_esp;
 
 	ktrace("Transferring to ELF code\n");
-	pProcessData->in_setup = false; //running for real now, even thought not in elf code just yet
+	KeowProcess()->in_setup = false; //running for real now, even thought not in elf code just yet
 
 	//record esp at point of jump to elf (for execve to reuse)
 	__asm mov start_esp,esp
-	pProcessData->elf_start_esp = start_esp;
+	KeowProcess()->elf_start_esp = start_esp;
 
 
-	if(pProcessData->is_aout_format)
+	if(KeowProcess()->is_aout_format)
 	{
-		program_entry = pProcessData->program_entry;
+		program_entry = KeowProcess()->program_entry;
 		ktrace("no interpreter: entry @ 0x%08lx\n", program_entry);
 		__asm {
 
@@ -147,18 +238,18 @@ void TransferControlToELFCode()
 		//assuming ELF format
 
 		char * dummy_envp[1] = {NULL};
-		char * dummy_argv[2] = {(char*)pProcessData->ProgramPath, NULL};
-		phdr = pProcessData->phdr;
-		phent = pProcessData->phent;
-		phnum = pProcessData->phnum;
-		interpreter_base = pProcessData->interpreter_base;
-		interpreter_entry = pProcessData->interpreter_entry;
-		program_entry = pProcessData->program_entry;
-		uid=pProcessData->uid;
-		gid=pProcessData->gid;
-		progname = (char*)pProcessData->ProgramPath;
-		envp = pProcessData->envp ? pProcessData->envp : dummy_envp;
-		argv = pProcessData->argv ? pProcessData->argv : dummy_argv;
+		char * dummy_argv[2] = {(char*)KeowProcess()->ProgramPath, NULL};
+		phdr = KeowProcess()->phdr;
+		phent = KeowProcess()->phent;
+		phnum = KeowProcess()->phnum;
+		interpreter_base = KeowProcess()->interpreter_base;
+		interpreter_entry = KeowProcess()->interpreter_entry;
+		program_entry = KeowProcess()->program_entry;
+		uid=KeowProcess()->uid;
+		gid=KeowProcess()->gid;
+		progname = (char*)KeowProcess()->ProgramPath;
+		envp = KeowProcess()->envp ? KeowProcess()->envp : dummy_envp;
+		argv = KeowProcess()->argv ? KeowProcess()->argv : dummy_argv;
 		//size of lists
 		for(cntenvp=0; envp[cntenvp]; ++cntenvp)
 			;
@@ -167,8 +258,8 @@ void TransferControlToELFCode()
 
 		if(interpreter_entry==0)
 		{
-			interpreter_base = pProcessData->program_base;
-			interpreter_entry = pProcessData->program_entry;
+			interpreter_base = KeowProcess()->program_base;
+			interpreter_entry = KeowProcess()->program_entry;
 			ktrace("elf, no interpreter: entry @ 0x%08lx\n", interpreter_entry);
 		}
 		else
@@ -308,21 +399,17 @@ void TransferControlToELFCode()
 void ForkChildCopyFromParent()
 {
 	//who is our parent
-	ProcessDataStruct * pParentProcess = &pKernelSharedData->ProcessTable[pProcessData->ParentPID];
+	ProcessDataStruct * pParentProcess = &g_KernelData.ProcessTable[KeowProcess()->ParentPID];
 
 	//validate that we have compatable stack
 	//we should do because all processes are started with the same ProcessStub.exe
 	//this is the only win32 defined data structure that must match
 	//everything else we control
-	if(pProcessData->original_stack_esp != pParentProcess->original_stack_esp)
+	if(KeowProcess()->original_stack_esp != pParentProcess->original_stack_esp)
 	{
 		ktrace("PANIC fork() child has incompatable stack!\n");
 		ExitProcess((UINT)-SIGABRT);
 	}
-
-	//we need a thread to handle signals
-	//(because windows doesn't seem to have an interruption mechanism like unix signals)
-	/*hSignalHandlerThread=*/ CreateThread(NULL, 0, SignalThreadMain, 0, 0, (DWORD*)&pProcessData->SignalThreadID);
 
 
 	//need handle to parent
@@ -330,7 +417,7 @@ void ForkChildCopyFromParent()
 	HANDLE hParentMain = OpenThread(THREAD_ALL_ACCESS, FALSE, pParentProcess->MainThreadID);
 
 	//parent should be suspended, but maybe it didn't get there yet?
-	if(!WaitForThreadToSuspend(hParentMain))
+//	if(!WaitForThreadToSuspend(hParentMain))
 	{
 		ktrace("fork child - parent gone?\n");
 		ExitProcess((UINT)-SIGABRT);
@@ -356,9 +443,9 @@ void ForkChildCopyFromParent()
 	}
 
 	//take a copy of the parent's stack
-	//Fork_StackStart = (ADDR)pProcessData->fork_context.Esp;
+	//Fork_StackStart = (ADDR)KeowProcess()->fork_context.Esp;
 	Fork_StackStart = (ADDR)Fork_ContextParentMain.Esp;
-	Fork_StackSize = pProcessData->original_stack_esp - Fork_StackStart;
+	Fork_StackSize = KeowProcess()->original_stack_esp - Fork_StackStart;
 	if(!ReadMemory(Fork_ParentStack, hParent, Fork_StackStart, Fork_StackSize))
 	{
 		ktrace("fork() failed to copy stack\n");
@@ -379,9 +466,9 @@ void ForkChildCopyFromParent()
 	//copy process data
 	//some of these are pointers and become invalid across processes
 	//we will fix them up below but need to zero them here
-	//this has already been done by parent: *pProcessData = *pParentProcess;
-	ZeroMemory((void*)&pProcessData->FileHandlers, sizeof(pProcessData->FileHandlers));
-	ZeroMemory((void*)&pProcessData->m_MemoryAllocationsHeader, sizeof(pProcessData->m_MemoryAllocationsHeader));
+	//this has already been done by parent: *KeowProcess() = *pParentProcess;
+	ZeroMemory((void*)&KeowProcess()->FileHandlers, sizeof(KeowProcess()->FileHandlers));
+	ZeroMemory((void*)&KeowProcess()->m_MemoryAllocationsHeader, sizeof(KeowProcess()->m_MemoryAllocationsHeader));
 
 
 	//copy all memory allocations from the parent
@@ -424,7 +511,7 @@ void ForkChildCopyFromParent()
 	//we'll need to peek at parent memory to get the correct data
 	for(int i=0; i<MAX_OPEN_FILES; ++i)
 	{
-		pProcessData->FileHandlers[i] = NULL;
+		KeowProcess()->FileHandlers[i] = NULL;
 
 		if(pParentProcess->FileHandlers[i] != NULL)
 		{
@@ -452,7 +539,7 @@ void ForkChildCopyFromParent()
 			if(iohcopy->GetInheritable())
 			{
 				ktrace("inherited fd %d\n", i);
-				pProcessData->FileHandlers[i] = iohcopy->Duplicate(GetCurrentProcess(), GetCurrentProcess());
+				KeowProcess()->FileHandlers[i] = iohcopy->Duplicate(GetCurrentProcess(), GetCurrentProcess());
 			}
 			else
 			{
@@ -479,7 +566,7 @@ void ForkChildCopyFromParent()
 
 	//resume as if we were the parent (now that we look alike)
 	//we can't set our own context, so use our signal thread to acheive it
-	while(!PostThreadMessage(pProcessData->SignalThreadID, WM_KERNEL_SETFORKCONTEXT, 0, 0)
+	while(!PostThreadMessage(KeowProcess()->SignalThreadID, WM_KERNEL_SETFORKCONTEXT, 0, 0)
 	&& GetLastError() == ERROR_INVALID_THREAD_ID)
 		Sleep(10);
 	//wait until signal thread changes us.
@@ -509,41 +596,41 @@ DWORD DoFork(CONTEXT *pCtx)
 		return -EAGAIN;
 	}
 
-	ProcessDataStruct *p = &pKernelSharedData->ProcessTable[pid];
+	ProcessDataStruct *p = &g_KernelData.ProcessTable[pid];
 
 	//we are busy fiddling with process stuff
-	pProcessData->in_setup = true;
+	KeowProcess()->in_setup = true;
 
 
 	PELF_Data pElf = (PELF_Data)calloc(sizeof(struct ELF_Data), 1);
 	if(pElf==NULL)
 	{
 		p->in_use = false;
-		pProcessData->in_setup = false; //done fiddling
+		KeowProcess()->in_setup = false; //done fiddling
 		return -ENOMEM;
 	}
 
 	//a new process to start the code in
 	//use FORK keyword in argv[0]
 	char CommandLine[100];
-	StringCbPrintf(CommandLine, sizeof(CommandLine), "FORK %d %s", pid, pKernelSharedData->KernelInstanceName);
+	StringCbPrintf(CommandLine, sizeof(CommandLine), "FORK %d %s", pid, g_KernelData.KernelInstanceName);
 
 	//inherit handles
 	GetStartupInfo(&pElf->sinfo);
-	if(!CreateProcess((char*)pKernelSharedData->ProcessStubFilename, CommandLine, NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, NULL, &pElf->sinfo, &pElf->pinfo))
+	if(!CreateProcess((char*)g_KernelData.ProcessStubFilename, CommandLine, NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, NULL, &pElf->sinfo, &pElf->pinfo))
 	{
 		DWORD err = GetLastError();
-		ktrace("error %ld forking pid\n", err, pProcessData->PID);
+		ktrace("error %ld forking pid\n", err, KeowProcess()->PID);
 		free(pElf);
 		p->in_use = false;
-		pProcessData->in_setup = false; //done fiddling
+		KeowProcess()->in_setup = false; //done fiddling
 		return -EAGAIN;
 	}
 
 
 	//reserve memory in the new process
 	//we don't copy over the data yet, just ensure that space cannot be used
-	MemoryAllocRecord * pMemAlloc = &pProcessData->m_MemoryAllocationsHeader;
+	MemoryAllocRecord * pMemAlloc = &KeowProcess()->m_MemoryAllocationsHeader;
 	while(pMemAlloc->next)
 	{
 		pMemAlloc = (MemoryAllocRecord*)pMemAlloc->next;
@@ -565,17 +652,17 @@ DWORD DoFork(CONTEXT *pCtx)
 
 
 	//forking
-	pKernelSharedData->ForksSinceBoot++;
+	g_KernelData.ForksSinceBoot++;
 
 	//initial process data
-	*p = *pProcessData; //clone, then fix up
+	*p = *KeowProcess(); //clone, then fix up
 
 	p->in_setup = true; //setting up the child
 
 	//overide certain values
 	p->PID = pid;
-	p->ParentPID = pProcessData->PID;
-	p->ProcessGroupPID = pProcessData->ProcessGroupPID;
+	p->ParentPID = KeowProcess()->PID;
+	p->ProcessGroupPID = KeowProcess()->ProcessGroupPID;
 	p->hKernelDebugFile = INVALID_HANDLE_VALUE;
 
 	p->in_use = true;
@@ -585,8 +672,8 @@ DWORD DoFork(CONTEXT *pCtx)
 
 	//new copy of args/env
 	//these should already be ok because they were recorded as memory in the original process
-	//p->argv = CopyStringListToProcess(pElf->pinfo.hProcess, pProcessData->argv); 
-	//p->envp = CopyStringListToProcess(pElf->pinfo.hProcess, pProcessData->envp);
+	//p->argv = CopyStringListToProcess(pElf->pinfo.hProcess, KeowProcess()->argv); 
+	//p->envp = CopyStringListToProcess(pElf->pinfo.hProcess, KeowProcess()->envp);
 
 	//saved id is what effective id was at process start
 	p->sav_uid = p->euid;
@@ -608,10 +695,10 @@ DWORD DoFork(CONTEXT *pCtx)
 		mov eax, fs:[18h]
 		mov pTIB, eax
 	}
-	pProcessData->fork_TIB.pvExcept = (ADDR)pTIB->pvExcept;
-	pProcessData->fork_TIB.pvArbitrary= (ADDR)pTIB->pvArbitrary;
+	KeowProcess()->fork_TIB.pvExcept = (ADDR)pTIB->pvExcept;
+	KeowProcess()->fork_TIB.pvArbitrary= (ADDR)pTIB->pvArbitrary;
 	//same data for child
-	p->fork_TIB = pProcessData->fork_TIB;
+	p->fork_TIB = KeowProcess()->fork_TIB;
 
 
 	//start the process running it will call ForkChildCopyFromParent
@@ -631,7 +718,7 @@ DWORD DoFork(CONTEXT *pCtx)
 	//....
 	//When we get here we may be either the parent or the child
 	//....
-	pProcessData->in_setup = false; //done fiddling
+	KeowProcess()->in_setup = false; //done fiddling
 
 
 	//restore TEB data 
@@ -640,12 +727,12 @@ DWORD DoFork(CONTEXT *pCtx)
 		mov eax, fs:[18h]
 		mov pTIB, eax
 	}
-	pTIB->pvExcept    = (PEXCEPTION_REGISTRATION_RECORD)pProcessData->fork_TIB.pvExcept;
-	pTIB->pvArbitrary = pProcessData->fork_TIB.pvArbitrary;
+	pTIB->pvExcept    = (PEXCEPTION_REGISTRATION_RECORD)KeowProcess()->fork_TIB.pvExcept;
+	pTIB->pvArbitrary = KeowProcess()->fork_TIB.pvArbitrary;
 
 
 	//test and return the appropriate value
-	if(pProcessData->PID == pid)
+	if(KeowProcess()->PID == pid)
 	{
 		//we are the child
 		return 0;
@@ -667,8 +754,8 @@ DWORD DoFork(CONTEXT *pCtx)
 void CopyParentHandlesForExec()
 {
 	//need handle to parent
-	HANDLE hParent = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pProcessData->Win32PID);
-	HANDLE hParentMain = OpenThread(THREAD_ALL_ACCESS, FALSE, pProcessData->MainThreadID);
+	HANDLE hParent = OpenProcess(PROCESS_ALL_ACCESS, FALSE, KeowProcess()->Win32PID);
+	HANDLE hParentMain = OpenThread(THREAD_ALL_ACCESS, FALSE, KeowProcess()->MainThreadID);
 
 	ktrace("execve child waiting for parent\n");
 
@@ -685,14 +772,14 @@ void CopyParentHandlesForExec()
 	//we'll need to peek at parent memory to get the correct data
 	for(int i=0; i<MAX_OPEN_FILES; ++i)
 	{
-		if(pProcessData->FileHandlers[i] != NULL)
+		if(KeowProcess()->FileHandlers[i] != NULL)
 		{
 			//get copy of the iohandler from parent
 
 			//initial read to find out size info
 			char buf[sizeof(IOHandler)];
 			IOHandler* iohbase = (IOHandler*)buf;
-			if(!ReadMemory((ADDR)&buf, hParent, (ADDR)pProcessData->FileHandlers[i], sizeof(buf)))
+			if(!ReadMemory((ADDR)&buf, hParent, (ADDR)KeowProcess()->FileHandlers[i], sizeof(buf)))
 			{
 				ktrace("execve() child copy iohandler basic from parent failed\n");
 				ExitProcess((UINT)-SIGABRT);
@@ -700,7 +787,7 @@ void CopyParentHandlesForExec()
 
 			//read the real copy
 			IOHandler* iohcopy = (IOHandler*)new char[iohbase->GetSize()];
-			if(!ReadMemory((ADDR)iohcopy, hParent, (ADDR)pProcessData->FileHandlers[i], iohbase->GetSize()))
+			if(!ReadMemory((ADDR)iohcopy, hParent, (ADDR)KeowProcess()->FileHandlers[i], iohbase->GetSize()))
 			{
 				ktrace("execve() child copy iohandler actual from parent failed\n");
 				delete (char*)iohcopy;
@@ -711,12 +798,12 @@ void CopyParentHandlesForExec()
 			if(iohcopy->GetInheritable())
 			{
 				ktrace("inherited fd %d\n", i);
-				pProcessData->FileHandlers[i] = iohcopy->Duplicate(GetCurrentProcess(), GetCurrentProcess());
+				KeowProcess()->FileHandlers[i] = iohcopy->Duplicate(GetCurrentProcess(), GetCurrentProcess());
 			}
 			else
 			{
 				ktrace("do not inherit fd %d\n", i);
-				pProcessData->FileHandlers[i] = NULL; 
+				KeowProcess()->FileHandlers[i] = NULL; 
 			}
 			iohcopy->Close();
 			delete (char*)iohcopy;
@@ -727,8 +814,8 @@ void CopyParentHandlesForExec()
 	//update our data
 	//do this before resuming the other process so that it knows we have taken over
 	//and does not do bad things in kernel_term
-	pProcessData->Win32PID = GetCurrentProcessId();
-	pProcessData->MainThreadID = GetCurrentThreadId();
+	KeowProcess()->Win32PID = GetCurrentProcessId();
+	KeowProcess()->MainThreadID = GetCurrentThreadId();
 
 
 	//Finished copying from parent - let them resume
@@ -741,17 +828,17 @@ void CopyParentHandlesForExec()
 
 
 	//participate in ptrace() on a successfull exec
-	if(pProcessData->ptrace_owner_pid)
+	if(KeowProcess()->ptrace_owner_pid)
 	{
 		ktrace("stopping for ptrace on successfull exec\n");
 
-		pProcessData->in_setup = false; //TransferControlToELF code not called yet but we are done copying
+		KeowProcess()->in_setup = false; //TransferControlToELF code not called yet but we are done copying
 
 		//need dummy context for this - fake a successfull execve return
-		pProcessData->ptrace_ctx.Eax = 0;//success
-		pProcessData->ptrace_saved_eax = __NR_execve; //syscall
-		pProcessData->ptrace_ctx_valid = true;
-		SendSignal(pProcessData->PID, SIGTRAP);
+		KeowProcess()->ptrace_ctx.Eax = 0;//success
+		KeowProcess()->ptrace_saved_eax = __NR_execve; //syscall
+		KeowProcess()->ptrace_ctx_valid = true;
+		SendSignal(KeowProcess()->PID, SIGTRAP);
 	}
 }
 
@@ -769,11 +856,11 @@ DWORD DoExecve(const char * filename, char* argv[], char* envp[])
 	//Safest to start again and just copy over the required handles
 
 	//we are busy fiddling with process stuff
-	pProcessData->in_setup = true;
+	KeowProcess()->in_setup = true;
 
 	ktrace("execve of %s\n", filename);
 
-	ProcessDataStruct *p = pProcessData; //we reuse our PID
+	ProcessDataStruct *p = KeowProcess(); //we reuse our PID
 
 	PELF_Data pElf = (PELF_Data)calloc(sizeof(struct ELF_Data), 1);
 	if(pElf==NULL)
@@ -784,10 +871,10 @@ DWORD DoExecve(const char * filename, char* argv[], char* envp[])
 	//New a new process to start the code in
 	//use EXECVE keyword in argv[0]
 	char CommandLine[100];
-	StringCbPrintf(CommandLine, sizeof(CommandLine), "EXECVE %d %s", p->PID, pKernelSharedData->KernelInstanceName);
+	StringCbPrintf(CommandLine, sizeof(CommandLine), "EXECVE %d %s", p->PID, g_KernelData.KernelInstanceName);
 
 	GetStartupInfo(&pElf->sinfo);
-	if(!CreateProcess(pKernelSharedData->ProcessStubFilename, CommandLine, NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, NULL, &pElf->sinfo, &pElf->pinfo))
+	if(!CreateProcess(g_KernelData.ProcessStubFilename, CommandLine, NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, NULL, &pElf->sinfo, &pElf->pinfo))
 	{
 		DWORD err = GetLastError();
 		fprintf(stderr,"error %ld starting %s\n", err, filename);
@@ -849,3 +936,5 @@ DWORD DoExecve(const char * filename, char* argv[], char* envp[])
 	ktrace("execve original caller terminating\n");
 	ExitProcess(0);
 }
+
+

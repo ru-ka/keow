@@ -6,11 +6,162 @@
 --------------------Configuration: KeowKernel - Win32 Debug--------------------
 </h3>
 <h3>Command Lines</h3>
+Creating temporary file "C:\Temp\RSP1E7.tmp" with contents
+[
+/nologo /MLd /W3 /Gm /GX /ZI /Od /I "..\KeowUtils" /I "..\kernel-headers-2.4.24-1\include" /I "..\kernel-headers-2.4.24-1" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /FR"Debug/" /Fp"Debug/KeowKernel.pch" /YX"kernel.h" /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\fs_keow.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\signals.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\sys_io.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\sys_process.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\sys_sys.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\forkexec.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\ioh_console.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\kernel.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\memory.cpp"
+]
+Creating command line "cl.exe @C:\Temp\RSP1E7.tmp" 
+Creating temporary file "C:\Temp\RSP1E8.tmp" with contents
+[
+kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /incremental:yes /pdb:"Debug/KeowKernel.pdb" /debug /machine:I386 /out:"Debug/KeowKernel.exe" /pdbtype:sept 
+".\Debug\core.obj"
+".\Debug\filesys.obj"
+".\Debug\forkexec.obj"
+".\Debug\fs_keow.obj"
+".\Debug\fs_proc.obj"
+".\Debug\ioh.obj"
+".\Debug\ioh_console.obj"
+".\Debug\ioh_devnull.obj"
+".\Debug\ioh_devzero.obj"
+".\Debug\ioh_file.obj"
+".\Debug\ioh_pipe.obj"
+".\Debug\ioh_proc.obj"
+".\Debug\KeowKernel.obj"
+".\Debug\kernel.obj"
+".\Debug\loadelf.obj"
+".\Debug\memory.obj"
+".\Debug\path.obj"
+".\Debug\shortcuts.obj"
+".\Debug\signals.obj"
+".\Debug\sys_io.obj"
+".\Debug\sys_mem.obj"
+".\Debug\sys_mount.obj"
+".\Debug\sys_net.obj"
+".\Debug\sys_none.obj"
+".\Debug\sys_perms.obj"
+".\Debug\sys_process.obj"
+".\Debug\sys_rtsig.obj"
+".\Debug\sys_sys.obj"
+".\Debug\Terminal.obj"
+".\Debug\Resources.res"
+]
+Creating command line "link.exe @C:\Temp\RSP1E8.tmp"
+<h3>Output Window</h3>
+Compiling...
+fs_keow.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\fs_keow.cpp(129) : error C2065: 'CONSOLE0_NUM' : undeclared identifier
+signals.cpp
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\signals.cpp(99) : error C2065: 'WaitTerminatingEvent' : undeclared identifier
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\signals.cpp(169) : error C2065: 'GenerateCoreDump' : undeclared identifier
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\signals.cpp(396) : error C2065: 'WM_KERNEL_SIGNAL' : undeclared identifier
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\signals.cpp(396) : error C2051: case expression not constant
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\signals.cpp(400) : error C2065: 'WM_KERNEL_SETFORKCONTEXT' : undeclared identifier
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\signals.cpp(400) : error C2051: case expression not constant
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\signals.cpp(408) : warning C4065: switch statement contains 'default' but no 'case' labels
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\signals.cpp(436) : error C2039: 'SignalThreadID' : is not a member of 'ProcessDataStruct'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(72) : see declaration of 'ProcessDataStruct'
+sys_io.cpp
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\sys_io.cpp(217) : error C2065: 'FindFreeFD' : undeclared identifier
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\sys_io.cpp(981) : error C2065: 'CreateHardLink' : undeclared identifier
+sys_process.cpp
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\sys_process.cpp(266) : error C2065: 'WaitTerminatingEvent' : undeclared identifier
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\sys_process.cpp(266) : error C2440: '=' : cannot convert from 'int' to 'void *'
+        Conversion from integral type to pointer type requires reinterpret_cast, C-style cast or function-style cast
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\sys_process.cpp(356) : error C2065: 'IsThreadSuspended' : undeclared identifier
+sys_sys.cpp
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\sys_sys.cpp(478) : error C2065: 'WaitTerminatingEvent' : undeclared identifier
+forkexec.cpp
+value that should match ProcessStub stack size in build properties
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\forkexec.cpp(479) : error C2039: 'next' : is not a member of 'MemoryAllocRecord'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(51) : see declaration of 'MemoryAllocRecord'
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\forkexec.cpp(479) : fatal error C1903: unable to recover from previous error(s); stopping compilation
+ioh_console.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\ioh_console.cpp(65) : error C2039: 'TerminalDeviceData' : is not a member of 'KernelDataStruct'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(166) : see declaration of 'KernelDataStruct'
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\ioh_console.cpp(66) : fatal error C1903: unable to recover from previous error(s); stopping compilation
+kernel.cpp
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\kernel.cpp(561) : error C2065: 'CONSOLE0_NUM' : undeclared identifier
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\kernel.cpp(592) : error C2106: '=' : left operand must be l-value
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\kernel.cpp(597) : error C2039: 'hKernelDebugFile' : is not a member of 'ProcessDataStruct'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(72) : see declaration of 'ProcessDataStruct'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\kernel.cpp(709) : error C2039: 'SignalThreadID' : is not a member of 'ProcessDataStruct'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(72) : see declaration of 'ProcessDataStruct'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\kernel.cpp(891) : error C2039: 'hKernelDebugFile' : is not a member of 'ProcessDataStruct'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(72) : see declaration of 'ProcessDataStruct'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\kernel.cpp(895) : error C2039: 'hKernelDebugFile' : is not a member of 'ProcessDataStruct'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(72) : see declaration of 'ProcessDataStruct'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\kernel.cpp(898) : error C2039: 'hKernelDebugFile' : is not a member of 'ProcessDataStruct'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(72) : see declaration of 'ProcessDataStruct'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\kernel.cpp(899) : error C2039: 'hKernelDebugFile' : is not a member of 'ProcessDataStruct'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(72) : see declaration of 'ProcessDataStruct'
+memory.cpp
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\memory.cpp(122) : error C2039: 'next' : is not a member of 'MemoryAllocRecord'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(51) : see declaration of 'MemoryAllocRecord'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\memory.cpp(129) : error C2039: 'next' : is not a member of 'MemoryAllocRecord'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(51) : see declaration of 'MemoryAllocRecord'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\memory.cpp(146) : error C2039: 'AddAfter' : is not a member of 'MemoryAllocRecord'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(51) : see declaration of 'MemoryAllocRecord'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\memory.cpp(152) : error C2039: 'next' : is not a member of 'MemoryAllocRecord'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(51) : see declaration of 'MemoryAllocRecord'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\memory.cpp(163) : error C2039: 'Remove' : is not a member of 'MemoryAllocRecord'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(51) : see declaration of 'MemoryAllocRecord'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\memory.cpp(167) : error C2039: 'next' : is not a member of 'MemoryAllocRecord'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(51) : see declaration of 'MemoryAllocRecord'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\memory.cpp(177) : error C2039: 'next' : is not a member of 'MemoryAllocRecord'
+        c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(51) : see declaration of 'MemoryAllocRecord'
+C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\KEOW-KERNEL\KeowKernel\memory.cpp(177) : fatal error C1903: unable to recover from previous error(s); stopping compilation
+Error executing cl.exe.
+Creating temporary file "C:\Temp\RSP1E9.tmp" with contents
+[
+/nologo /o"Debug/KeowKernel.bsc" 
+".\Debug\core.sbr"
+".\Debug\filesys.sbr"
+".\Debug\forkexec.sbr"
+".\Debug\fs_keow.sbr"
+".\Debug\fs_proc.sbr"
+".\Debug\ioh.sbr"
+".\Debug\ioh_console.sbr"
+".\Debug\ioh_devnull.sbr"
+".\Debug\ioh_devzero.sbr"
+".\Debug\ioh_file.sbr"
+".\Debug\ioh_pipe.sbr"
+".\Debug\ioh_proc.sbr"
+".\Debug\KeowKernel.sbr"
+".\Debug\kernel.sbr"
+".\Debug\loadelf.sbr"
+".\Debug\memory.sbr"
+".\Debug\path.sbr"
+".\Debug\shortcuts.sbr"
+".\Debug\signals.sbr"
+".\Debug\sys_io.sbr"
+".\Debug\sys_mem.sbr"
+".\Debug\sys_mount.sbr"
+".\Debug\sys_net.sbr"
+".\Debug\sys_none.sbr"
+".\Debug\sys_perms.sbr"
+".\Debug\sys_process.sbr"
+".\Debug\sys_rtsig.sbr"
+".\Debug\sys_sys.sbr"
+".\Debug\Terminal.sbr"]
+Creating command line "bscmake.exe @C:\Temp\RSP1E9.tmp"
+Creating browse info file...
+BSCMAKE: error BK1506 : cannot open file '.\Debug\forkexec.sbr': No such file or directory
+Error executing bscmake.exe.
+<h3>Output Window</h3>
 
 
 
 <h3>Results</h3>
-KeowKernel.exe - 0 error(s), 0 warning(s)
+KeowKernel.exe - 35 error(s), 1 warning(s)
 </pre>
 </body>
 </html>

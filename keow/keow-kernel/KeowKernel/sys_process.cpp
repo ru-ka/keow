@@ -37,8 +37,8 @@
 void sys_exit(CONTEXT* pCtx)
 {
 	ktrace("Process terminating, code 0x%08lx\n", pCtx->Ebx);
-	pProcessData->exitcode = pCtx->Ebx;
-	pProcessData->killed_by_sig = 0;
+	KeowProcess()->exitcode = pCtx->Ebx;
+	KeowProcess()->killed_by_sig = 0;
 	exit(pCtx->Ebx);
 }
 
@@ -63,18 +63,18 @@ void  sys_sigaction(CONTEXT* pCtx)
 
 	if(oldact)
 	{
-		oldact->sa_handler  = pProcessData->signal_action[signum].sa_handler;
-		oldact->sa_flags    = pProcessData->signal_action[signum].sa_flags;
-		oldact->sa_restorer = pProcessData->signal_action[signum].sa_restorer;
-		oldact->sa_mask     = pProcessData->signal_action[signum].sa_mask.sig[0];
+		oldact->sa_handler  = KeowProcess()->signal_action[signum].sa_handler;
+		oldact->sa_flags    = KeowProcess()->signal_action[signum].sa_flags;
+		oldact->sa_restorer = KeowProcess()->signal_action[signum].sa_restorer;
+		oldact->sa_mask     = KeowProcess()->signal_action[signum].sa_mask.sig[0];
 	}
 
 	if(act)
 	{
-		pProcessData->signal_action[signum].sa_handler     = act->sa_handler;
-		pProcessData->signal_action[signum].sa_flags       = act->sa_flags;
-		pProcessData->signal_action[signum].sa_restorer    = act->sa_restorer;
-		pProcessData->signal_action[signum].sa_mask.sig[0] = act->sa_mask;
+		KeowProcess()->signal_action[signum].sa_handler     = act->sa_handler;
+		KeowProcess()->signal_action[signum].sa_flags       = act->sa_flags;
+		KeowProcess()->signal_action[signum].sa_restorer    = act->sa_restorer;
+		KeowProcess()->signal_action[signum].sa_mask.sig[0] = act->sa_mask;
 
 		ktrace("set old_sigaction handler for signal %d : 0x%08lx\n", signum, act->sa_handler);
 	}
@@ -92,7 +92,7 @@ void  sys_sigprocmask(CONTEXT* pCtx)
 	linux::sigset_t *set = (linux::sigset_t*)pCtx->Ecx;
 	linux::sigset_t *oldset = (linux::sigset_t*)pCtx->Edx;
 
-	linux::sigset_t *currsigset = &pProcessData->sigmask[pProcessData->signal_depth];
+	linux::sigset_t *currsigset = &KeowProcess()->sigmask[KeowProcess()->signal_depth];
 
 	if(oldset)
 	{
@@ -137,7 +137,7 @@ void  sys_sigprocmask(CONTEXT* pCtx)
  */
 void  sys_getpgrp(CONTEXT* pCtx)
 {
-	pCtx->Eax = pProcessData->ProcessGroupPID;
+	pCtx->Eax = KeowProcess()->ProcessGroupPID;
 }
 
 /*****************************************************************************/
@@ -147,7 +147,7 @@ void  sys_getpgrp(CONTEXT* pCtx)
  */
 void  sys_getpgid(CONTEXT* pCtx)
 {
-	pCtx->Eax = pProcessData->ProcessGroupPID;
+	pCtx->Eax = KeowProcess()->ProcessGroupPID;
 }
 
 /*****************************************************************************/
@@ -162,19 +162,19 @@ void  sys_setpgid(CONTEXT* pCtx)
 	DWORD pgid = pCtx->Ecx;
 
 	if(pid==0)
-		pid = pProcessData->PID;
+		pid = KeowProcess()->PID;
 	if(pgid==0)
-		pgid = pProcessData->ProcessGroupPID;
+		pgid = KeowProcess()->ProcessGroupPID;
 
 	//validate pid
 	if(pid<1 || pid>MAX_PROCESSES
-	|| pKernelSharedData->ProcessTable[pid].in_use==false)
+	|| g_KernelData.ProcessTable[pid].in_use==false)
 	{
 		pCtx->Eax = -ESRCH;
 		return;
 	}
 	
-	pKernelSharedData->ProcessTable[pid].ProcessGroupPID = pgid;
+	g_KernelData.ProcessTable[pid].ProcessGroupPID = pgid;
 	pCtx->Eax = 0;
 }
 
@@ -221,33 +221,33 @@ void sys_wait4(CONTEXT* pCtx)
 	//select children to wait on
 	for(int i=0; i<MAX_PROCESSES; i++)
 	{
-		if(pKernelSharedData->ProcessTable[i].ParentPID == pProcessData->PID)
+		if(g_KernelData.ProcessTable[i].ParentPID == KeowProcess()->PID)
 		{
 			bool wait_this = false;
 
-			if(wait_pid < -1  &&  pKernelSharedData->ProcessTable[i].ProcessGroupPID == wait_pid)
+			if(wait_pid < -1  &&  g_KernelData.ProcessTable[i].ProcessGroupPID == wait_pid)
 				wait_this=true;
 			else
 			if(wait_pid == -1)
 				wait_this=true;
 			else
-			if(wait_pid == 0  &&  pKernelSharedData->ProcessTable[i].ProcessGroupPID == pProcessData->ProcessGroupPID)
+			if(wait_pid == 0  &&  g_KernelData.ProcessTable[i].ProcessGroupPID == KeowProcess()->ProcessGroupPID)
 				wait_this=true;
 			else
-			if(wait_pid > 0  &&  pKernelSharedData->ProcessTable[i].PID == wait_pid)
+			if(wait_pid > 0  &&  g_KernelData.ProcessTable[i].PID == wait_pid)
 				wait_this=true;
 			
 			
 			if(wait_this)
 			{
-				pProcessWin32Pids[NumHandles] = pKernelSharedData->ProcessTable[i].Win32PID;
-				pProcessHandles[NumHandles] = OpenProcess(SYNCHRONIZE, FALSE, pKernelSharedData->ProcessTable[i].Win32PID);
+				pProcessWin32Pids[NumHandles] = g_KernelData.ProcessTable[i].Win32PID;
+				pProcessHandles[NumHandles] = OpenProcess(SYNCHRONIZE, FALSE, g_KernelData.ProcessTable[i].Win32PID);
 				pMainThreadHandles[NumHandles] = NULL; //only open if required
-				pPids[NumHandles] = pKernelSharedData->ProcessTable[i].PID;
+				pPids[NumHandles] = g_KernelData.ProcessTable[i].PID;
 				NumHandles++; 
 
 				//process already exited, no need to wait?
-				if(pKernelSharedData->ProcessTable[i].in_use==false)
+				if(g_KernelData.ProcessTable[i].in_use==false)
 				{
 					result = i;
 					break;
@@ -281,16 +281,16 @@ void sys_wait4(CONTEXT* pCtx)
 
 				int pid = pPids[dwRet-WAIT_OBJECT_0];
 				//did the process die? or was there something else to test
-				if(pKernelSharedData->ProcessTable[pid].in_use==false)
+				if(g_KernelData.ProcessTable[pid].in_use==false)
 				{
 					result = pid;
 					break;
 				}
 				//maybe died without updating table?
-				HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pKernelSharedData->ProcessTable[pid].Win32PID);
+				HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, g_KernelData.ProcessTable[pid].Win32PID);
 				if(hProc==NULL)
 				{
-					pKernelSharedData->ProcessTable[pid].in_use=false;
+					g_KernelData.ProcessTable[pid].in_use=false;
 					result = pid;
 					break;
 				}
@@ -300,7 +300,8 @@ void sys_wait4(CONTEXT* pCtx)
 					if(GetExitCodeProcess(hProc, &dwCode)==0
 					|| dwCode != STILL_ACTIVE)
 					{
-						pKernelSharedData->ProcessTable[pid].in_use=false;
+						CloseHandle(hProc);
+						g_KernelData.ProcessTable[pid].in_use=false;
 						result = pid;
 						break;
 					}
@@ -314,7 +315,7 @@ void sys_wait4(CONTEXT* pCtx)
 			{
 				int pid = pPids[dwRet-WAIT_ABANDONED_0];
 				//did the process die? or was there something else to test
-				if(pKernelSharedData->ProcessTable[pid].in_use==false)
+				if(g_KernelData.ProcessTable[pid].in_use==false)
 				{
 					result = pid;
 					break;
@@ -336,13 +337,13 @@ void sys_wait4(CONTEXT* pCtx)
 			for(i=0; i<NumHandles; ++i)
 			{
 				int pid = pPids[i];
-				if(pKernelSharedData->ProcessTable[pid].in_use)
+				if(g_KernelData.ProcessTable[pid].in_use)
 				{
 					//does caller want stopped children?
 					if((options & WUNTRACED)
-					|| pKernelSharedData->ProcessTable[pid].ptrace_owner_pid==pProcessData->PID)
+					|| g_KernelData.ProcessTable[pid].ptrace_owner_pid==KeowProcess()->PID)
 					{
-						if(pKernelSharedData->ProcessTable[pid].in_setup)
+						if(g_KernelData.ProcessTable[pid].in_setup)
 						{
 							ktrace("skipping wait for pid %d - in setup flag set\n", pid);
 						}
@@ -350,7 +351,7 @@ void sys_wait4(CONTEXT* pCtx)
 						{
 							//open threads on demand only
 							if(pMainThreadHandles[i]==NULL)
-								pMainThreadHandles[i] = OpenThread(THREAD_ALL_ACCESS, FALSE, pKernelSharedData->ProcessTable[pid].MainThreadID);
+								pMainThreadHandles[i] = OpenThread(THREAD_ALL_ACCESS, FALSE, g_KernelData.ProcessTable[pid].MainThreadID);
 
 							if(IsThreadSuspended(pMainThreadHandles[i]))
 							{
@@ -368,11 +369,11 @@ void sys_wait4(CONTEXT* pCtx)
 					break;
 				}
 
-				if(pProcessWin32Pids[i] != pKernelSharedData->ProcessTable[pid].Win32PID)
+				if(pProcessWin32Pids[i] != g_KernelData.ProcessTable[pid].Win32PID)
 				{
 					CloseHandle(pProcessHandles[i]);
-					pProcessWin32Pids[i] = pKernelSharedData->ProcessTable[pid].Win32PID;
-					pProcessHandles[i] = OpenProcess(SYNCHRONIZE, FALSE, pKernelSharedData->ProcessTable[pid].Win32PID);
+					pProcessWin32Pids[i] = g_KernelData.ProcessTable[pid].Win32PID;
+					pProcessHandles[i] = OpenProcess(SYNCHRONIZE, FALSE, g_KernelData.ProcessTable[pid].Win32PID);
 					if(pMainThreadHandles[i])
 						CloseHandle(pMainThreadHandles[i]);
 					pMainThreadHandles[i] = NULL;
@@ -389,7 +390,7 @@ void sys_wait4(CONTEXT* pCtx)
 	if(result>0)
 	{
 		//a process was found
-		ProcessDataStruct *p = &pKernelSharedData->ProcessTable[result];
+		ProcessDataStruct *p = &g_KernelData.ProcessTable[result];
 
 		if(status)
 		{
@@ -401,7 +402,7 @@ void sys_wait4(CONTEXT* pCtx)
 				*status = 0x7f; 
 
 				//signal that stopped it
-				if(p->ptrace_owner_pid==pProcessData->PID && p->ptrace_request!=0)
+				if(p->ptrace_owner_pid==KeowProcess()->PID && p->ptrace_request!=0)
 					*status |= SIGTRAP << 8; //man ptrace says parent thinks child is in this state
 				else
 				//	*status |= SIGSTOP << 8;

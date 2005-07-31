@@ -1,8 +1,8 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Developer Studio generated include file.
-// Used by Resources.rc
+// Used by Resoures.rc
 //
-#define IDI_TUX                         101
+#define IDI_ICON1                       101
 
 // Next default values for new objects
 // 
