@@ -3,39 +3,174 @@
 <pre>
 <h1>Build Log</h1>
 <h3>
---------------------Configuration: KeowConsole - Win32 Debug--------------------
+--------------------Configuration: KeowKernel - Win32 Debug--------------------
 </h3>
 <h3>Command Lines</h3>
-Creating temporary file "C:\Temp\RSP5D6.tmp" with contents
+Creating temporary file "C:\Temp\RSP4.tmp" with contents
 [
-/nologo /MLd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"Debug/KeowConsole.pch" /Yu"stdafx.h" /Fo"Debug/" /Fd"Debug/" /FD /GZ  /c 
-"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowConsole\KeowConsole.cpp"
+/nologo /MTd /W3 /Gm /GR /GX /ZI /Od /I "../kernel-headers-2.4.24-1/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /FR"Debug/" /Fp"Debug/KeowKernel.pch" /YX /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\core.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\filesys.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\forkexec.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\fs_keow.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\fs_proc.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\ioh.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\ioh_console.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\ioh_devnull.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\ioh_devzero.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\ioh_file.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\ioh_pipe.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\ioh_proc.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\kernel.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\loadelf.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\main.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\memory.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\path.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\signals.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\sys_io.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\sys_mem.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\sys_mount.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\sys_net.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\sys_none.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\sys_perms.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\sys_process.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\sys_rtsig.cpp"
+"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowKernel\sys_sys.cpp"
 ]
-Creating command line "cl.exe @C:\Temp\RSP5D6.tmp" 
-Creating temporary file "C:\Temp\RSP5D7.tmp" with contents
+Creating command line "cl.exe @C:\Temp\RSP4.tmp" 
+Creating temporary file "C:\Temp\RSP5.tmp" with contents
 [
-/nologo /MLd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"Debug/KeowConsole.pch" /Yc"stdafx.h" /Fo"Debug/" /Fd"Debug/" /FD /GZ  /c 
-"C:\Documents and Settings\Owner\My Documents\Source\C++\KernelEmulationOnWindows\keow\keow-kernel\KeowConsole\StdAfx.cpp"
+kernel32.lib user32.lib advapi32.lib ole32.lib shell32.lib shlwapi.lib uuid.lib /nologo /version:0.1 /subsystem:windows /incremental:yes /pdb:"Debug/KeowKernel.pdb" /map:"Debug/KeowKernel.map" /debug /machine:I386 /out:"Debug/KeowKernel.exe" /pdbtype:sept 
+".\Debug\core.obj"
+".\Debug\filesys.obj"
+".\Debug\forkexec.obj"
+".\Debug\fs_keow.obj"
+".\Debug\fs_proc.obj"
+".\Debug\ioh.obj"
+".\Debug\ioh_console.obj"
+".\Debug\ioh_devnull.obj"
+".\Debug\ioh_devzero.obj"
+".\Debug\ioh_file.obj"
+".\Debug\ioh_pipe.obj"
+".\Debug\ioh_proc.obj"
+".\Debug\kernel.obj"
+".\Debug\loadelf.obj"
+".\Debug\main.obj"
+".\Debug\memory.obj"
+".\Debug\path.obj"
+".\Debug\shortcuts.obj"
+".\Debug\signals.obj"
+".\Debug\sys_io.obj"
+".\Debug\sys_mem.obj"
+".\Debug\sys_mount.obj"
+".\Debug\sys_net.obj"
+".\Debug\sys_none.obj"
+".\Debug\sys_perms.obj"
+".\Debug\sys_process.obj"
+".\Debug\sys_rtsig.obj"
+".\Debug\sys_sys.obj"
+".\Debug\Resources.res"
 ]
-Creating command line "cl.exe @C:\Temp\RSP5D7.tmp" 
-Creating temporary file "C:\Temp\RSP5D8.tmp" with contents
-[
-kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /incremental:yes /pdb:"Debug/KeowConsole.pdb" /debug /machine:I386 /out:"Debug/KeowConsole.exe" /pdbtype:sept 
-".\Debug\StdAfx.obj"
-".\Debug\KeowConsole.obj"
-]
-Creating command line "link.exe @C:\Temp\RSP5D8.tmp"
+Creating command line "link.exe @C:\Temp\RSP5.tmp"
 <h3>Output Window</h3>
 Compiling...
-StdAfx.cpp
-Compiling...
-KeowConsole.cpp
-Linking...
+core.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+filesys.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+forkexec.cpp
+value that should match ProcessStub stack size in build properties
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+fs_keow.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+fs_proc.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+ioh.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+ioh_console.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+ioh_devnull.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+ioh_devzero.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+ioh_file.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+ioh_pipe.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+ioh_proc.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+kernel.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+loadelf.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+main.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+memory.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+path.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+signals.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+sys_io.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+sys_mem.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+sys_mount.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+sys_net.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+sys_none.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+sys_perms.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+sys_process.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+sys_rtsig.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+sys_sys.cpp
+c:\documents and settings\owner\my documents\source\c++\kernelemulationonwindows\keow\keow-kernel\keowkernel\kernel.h(34) : fatal error C1083: Cannot open include file: 'linux_includes.h': No such file or directory
+Error executing cl.exe.
+Creating temporary file "C:\Temp\RSP6.tmp" with contents
+[
+/nologo /o"Debug/KeowKernel.bsc" 
+".\Debug\core.sbr"
+".\Debug\filesys.sbr"
+".\Debug\forkexec.sbr"
+".\Debug\fs_keow.sbr"
+".\Debug\fs_proc.sbr"
+".\Debug\ioh.sbr"
+".\Debug\ioh_console.sbr"
+".\Debug\ioh_devnull.sbr"
+".\Debug\ioh_devzero.sbr"
+".\Debug\ioh_file.sbr"
+".\Debug\ioh_pipe.sbr"
+".\Debug\ioh_proc.sbr"
+".\Debug\kernel.sbr"
+".\Debug\loadelf.sbr"
+".\Debug\main.sbr"
+".\Debug\memory.sbr"
+".\Debug\path.sbr"
+".\Debug\shortcuts.sbr"
+".\Debug\signals.sbr"
+".\Debug\sys_io.sbr"
+".\Debug\sys_mem.sbr"
+".\Debug\sys_mount.sbr"
+".\Debug\sys_net.sbr"
+".\Debug\sys_none.sbr"
+".\Debug\sys_perms.sbr"
+".\Debug\sys_process.sbr"
+".\Debug\sys_rtsig.sbr"
+".\Debug\sys_sys.sbr"]
+Creating command line "bscmake.exe @C:\Temp\RSP6.tmp"
+Creating browse info file...
+BSCMAKE: error BK1506 : cannot open file '.\Debug\core.sbr': No such file or directory
+Error executing bscmake.exe.
+<h3>Output Window</h3>
 
 
 
 <h3>Results</h3>
-KeowConsole.exe - 0 error(s), 0 warning(s)
+KeowConsole.exe - 28 error(s), 0 warning(s)
 </pre>
 </body>
 </html>

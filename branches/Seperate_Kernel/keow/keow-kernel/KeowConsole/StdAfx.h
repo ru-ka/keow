@@ -10,8 +10,14 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+#include "utils.h"
 
-// TODO: reference additional headers your program requires here
+void InitConsole();
+bool Read(void* address, DWORD size, DWORD *pRead);
+bool Write(const void* address, DWORD size, DWORD *pWritten);
+DWORD ioctl(DWORD request, LPVOID data);
+bool CanRead();
+
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.
