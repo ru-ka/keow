@@ -1,4 +1,0 @@
-#define __ver_dm_register_target	smp_6a15106b
-#define dm_register_target	_set_ver(dm_register_target)
-#define __ver_dm_unregister_target	smp_59f1497f
-#define dm_unregister_target	_set_ver(dm_unregister_target)
