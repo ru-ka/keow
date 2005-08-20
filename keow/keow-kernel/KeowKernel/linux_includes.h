@@ -24,14 +24,6 @@
 #ifndef LINUX_INCLUDES_H
 #define LINUX_INCLUDES_H
 
-// include windows here so we catch #define redefinitions
-// in linux includes and then we can fix them
-
-//for correct exception CONTEXT struct (?) for windows includes
-#define _X86_
-
-#include <windows.h>
-#include <shlwapi.h>
 
 #pragma pack(push,1)
 
@@ -95,6 +87,5 @@ typedef __kernel_loff_t loff_t;
 
 #pragma pack(pop)
 
-#include <strsafe.h>
 
 #endif // LINUX_INCLUDES_H
