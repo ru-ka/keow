@@ -391,10 +391,7 @@ void SysCalls::sys_write(Process &P, CONTEXT &ctx)
 	}
 
 
-	//Do the write in the user process
-	P.InvokeStubFunction(P.m_StubFunctionsInfo.Write, ctx.Ecx, ctx.Edx, dwWritten);
-
-	if(!f->Write((void*)ctx.Ecx, ctx.Edx, &dwWritten))
+	if(!f->Write((void*)ctx.Ecx, ctx.Edx, dwWritten))
 	{
 		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 		return;
@@ -1142,9 +1139,47 @@ void SysCalls::sys_readv(Process &P, CONTEXT &ctx)
 	sys_unhandled(P, ctx);
 }
 
+/*
+ * int writev(int filedes, struct iovec* v, int count)
+ * this is a write from several buffers
+ */
 void SysCalls::sys_writev(Process &P, CONTEXT &ctx)
 {
-	sys_unhandled(P, ctx);
+	linux::iovec *v = (linux::iovec *)ctx.Ecx;
+	int count = ctx.Edx;
+	DWORD dwWritten, dwTotal;
+	int fd;
+	File * f;
+	
+	fd = ctx.Ebx;
+	if(fd<0 || fd>MAX_OPEN_FILES)
+	{
+		ctx.Eax = -EBADF;
+		return;
+	}
+
+	f = P.m_OpenFiles[fd];
+	if(f == NULL)
+	{
+		ctx.Eax = -EBADF;
+		return;
+	}
+
+	dwTotal = 0;
+	while(count>0)
+	{
+		dwWritten = 0;
+		if(!f->Write(v->iov_base, v->iov_len, dwWritten))
+		{
+			ctx.Eax = -Win32ErrToUnixError(GetLastError());
+			return;
+		}
+		count--;
+		v++;
+		dwTotal += dwWritten;
+	}
+
+	ctx.Eax = dwWritten;
 }
 
 void SysCalls::sys_getsid(Process &P, CONTEXT &ctx)

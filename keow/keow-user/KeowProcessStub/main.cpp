@@ -19,13 +19,6 @@ void _stdcall Stub_ExitProcess(DWORD param1, DWORD param2, DWORD param3, DWORD p
 	STUB_EXIT
 }
 
-void _stdcall Stub_Write(DWORD param1, DWORD param2, DWORD param3, DWORD param4)
-{
-	WriteFile((HANDLE)param1, (LPVOID)param2, param3, &param4, NULL);
-
-	STUB_EXIT
-}
-
 
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -38,7 +31,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//(see Process::ConvertProcessToKeow()
 
 	FuncInfo.ExitProcess = Stub_ExitProcess;
-	FuncInfo.Write = Stub_Write;
+
 
 	//pass control to the kernel to re-develop use into a keow process
 	__asm {
