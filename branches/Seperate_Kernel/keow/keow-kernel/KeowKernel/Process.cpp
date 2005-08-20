@@ -14,6 +14,8 @@ const int Process::KERNEL_PROCESS_THREAD_STACK_SIZE = 32*1024;
 
 const char * Process::KEOW_PROCESS_STUB = "Keow.exe";
 
+DWORD Process::ms_DummyStubParam = 0;
+
 //////////////////////////////////////////////////////////////////////
 
 Process::Process()
@@ -29,6 +31,8 @@ Process::Process()
 	memset(&m_ElfLoadData, 0, sizeof(m_ElfLoadData));
 
 	memset(&m_ptrace, 0, sizeof(m_ptrace));
+
+	memset(&m_OpenFiles, 0, sizeof(m_OpenFiles));
 
 	memset(&m_PendingSignals, 0, sizeof(m_PendingSignals));
 	memset(&m_SignalMask, 0, sizeof(m_SignalMask));
@@ -313,7 +317,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 				SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
 				//handle int 80h
-				SysCalls::HandleInt80SysCall(ctx);
+				SysCalls::HandleInt80SysCall(*this, ctx);
 
 				//set any context changes
 				SetThreadContext(m_Win32PInfo.hThread, &ctx);
@@ -925,7 +929,10 @@ void Process::HandleSignal(int sig)
 	{
 	case SIGKILL:
 		ktrace("killed - sigkill\n");
-		InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, -sig);
+		{
+			DWORD s = -sig;
+			InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, s);
+		}
 		return;
 	case SIGSTOP:
 		ktrace("stopping on sigstop\n");
@@ -1001,7 +1008,10 @@ void Process::HandleSignal(int sig)
 		case SIGPOLL:
 		case SIGPROF:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
-			InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, -sig);
+			{
+				DWORD s = -sig;
+				InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, s);
+			}
 			break;
 
 		//ptrace
@@ -1020,13 +1030,19 @@ void Process::HandleSignal(int sig)
 		case SIGSYS:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			GenerateCoreDump();
-			InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, -sig);
+			{
+				DWORD s = -sig;
+				InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, s);
+			}
 			break;
 
 		default:
 			ktrace("IMPLEMENT default action for signal %d\n", sig);
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
-			InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, -sig);
+			{
+				DWORD s = -sig;
+				InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, s);
+			}
 			break;
 		}
 	}
@@ -1099,7 +1115,7 @@ void Process::HandleSignal(int sig)
 }
 
 
-void Process::InvokeStubFunction(StubFunc func, DWORD param1, DWORD param2, DWORD param3, DWORD param4)
+void Process::InvokeStubFunction(StubFunc func, DWORD &param1, DWORD &param2, DWORD &param3, DWORD &param4)
 {
 	//StubFunc is declared as _stdcall calling convention.
 	//This means we place args on the stack so that param1 pops first
@@ -1118,6 +1134,7 @@ void Process::InvokeStubFunction(StubFunc func, DWORD param1, DWORD param2, DWOR
 
 
 	ADDR addr = (ADDR)TempCtx.Esp;
+	ADDR ParamAddr = addr;
 
 	WriteMemory(addr, sizeof(DWORD), &param1);
 	addr += sizeof(DWORD);
@@ -1131,8 +1148,10 @@ void Process::InvokeStubFunction(StubFunc func, DWORD param1, DWORD param2, DWOR
 	WriteMemory(addr, sizeof(DWORD), &OrigCtx.Eip); //return address
 
 
+
 	//resume the process to let it run the function
 	//expect the stub to do a Break at the end
+	//we'll capture the break and then return
 
 	DEBUG_EVENT evt;
 	for(;;) {
@@ -1168,6 +1187,19 @@ void Process::InvokeStubFunction(StubFunc func, DWORD param1, DWORD param2, DWOR
 
 	//done calling it, stub is still in the function, 
 	// but we can restore the stack and registers
+	// first retreive any altered parameters
+
+
+	addr = ParamAddr;
+
+	ReadMemory(&param1, addr, sizeof(DWORD));
+	addr += sizeof(DWORD);
+	ReadMemory(&param2, addr, sizeof(DWORD));
+	addr += sizeof(DWORD);
+	ReadMemory(&param3, addr, sizeof(DWORD));
+	addr += sizeof(DWORD);
+	ReadMemory(&param4, addr, sizeof(DWORD));
+
 	SetThreadContext(m_Win32PInfo.hThread, &OrigCtx);
 }
 

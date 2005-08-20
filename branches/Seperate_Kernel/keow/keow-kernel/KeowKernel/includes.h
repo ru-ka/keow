@@ -28,7 +28,7 @@
 //keow stuff
 #include "ConstantMapping.h"
 #include "Path.h"
-#include "Device.h"
+#include "File.h"
 #include "Filesystem.h"
 #include "FilesystemKeow.h"
 #include "FilesystemProc.h"
