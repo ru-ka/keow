@@ -1,4 +1,0 @@
-#define __ver_usb_serial_register	smp_b4ff2ab8
-#define usb_serial_register	_set_ver(usb_serial_register)
-#define __ver_usb_serial_deregister	smp_fbfa2b3c
-#define usb_serial_deregister	_set_ver(usb_serial_deregister)
