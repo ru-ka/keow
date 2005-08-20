@@ -6,4 +6,5 @@ typedef void (_stdcall *StubFunc)(DWORD param1, DWORD param2, DWORD param3, DWOR
 struct StubFunctionsInfo
 {
 	StubFunc ExitProcess;
+	StubFunc Write;
 };

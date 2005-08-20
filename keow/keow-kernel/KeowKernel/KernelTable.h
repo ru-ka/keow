@@ -10,7 +10,7 @@
 #endif // _MSC_VER > 1000
 
 #include "Process.h"
-#include "Device.h"
+#include "File.h"
 #include "MountPoint.h"
 #include "Path.h"
 
@@ -39,7 +39,7 @@ public:
 	typedef list<MountPoint*> MountPointList;
 	MountPointList m_MountPoints;
 
-	typedef list<Device*> DeviceList;
+	typedef list<File*> DeviceList;
 	DeviceList m_Devices;
 
 	//HANDLE s_SysCallTable();

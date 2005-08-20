@@ -29,6 +29,7 @@
  * but still has most features we want.
  *
  */
+#include "includes.h"
 #include "stdafx.h"
 #include "termdata.h"
 #include "winuser.h"

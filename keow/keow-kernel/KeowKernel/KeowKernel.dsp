@@ -97,7 +97,7 @@ SOURCE=.\ConstantMapping.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\Device.cpp
+SOURCE=.\File.cpp
 # End Source File
 # Begin Source File
 
@@ -161,7 +161,7 @@ SOURCE=.\ConstantMapping.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\Device.h
+SOURCE=.\File.h
 # End Source File
 # Begin Source File
 
@@ -235,6 +235,14 @@ SOURCE=.\WinFiles.h
 # Begin Group "Resource Files"
 
 # PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
+# Begin Source File
+
+SOURCE=.\Resources.rc
+# End Source File
+# Begin Source File
+
+SOURCE=.\Tux.ico
+# End Source File
 # End Group
 # End Target
 # End Project

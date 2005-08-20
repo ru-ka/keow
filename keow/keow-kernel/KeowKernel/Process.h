@@ -16,13 +16,17 @@ typedef unsigned long PID;
 //pointer
 typedef BYTE* ADDR;
 
-#define MAX_PENDING_SIGNALS 128
+
+//some process limits
+#define MAX_PENDING_SIGNALS  128
+#define MAX_OPEN_FILES 1024
+
 
 class Process  
 {
 public:
 	void GenerateCoreDump();
-	void InvokeStubFunction(StubFunc func, DWORD param1=0, DWORD param2=0, DWORD param3=0, DWORD param4=0);
+	void InvokeStubFunction(StubFunc func, DWORD &param1=ms_DummyStubParam, DWORD &param2=ms_DummyStubParam, DWORD &param3=ms_DummyStubParam, DWORD &param4=ms_DummyStubParam);
 	void SendSignal(int sig);
 	void HandleSignal(int sig);
 
@@ -94,6 +98,7 @@ public:
 
 	//info about what resources the stub can provide
 	StubFunctionsInfo m_StubFunctionsInfo;
+	static DWORD ms_DummyStubParam;
 
 	ADDR m_Environment;
 	ADDR m_Arguments;
@@ -108,6 +113,9 @@ public:
 	linux::sigset_t m_SignalMask[MAX_PENDING_SIGNALS];
 	linux::sigaction m_SignalAction[_NSIG];
 	int m_SignalDepth;
+
+	//open files
+	File * m_OpenFiles[MAX_OPEN_FILES];
 
 private:
 	Process(); //private - use methods to create
