@@ -65,7 +65,8 @@ int main(int argc, char* argv[])
 	//SetConsoleCtrlHandler(CtrlEventHandler, TRUE);
 	//SetConsoleCtrlHandler(NULL, TRUE);
 	SetConsoleCtrlHandler(NULL, TRUE);
-	SetConsoleMode(g_hConsoleInput, ENABLE_PROCESSED_OUTPUT);
+	SetConsoleMode(g_hConsoleInput, ENABLE_PROCESSED_OUTPUT|ENABLE_WRAP_AT_EOL_OUTPUT);
+	SetConsoleMode(g_hConsoleOutput, ENABLE_PROCESSED_OUTPUT|ENABLE_WRAP_AT_EOL_OUTPUT);
 
 
 	//do io forever (at least until kernel terminates us)
