@@ -47,6 +47,10 @@ Process::Process()
 
 	m_dwExitCode = -SIGABRT; //in case not set later
 
+	//std in,out,err
+	m_OpenFiles[0] = g_pKernelTable->m_Console.dup();
+	m_OpenFiles[1] = g_pKernelTable->m_Console.dup();
+	m_OpenFiles[2] = g_pKernelTable->m_Console.dup();
 }
 
 Process::~Process()
@@ -324,7 +328,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 			}
 			else
 			{
-				ktrace("Access violation (not: int 80h)\n");
+				ktrace("Access violation @ 0x%08lx\n", evt.u.Exception.ExceptionRecord.ExceptionAddress);
 				SendSignal(SIGSEGV); //access violation
 			}
 		}
@@ -539,7 +543,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 		{
 			//load segment into memory
 			pWantMem = phdr->p_vaddr + pBaseAddr;
-			protection = ConstantMapping::ElfProtectionToWin32Protection(phdr->p_flags);
+			protection = ElfProtectionToWin32Protection(phdr->p_flags);
 			//phdr->p_memsz = (phdr->p_memsz + (phdr->p_align-1)) & (~(phdr->p_align-1)); //round up to alignment boundary
 			pMem = MemoryHelper::AllocateMemAndProtectProcess(m_Win32PInfo.hProcess, pWantMem, phdr->p_memsz, PAGE_EXECUTE_READWRITE);
 			if(pMem!=pWantMem)

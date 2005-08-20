@@ -10,6 +10,8 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+#include <windows.h>
+#include "linux_includes.h"
 
 void InitConsole();
 bool Read(void* address, DWORD size, DWORD *pRead);

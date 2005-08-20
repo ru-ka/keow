@@ -7,7 +7,7 @@
 
 //////////////////////////////////////////////////////////////////////
 
-DWORD ConstantMapping::ElfProtectionToWin32Protection(linux::Elf32_Word prot)
+DWORD ElfProtectionToWin32Protection(linux::Elf32_Word prot)
 {
 	DWORD win32prot;
 	win32prot = 0;
@@ -40,7 +40,7 @@ DWORD ConstantMapping::ElfProtectionToWin32Protection(linux::Elf32_Word prot)
 /*
  * translate win32 gtlasterror value to linux errno
  */
-int ConstantMapping::Win32ErrToUnixError(DWORD err)
+int Win32ErrToUnixError(DWORD err)
 {
 	switch(err)
 	{
