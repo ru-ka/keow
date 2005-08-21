@@ -87,7 +87,7 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=.\console.cpp
+SOURCE=.\cons25.cpp
 # End Source File
 # Begin Source File
 
@@ -99,11 +99,11 @@ SOURCE=.\KeowConsole.cpp
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
-SOURCE=.\StdAfx.h
+SOURCE=.\cons25.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\termdata.h
+SOURCE=.\includes.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"

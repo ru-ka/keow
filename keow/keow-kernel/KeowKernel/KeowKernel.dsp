@@ -113,6 +113,10 @@ SOURCE=.\FilesystemProc.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\IOHandler.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\KernelStartup.cpp
 # End Source File
 # Begin Source File
@@ -178,6 +182,10 @@ SOURCE=.\FilesystemProc.h
 # Begin Source File
 
 SOURCE=.\includes.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\IOHandler.h
 # End Source File
 # Begin Source File
 

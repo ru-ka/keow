@@ -21,13 +21,25 @@
  *
  */
 
+// IOHandler.h: interface for the IOHandler class.
+//
+//////////////////////////////////////////////////////////////////////
 
-//Info about what the stub process can provide
+#if !defined(AFX_IOHANDLER_H__BDA9DB15_5F09_45C4_9607_507D02C38ACD__INCLUDED_)
+#define AFX_IOHANDLER_H__BDA9DB15_5F09_45C4_9607_507D02C38ACD__INCLUDED_
 
-typedef void (_stdcall *StubFunc)(DWORD param1, DWORD param2, DWORD param3, DWORD param4);
+#if _MSC_VER > 1000
+#pragma once
+#endif // _MSC_VER > 1000
 
-struct StubFunctionsInfo
+class IOHandler  
 {
-	StubFunc ExitProcess;
-	StubFunc Write;
+public:
+	IOHandler();
+	virtual ~IOHandler();
+
+	virtual bool Write(void* buffer, DWORD count, DWORD& written) = 0;
+	virtual bool Read(void* buffer, DWORD count, DWORD& read) = 0;
 };
+
+#endif // !defined(AFX_IOHANDLER_H__BDA9DB15_5F09_45C4_9607_507D02C38ACD__INCLUDED_)
