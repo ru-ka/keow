@@ -21,13 +21,29 @@
  *
  */
 
+// cons25.h: interface for the cons25 class.
+//
+//////////////////////////////////////////////////////////////////////
 
-//Info about what the stub process can provide
+#if !defined(AFX_CONS25_H__83201F53_6952_4939_A0CC_E24395AC9400__INCLUDED_)
+#define AFX_CONS25_H__83201F53_6952_4939_A0CC_E24395AC9400__INCLUDED_
 
-typedef void (_stdcall *StubFunc)(DWORD param1, DWORD param2, DWORD param3, DWORD param4);
+#if _MSC_VER > 1000
+#pragma once
+#endif // _MSC_VER > 1000
 
-struct StubFunctionsInfo
+//BSD Console terminal
+//#	Reconstructed via infocmp from file: /usr/share/terminfo/a/ansi80x25
+//cons25|ansis|ansi80x25|freebsd console (25-line ansi mode), 
+
+class cons25
 {
-	StubFunc ExitProcess;
-	StubFunc Write;
+public:
+	cons25();
+	virtual ~cons25();
+
+	void OutputChar(char c);
+	void InputChar();
 };
+
+#endif // !defined(AFX_CONS25_H__83201F53_6952_4939_A0CC_E24395AC9400__INCLUDED_)

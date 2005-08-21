@@ -21,13 +21,22 @@
  *
  */
 
+// cons25.cpp: implementation of the cons25 class.
+//
+//////////////////////////////////////////////////////////////////////
 
-//Info about what the stub process can provide
+#include "cons25.h"
 
-typedef void (_stdcall *StubFunc)(DWORD param1, DWORD param2, DWORD param3, DWORD param4);
+//////////////////////////////////////////////////////////////////////
+// Construction/Destruction
+//////////////////////////////////////////////////////////////////////
 
-struct StubFunctionsInfo
+cons25::cons25()
 {
-	StubFunc ExitProcess;
-	StubFunc Write;
-};
+
+}
+
+cons25::~cons25()
+{
+
+}

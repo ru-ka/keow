@@ -21,13 +21,22 @@
  *
  */
 
+// IOHandler.cpp: implementation of the IOHandler class.
+//
+//////////////////////////////////////////////////////////////////////
 
-//Info about what the stub process can provide
+#include "IOHandler.h"
 
-typedef void (_stdcall *StubFunc)(DWORD param1, DWORD param2, DWORD param3, DWORD param4);
+//////////////////////////////////////////////////////////////////////
+// Construction/Destruction
+//////////////////////////////////////////////////////////////////////
 
-struct StubFunctionsInfo
+IOHandler::IOHandler()
 {
-	StubFunc ExitProcess;
-	StubFunc Write;
-};
+
+}
+
+IOHandler::~IOHandler()
+{
+
+}

@@ -22,12 +22,16 @@
  */
 
 
-//Info about what the stub process can provide
+#include <windows.h>
 
-typedef void (_stdcall *StubFunc)(DWORD param1, DWORD param2, DWORD param3, DWORD param4);
+#include "..\KeowKernel\linux_includes.h"
 
-struct StubFunctionsInfo
-{
-	StubFunc ExitProcess;
-	StubFunc Write;
-};
+#include <strsafe.h>
+
+
+extern HANDLE g_hKernelTextOutput;
+extern HANDLE g_hKernelTextInput;
+extern HANDLE g_hConsoleOutput;
+extern HANDLE g_hConsoleInput;
+
+void ktrace(const char *format, ...);

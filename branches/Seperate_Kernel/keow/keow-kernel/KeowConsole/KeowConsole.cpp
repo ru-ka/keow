@@ -1,27 +1,50 @@
+/*
+ * Copyright 2005 Paul Walker
+ *
+ * GNU General Public License
+ * 
+ * This file is part of: Kernel Emulation on Windows (keow)
+ *
+ * Keow is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Keow is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Keow; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+
 // KeowConsole.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
-#include "termdata.h"
+#include "includes.h"
+
+#include "cons25.h"
+
 
 HANDLE g_hKernelTextOutput;
 HANDLE g_hKernelTextInput;
 HANDLE g_hConsoleOutput;
 HANDLE g_hConsoleInput;
 
-DWORD	g_InputState; //for escape code handling
-DWORD	g_OutputState; //for escape code handling
-BYTE	g_InputStateData[32];
-BYTE	g_OutputStateData[32];
+cons25 g_Terminal;
 
 
 static char TraceBuffer[1000];
+
 static char TextBuffer[1000];
 
 
 BOOL WINAPI CtrlEventHandler(DWORD dwCtrlType)
 {
-	return TRUE; //always say we handled it
+	return TRUE; //always say we handle it
 }
 
 
@@ -47,20 +70,19 @@ void ktrace(const char *format, ...)
 void HandleKernelTextOut()
 {
 	DWORD dwRead = 0;
-	ReadFile(g_hKernelTextOutput, TextBuffer, &dwRead, NULL);
+	ReadFile(g_hKernelTextOutput, TextBuffer, sizeof(TextBuffer), &dwRead, NULL);
 
-	DWORD dwWritten;
-	Write(TextBuffer, dwRead, &dwWritten);
+	for(DWORD i=0; i<dwRead; ++i)
+		g_Terminal.OutputChar(TextBuffer[i]);
 }
 
 
+/*
+ * keyboard input
+ */
 void HandleConsoleInput()
 {
-	DWORD dwRead = 0;
-	ReadReadFile(g_hKernelTextOutput, TextBuffer, &dwRead, NULL);
-
-	DWORD dwWritten;
-	Write(TextBuffer, dwRead, &dwWritten);
+	g_Terminal.InputChar();
 }
 
 
@@ -82,10 +104,10 @@ int main(int argc, char* argv[])
 	g_hConsoleOutput = CreateFile("CONOUT$", GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
 
 
-	InitConsole()
 
-
+	//set title as given
 	SetConsoleTitle(GetCommandLine());
+
 
 	//80 columns, lots of history
 	COORD c;
@@ -110,6 +132,7 @@ int main(int argc, char* argv[])
 	//SetConsoleCtrlHandler(CtrlEventHandler, TRUE);
 	//SetConsoleCtrlHandler(NULL, TRUE);
 	SetConsoleCtrlHandler(NULL, TRUE);
+
 	SetConsoleMode(g_hConsoleInput, ENABLE_PROCESSED_OUTPUT|ENABLE_WRAP_AT_EOL_OUTPUT);
 	SetConsoleMode(g_hConsoleOutput, ENABLE_PROCESSED_OUTPUT|ENABLE_WRAP_AT_EOL_OUTPUT);
 
