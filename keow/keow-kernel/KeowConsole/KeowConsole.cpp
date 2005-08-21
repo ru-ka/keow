@@ -6,18 +6,61 @@
 
 HANDLE g_hKernelTextOutput;
 HANDLE g_hKernelTextInput;
-HANDLE g_hConsoleOutput, g_hConsoleInput;
+HANDLE g_hConsoleOutput;
+HANDLE g_hConsoleInput;
 
-DWORD			g_InputState; //for shared escape code handling
-DWORD			g_OutputState; //for shared escape code handling
-BYTE			g_InputStateData[32];
-BYTE			g_OutputStateData[32];
+DWORD	g_InputState; //for escape code handling
+DWORD	g_OutputState; //for escape code handling
+BYTE	g_InputStateData[32];
+BYTE	g_OutputStateData[32];
 
+
+static char TraceBuffer[1000];
+static char TextBuffer[1000];
 
 
 BOOL WINAPI CtrlEventHandler(DWORD dwCtrlType)
 {
 	return TRUE; //always say we handled it
+}
+
+
+void ktrace(const char *format, ...)
+{
+	va_list va;
+	va_start(va, format);
+
+	char * pNext = TraceBuffer;
+	size_t size = sizeof(TraceBuffer);
+
+	StringCbPrintfEx(TraceBuffer, size, &pNext, &size, 0, "kernel:");
+
+	StringCbVPrintf(pNext, size, format, va);
+
+	OutputDebugString(TraceBuffer);
+}
+
+
+/*
+ * text to be displayed on the console
+ */
+void HandleKernelTextOut()
+{
+	DWORD dwRead = 0;
+	ReadFile(g_hKernelTextOutput, TextBuffer, &dwRead, NULL);
+
+	DWORD dwWritten;
+	Write(TextBuffer, dwRead, &dwWritten);
+}
+
+
+void HandleConsoleInput()
+{
+	DWORD dwRead = 0;
+	ReadReadFile(g_hKernelTextOutput, TextBuffer, &dwRead, NULL);
+
+	DWORD dwWritten;
+	Write(TextBuffer, dwRead, &dwWritten);
 }
 
 
@@ -38,6 +81,8 @@ int main(int argc, char* argv[])
 	g_hConsoleInput  = CreateFile("CONIN$",  GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
 	g_hConsoleOutput = CreateFile("CONOUT$", GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
 
+
+	InitConsole()
 
 
 	SetConsoleTitle(GetCommandLine());
@@ -75,7 +120,7 @@ int main(int argc, char* argv[])
 	waits[1] = g_hConsoleInput;
 
 	for(;;) {
-		DWORD what = MsgWaitForMultipleObjects(NUM_HANDLES, waits, FALSE, INFINITE, 0);
+		DWORD what = MsgWaitForMultipleObjects(2, waits, FALSE, INFINITE, 0);
 		switch(what) {
 		case WAIT_OBJECT_0 + 0:
 			HandleKernelTextOut();
