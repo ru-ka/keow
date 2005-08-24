@@ -39,4 +39,8 @@ void halt();
 const int SIZE4k = 4*1024;
 const int SIZE64k = 64*1024;
 
+//unix time base
+#define FILETIME_TO_TIME_T(t) (unsigned long)( (((ULARGE_INTEGER*)&t)->QuadPart - Time1Jan1970.QuadPart) / 10000000L)
+extern ULARGE_INTEGER Time1Jan1970;
+
 #endif // !defined(AFX_UTILS_H__23B86EDD_923F_42A7_94E3_68A42DB40A3D__INCLUDED_)

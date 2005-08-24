@@ -29,11 +29,29 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name KeowProcessStub
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name KeowConsole
+    End Project Dependency
 }}}
 
 ###############################################################################
 
 Project: "KeowProcessStub"=".\keow-user\KeowProcessStub\KeowProcessStub.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name KeowUserSysCallsDll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "KeowUserSysCallsDll"=".\KEOW-USER\KeowUserSysCallsDll\KeowUserSysCallsDll.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{

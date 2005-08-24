@@ -40,6 +40,11 @@ public:
 
 	virtual bool Write(void* buffer, DWORD count, DWORD& written) = 0;
 	virtual bool Read(void* buffer, DWORD count, DWORD& read) = 0;
+
+	virtual HANDLE GetWriteHandle() = 0;
+	virtual HANDLE GetReadHandle() = 0;
+
+	virtual IOHandler* clone() = 0;
 };
 
 #endif // !defined(AFX_IOHANDLER_H__BDA9DB15_5F09_45C4_9607_507D02C38ACD__INCLUDED_)

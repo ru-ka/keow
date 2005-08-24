@@ -27,11 +27,9 @@
 
 #include "includes.h"
 #include "KernelTable.h"
-
+#include "IOHNtConsole.h"
 #include "SysCalls.h"
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
 KernelTable::KernelTable()
@@ -54,6 +52,10 @@ KernelTable::KernelTable()
 	ktrace("keow bogomips: %ld\n", m_BogoMips);
 
 	SysCalls::InitSysCallTable();
+
+	//main console
+	m_pMainConsole = new IOHNtConsole("Main Console");
+
 }
 
 KernelTable::~KernelTable()
@@ -65,7 +67,7 @@ KernelTable::~KernelTable()
 
 //Search for and return the process for a pid
 //
-Process * KernelTable::FindProcess(DWORD pid)
+Process * KernelTable::FindProcess(PID pid)
 {
 	//TODO: more efficient search
 

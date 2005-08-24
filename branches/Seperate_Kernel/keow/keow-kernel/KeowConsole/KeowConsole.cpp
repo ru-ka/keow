@@ -39,7 +39,9 @@ cons25 g_Terminal;
 
 static char TraceBuffer[1000];
 
-static char TextBuffer[1000];
+
+char KernelTextBuffer[1000];
+DWORD KernelTextRead;
 
 
 BOOL WINAPI CtrlEventHandler(DWORD dwCtrlType)
@@ -63,27 +65,6 @@ void ktrace(const char *format, ...)
 	OutputDebugString(TraceBuffer);
 }
 
-
-/*
- * text to be displayed on the console
- */
-void HandleKernelTextOut()
-{
-	DWORD dwRead = 0;
-	ReadFile(g_hKernelTextOutput, TextBuffer, sizeof(TextBuffer), &dwRead, NULL);
-
-	for(DWORD i=0; i<dwRead; ++i)
-		g_Terminal.OutputChar(TextBuffer[i]);
-}
-
-
-/*
- * keyboard input
- */
-void HandleConsoleInput()
-{
-	g_Terminal.InputChar();
-}
 
 
 int main(int argc, char* argv[])
@@ -137,20 +118,29 @@ int main(int argc, char* argv[])
 	SetConsoleMode(g_hConsoleOutput, ENABLE_PROCESSED_OUTPUT|ENABLE_WRAP_AT_EOL_OUTPUT);
 
 
-	//do io forever (at least until kernel terminates us)
-	HANDLE waits[2];
-	waits[0] = g_hKernelTextOutput;
-	waits[1] = g_hConsoleInput;
 
 	for(;;) {
-		DWORD what = MsgWaitForMultipleObjects(2, waits, FALSE, INFINITE, 0);
+		DWORD what = MsgWaitForMultipleObjects(1, &g_hConsoleInput, FALSE, 100, QS_INPUT);
 		switch(what) {
-		case WAIT_OBJECT_0 + 0:
-			HandleKernelTextOut();
+		case WAIT_OBJECT_0:
+			g_Terminal.InputChar();
 			break;
-		case WAIT_OBJECT_0 + 1:
-			HandleConsoleInput();
-			break;
+		}
+
+		//see if the kernel has sent any data
+		DWORD dwAvail;
+		if(PeekNamedPipe(g_hKernelTextOutput, NULL, 0, NULL, &dwAvail, NULL) == 0)
+		{
+			//kernel disappeared and left us behind
+			if(GetLastError()==ERROR_BROKEN_PIPE)
+				ExitProcess(0);
+		}
+		else
+		if(dwAvail!=0)
+		{
+			ReadFile(g_hKernelTextOutput, KernelTextBuffer, dwAvail, &dwAvail, NULL);
+			for(DWORD i=0; i<dwAvail; ++i)
+				g_Terminal.OutputChar(KernelTextBuffer[i]);
 		}
 	}
 

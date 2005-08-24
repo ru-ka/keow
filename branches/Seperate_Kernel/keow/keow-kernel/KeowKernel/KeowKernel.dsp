@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /GX /O2 /I "..\kernel-headers-2.4.24-1\include" /I "..\stl\include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX"includes.h" /FD /c
+# ADD CPP /nologo /MT /W3 /GX /O2 /I "..\kernel-headers-2.4.24-1\include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX"includes.h" /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x1409 /d "NDEBUG"
@@ -69,7 +69,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Gm /GR /GX /ZI /Od /I "..\kernel-headers-2.4.24-1\include" /I "..\stl\include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /YX"includes.h" /FD /GZ /c
+# ADD CPP /nologo /MTd /W3 /Gm /GR /GX /ZI /Od /I "..\kernel-headers-2.4.24-1\include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /FR /YX"includes.h" /FD /GZ /c
 # SUBTRACT CPP /X
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
@@ -117,6 +117,10 @@ SOURCE=.\IOHandler.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\IOHNtConsole.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\KernelStartup.cpp
 # End Source File
 # Begin Source File
@@ -146,6 +150,42 @@ SOURCE=.\Process.cpp
 # Begin Source File
 
 SOURCE=.\String.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sys_io.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sys_mem.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sys_mount.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sys_net.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sys_perms.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sys_process.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sys_rtsig.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sys_sys.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\SysCallDll_Kernel.cpp
 # End Source File
 # Begin Source File
 
@@ -189,6 +229,10 @@ SOURCE=.\IOHandler.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\IOHNtConsole.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\KernelStartup.h
 # End Source File
 # Begin Source File
@@ -225,7 +269,7 @@ SOURCE=.\String.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\StubResourceInfo.h
+SOURCE=.\SysCallDll.h
 # End Source File
 # Begin Source File
 

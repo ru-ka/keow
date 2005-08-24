@@ -48,6 +48,10 @@
 #include "String.h"
 
 
+//stub info
+#include "SysCallDll.h"
+
+
 //keow stuff
 #include "ConstantMapping.h"
 #include "Path.h"
@@ -55,7 +59,7 @@
 #include "Filesystem.h"
 #include "FilesystemKeow.h"
 #include "FilesystemProc.h"
-#include "StubResourceInfo.h"
+#include "IOHandler.h"
 #include "Process.h"
 #include "MountPoint.h"
 #include "KernelTable.h"

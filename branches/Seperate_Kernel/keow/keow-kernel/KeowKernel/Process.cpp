@@ -37,8 +37,6 @@ const int Process::KERNEL_PROCESS_THREAD_STACK_SIZE = 32*1024;
 
 const char * Process::KEOW_PROCESS_STUB = "Keow.exe";
 
-DWORD Process::ms_DummyStubParam = 0;
-
 //////////////////////////////////////////////////////////////////////
 
 Process::Process()
@@ -46,7 +44,11 @@ Process::Process()
 	int i;
 
 	m_gid = m_uid = 0;
+	m_egid = m_euid = 0;
+	m_saved_uid = m_saved_gid = 0;
+
 	m_Pid = m_ParentPid = 0;
+	m_ProcessGroupPID = 0;
 
 	m_Environment = m_Arguments = NULL;
 
@@ -71,9 +73,11 @@ Process::Process()
 	m_dwExitCode = -SIGABRT; //in case not set later
 
 	//std in,out,err
-	m_OpenFiles[0] = new FileConsole( g_pKernelTable->m_Console.dup();
-	m_OpenFiles[1] = g_pKernelTable->m_Console.dup();
-	m_OpenFiles[2] = g_pKernelTable->m_Console.dup();
+	m_OpenFiles[0] = g_pKernelTable->m_pMainConsole->clone();
+	m_OpenFiles[1] = g_pKernelTable->m_pMainConsole->clone();
+	m_OpenFiles[2] = g_pKernelTable->m_pMainConsole->clone();
+
+	m_hWaitTerminatingEvent = CreateEvent(NULL,FALSE,FALSE,NULL);
 }
 
 Process::~Process()
@@ -84,6 +88,8 @@ Process::~Process()
 	//close all handles
 	CloseHandle(m_Win32PInfo.hProcess);
 	CloseHandle(m_Win32PInfo.hThread);
+
+	CloseHandle(m_hWaitTerminatingEvent);
 }
 
 
@@ -280,12 +286,15 @@ void Process::DebuggerLoop()
 void Process::ConvertProcessToKeow()
 {
 	//Get the info about the win32 side, before changing to keow/unix
-	//The stub provides this info in Eax prior to causing an initial breakpoint 
+	//The stub provides this via the loading of the KeowUserSysCalls dll
+	//The info is passed as a pointer in Eax and causing an initial breakpoint 
+
 	m_bInWin32Setup = false;
+
 	CONTEXT ctx;
 	ctx.ContextFlags = CONTEXT_FULL;
 	GetThreadContext(m_Win32PInfo.hThread, &ctx);
-	ReadMemory(&m_StubFunctionsInfo, (ADDR)ctx.Eax, sizeof(m_StubFunctionsInfo));
+	ReadMemory(&SysCallDll.m_RemoteAddresses, (ADDR)ctx.Eax, sizeof(SysCallDll.m_RemoteAddresses));
 
 	//disable single-step that the stub started (to alert us)
 	ctx.EFlags &= ~(0x100L); //8th bit is trap flag
@@ -913,6 +922,7 @@ void Process::SendSignal(int sig)
 {
 	//send the signal to this process
 	m_PendingSignals[sig] = true;
+	SetEvent(m_hWaitTerminatingEvent);
 
 	//NOTE: this may be executing on a different thread than the one handling this process
 
@@ -956,10 +966,7 @@ void Process::HandleSignal(int sig)
 	{
 	case SIGKILL:
 		ktrace("killed - sigkill\n");
-		{
-			DWORD s = -sig;
-			InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, s);
-		}
+		SysCallDll.ExitProcess(-sig);
 		return;
 	case SIGSTOP:
 		ktrace("stopping on sigstop\n");
@@ -1035,10 +1042,7 @@ void Process::HandleSignal(int sig)
 		case SIGPOLL:
 		case SIGPROF:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
-			{
-				DWORD s = -sig;
-				InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, s);
-			}
+			SysCallDll.ExitProcess(-sig);
 			break;
 
 		//ptrace
@@ -1057,19 +1061,13 @@ void Process::HandleSignal(int sig)
 		case SIGSYS:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			GenerateCoreDump();
-			{
-				DWORD s = -sig;
-				InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, s);
-			}
+			SysCallDll.ExitProcess(-sig);
 			break;
 
 		default:
 			ktrace("IMPLEMENT default action for signal %d\n", sig);
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
-			{
-				DWORD s = -sig;
-				InvokeStubFunction(m_StubFunctionsInfo.ExitProcess, s);
-			}
+			SysCallDll.ExitProcess(-sig);
 			break;
 		}
 	}
@@ -1142,11 +1140,17 @@ void Process::HandleSignal(int sig)
 }
 
 
-void Process::InvokeStubFunction(StubFunc func, DWORD &param1, DWORD &param2, DWORD &param3, DWORD &param4)
+void Process::GenerateCoreDump()
 {
-	//StubFunc is declared as _stdcall calling convention.
+	DebugBreak();
+}
+
+DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSize, bool bWaitForReply)
+{
+	//Expect that the func is declared as _stdcall calling convention.
+	//(actually it ought to be from the SysCallDll::RemoteAddrInfo) 
 	//This means we place args on the stack so that param1 pops first
-	//also we don't need to clean up the stack. The called function does
+	//also we don't need to clean up the stack. The called function does.
 
 	CONTEXT OrigCtx;
 	OrigCtx.ContextFlags = CONTEXT_FULL; //preserve everything
@@ -1154,8 +1158,9 @@ void Process::InvokeStubFunction(StubFunc func, DWORD &param1, DWORD &param2, DW
 
 	CONTEXT TempCtx = OrigCtx;
 
-	TempCtx.Eip = (DWORD)func;				//call this in the stub
-	TempCtx.Esp -= sizeof(DWORD)*5; //4 params and the return address
+	TempCtx.Eip = (DWORD)func;		//call this in the stub
+	TempCtx.Esp -= sizeof(ADDR);	//the return address
+	TempCtx.Esp -= nStackDataSize;	//the params
 
 	SetThreadContext(m_Win32PInfo.hThread, &TempCtx);
 
@@ -1163,17 +1168,15 @@ void Process::InvokeStubFunction(StubFunc func, DWORD &param1, DWORD &param2, DW
 	ADDR addr = (ADDR)TempCtx.Esp;
 	ADDR ParamAddr = addr;
 
-	WriteMemory(addr, sizeof(DWORD), &param1);
-	addr += sizeof(DWORD);
-	WriteMemory(addr, sizeof(DWORD), &param2);
-	addr += sizeof(DWORD);
-	WriteMemory(addr, sizeof(DWORD), &param3);
-	addr += sizeof(DWORD);
-	WriteMemory(addr, sizeof(DWORD), &param4);
-	addr += sizeof(DWORD);
+	WriteMemory(addr, nStackDataSize, pStackData);
+	addr += nStackDataSize;
 
 	WriteMemory(addr, sizeof(DWORD), &OrigCtx.Eip); //return address
 
+
+	//need to monitor the function?
+	if(!bWaitForReply)
+		return 0;
 
 
 	//resume the process to let it run the function
@@ -1216,21 +1219,14 @@ void Process::InvokeStubFunction(StubFunc func, DWORD &param1, DWORD &param2, DW
 	// but we can restore the stack and registers
 	// first retreive any altered parameters
 
-
 	addr = ParamAddr;
 
-	ReadMemory(&param1, addr, sizeof(DWORD));
-	addr += sizeof(DWORD);
-	ReadMemory(&param2, addr, sizeof(DWORD));
-	addr += sizeof(DWORD);
-	ReadMemory(&param3, addr, sizeof(DWORD));
-	addr += sizeof(DWORD);
-	ReadMemory(&param4, addr, sizeof(DWORD));
+	ReadMemory(pStackData, addr, nStackDataSize);
+
+	GetThreadContext(m_Win32PInfo.hThread, &TempCtx);
+	DWORD dwRet = TempCtx.Eax;
 
 	SetThreadContext(m_Win32PInfo.hThread, &OrigCtx);
-}
 
-void Process::GenerateCoreDump()
-{
-	DebugBreak();
+	return dwRet;
 }

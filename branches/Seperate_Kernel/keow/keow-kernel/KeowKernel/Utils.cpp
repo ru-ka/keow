@@ -28,7 +28,11 @@
 #include "includes.h"
 #include "Utils.h"
 
+
+ULARGE_INTEGER Time1Jan1970;
+
 //////////////////////////////////////////////////////////////////////
+
 
 void ktrace(const char *format, ...)
 {
@@ -43,9 +47,16 @@ void ktrace(const char *format, ...)
 	else
 		StringCbPrintfEx(g_pKernelThreadLocals->ktrace_buffer, size, &pNext, &size, 0, "pid %d:", g_pKernelThreadLocals->pProcess->m_Pid);
 
-	StringCbVPrintf(pNext, size, format, va);
+	StringCbVPrintfEx(pNext, size, &pNext, &size, 0, format, va);
 
 	OutputDebugString(g_pKernelThreadLocals->ktrace_buffer);
+
+	if(g_pKernelTable
+	&& g_pKernelTable->m_pMainConsole)
+	{
+		DWORD written;
+		g_pKernelTable->m_pMainConsole->Write(g_pKernelThreadLocals->ktrace_buffer, sizeof(g_pKernelThreadLocals->ktrace_buffer)-size, written);
+	}
 }
 
 void halt()

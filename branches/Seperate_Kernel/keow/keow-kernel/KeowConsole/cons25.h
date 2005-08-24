@@ -44,6 +44,14 @@ public:
 
 	void OutputChar(char c);
 	void InputChar();
+
+protected:
+	linux::termios m_TermIOs;
+
+	int m_InputState;
+	int m_OutputState;
+	BYTE m_InputStateData[100];
+	BYTE m_OutputStateData[100];
 };
 
 #endif // !defined(AFX_CONS25_H__83201F53_6952_4939_A0CC_E24395AC9400__INCLUDED_)

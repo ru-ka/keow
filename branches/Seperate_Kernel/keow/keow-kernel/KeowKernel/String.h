@@ -55,7 +55,7 @@ public:
 	string& operator = (const char * str);
 	string& operator = (const string& str);
 
-	char operator [] (int pos);
+	char& operator [] (int pos);
 
 	bool operator == (const char * str) const;
 	bool operator == (const string& str) const;
