@@ -32,16 +32,24 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+#include "IOHandler.h"
+
 
 class IOHFile : public IOHandler
 {
 public:
-	File();
-	virtual ~File();
+	IOHFile();
+	virtual ~IOHFile();
 
 	virtual bool Write(void* buffer, DWORD count, DWORD& written);
 	virtual bool Read(void* buffer, DWORD count, DWORD& read);
 
+	virtual HANDLE GetWriteHandle();
+	virtual HANDLE GetReadHandle();
+
+	virtual IOHandler* clone();
+
+protected:
 	HANDLE m_Handle;
 };
 

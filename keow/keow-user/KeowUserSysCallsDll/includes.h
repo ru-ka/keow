@@ -21,22 +21,9 @@
  *
  */
 
-// IOHandler.cpp: implementation of the IOHandler class.
-//
-//////////////////////////////////////////////////////////////////////
+// Common includes
 
-#include "includes.h"
-#include "IOHandler.h"
+#include <windows.h>
 
-//////////////////////////////////////////////////////////////////////
-
-
-IOHandler::IOHandler()
-{
-
-}
-
-IOHandler::~IOHandler()
-{
-
-}
+#include "../../keow-kernel/KeowKernel/linux_includes.h"
+#include "../../keow-kernel/KeowKernel/SysCallDll.h"

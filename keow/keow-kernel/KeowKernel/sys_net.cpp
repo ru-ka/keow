@@ -21,22 +21,25 @@
  *
  */
 
-// IOHandler.cpp: implementation of the IOHandler class.
-//
-//////////////////////////////////////////////////////////////////////
-
 #include "includes.h"
-#include "IOHandler.h"
+#include "SysCalls.h"
 
-//////////////////////////////////////////////////////////////////////
+// eax is the syscall number
+// ebx,ecx,edx,esi,edi,ebp are up to 6(max) parameters
+// any more parameters and the caller just puts a struct pointer in one of these
+// eax is the return value
 
 
-IOHandler::IOHandler()
+/*
+ * int socketcall(int call, unsigned long *args);
+ */
+void SysCalls::sys_socketcall(Process &P, CONTEXT &ctx)
 {
-
+	ktrace("IMPLEMENT sys_socketcall (unix domain socket?, not inet?)\n");
+	ctx.Eax = -ENOSYS;
 }
 
-IOHandler::~IOHandler()
-{
 
-}
+/*****************************************************************************/
+
+

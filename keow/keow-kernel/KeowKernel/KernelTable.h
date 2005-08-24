@@ -44,7 +44,7 @@ public:
 	KernelTable();
 	virtual ~KernelTable();
 
-	Process * FindProcess(DWORD pid);
+	Process * FindProcess(PID pid);
 
 	SYSTEMTIME m_BootTime;
 	DWORD m_BogoMips;
@@ -62,10 +62,10 @@ public:
 	typedef list<MountPoint*> MountPointList;
 	MountPointList m_MountPoints;
 
-	typedef list<File*> DeviceList;
+	typedef list<IOHandler*> DeviceList;
 	DeviceList m_Devices;
 
-	//HANDLE s_SysCallTable();
+	IOHandler * m_pMainConsole;
 };
 
 

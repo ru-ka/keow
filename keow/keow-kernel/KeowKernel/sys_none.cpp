@@ -21,13 +21,12 @@
  *
  */
 
+#include "includes.h"
+#include "SysCalls.h"
 
-//Info about what the stub process can provide
+// eax is the syscall number
+// ebx,ecx,edx,esi,edi,ebp are up to 6(max) parameters
+// any more parameters and the caller just puts a struct pointer in one of these
+// eax is the return value
 
-typedef void (_stdcall *StubFunc)(DWORD param1, DWORD param2, DWORD param3, DWORD param4);
 
-struct StubFunctionsInfo
-{
-	StubFunc ExitProcess;
-	StubFunc Write;
-};

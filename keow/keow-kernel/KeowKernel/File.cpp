@@ -30,23 +30,39 @@
 
 //////////////////////////////////////////////////////////////////////
 
-File::File()
+IOHFile::IOHFile()
 {
 	m_Handle = INVALID_HANDLE_VALUE;
 }
 
-File::~File()
+IOHFile::~IOHFile()
 {
 	CloseHandle(m_Handle);
 }
 
 
-bool File::Write(LPVOID buffer, DWORD count, DWORD& written)
+bool IOHFile::Write(LPVOID buffer, DWORD count, DWORD& written)
 {
 	return WriteFile(m_Handle, buffer, count, &written, NULL) != 0;
 }
 
-bool File::Read(LPVOID buffer, DWORD count, DWORD& read)
+bool IOHFile::Read(LPVOID buffer, DWORD count, DWORD& read)
 {
 	return ReadFile(m_Handle, buffer, count, &read, NULL) != 0;
+}
+
+HANDLE IOHFile::GetWriteHandle()
+{
+	return m_Handle;
+}
+HANDLE IOHFile::GetReadHandle()
+{
+	return m_Handle;
+}
+
+IOHandler * IOHFile::clone()
+{
+	IOHFile * pF = new IOHFile();
+	pF->m_Handle = m_Handle;
+	return pF;
 }

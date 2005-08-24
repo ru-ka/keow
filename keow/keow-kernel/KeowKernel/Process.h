@@ -33,8 +33,8 @@
 #endif // _MSC_VER > 1000
 
 
-//type of a Keow/Unix Process ID
-typedef unsigned long PID;
+//type of a Keow/Unix Process ID (needs to be signed)
+typedef long PID;
 
 //pointer
 typedef BYTE* ADDR;
@@ -49,7 +49,6 @@ class Process
 {
 public:
 	void GenerateCoreDump();
-	void InvokeStubFunction(StubFunc func, DWORD &param1=ms_DummyStubParam, DWORD &param2=ms_DummyStubParam, DWORD &param3=ms_DummyStubParam, DWORD &param4=ms_DummyStubParam);
 	void SendSignal(int sig);
 	void HandleSignal(int sig);
 
@@ -58,6 +57,8 @@ public:
 
 	DWORD StartNewImageRunning();
 	static Process* StartInit(PID pid, Path& path, char ** InitialEnvironment);
+
+	DWORD InjectFunctionCall(void *func, void *pStackData, int nStackDataSize, bool bWaitForReply);
 
 	virtual ~Process();
 
@@ -68,12 +69,17 @@ public:
 
 	PID m_Pid;
 	PID m_ParentPid;
+	PID m_ProcessGroupPID;
 
 	int m_gid, m_uid;
+	int m_egid, m_euid;
+	int m_saved_uid, m_saved_gid;
+	int m_umask;
 
 	PROCESS_INFORMATION m_Win32PInfo;
 	DWORD m_dwExitCode;
 	FILETIME m_StartedTime;
+	HANDLE m_hWaitTerminatingEvent;
 
 	DWORD m_KernelThreadId;
 
@@ -114,14 +120,14 @@ public:
 		PID OwnerPid;
 		DWORD Request;
 		CONTEXT ctx;
+		bool ctx_valid;
 		DWORD Saved_Eax;
 		int new_signal;
 	};
 	PtraceData m_ptrace;
 
 	//info about what resources the stub can provide
-	StubFunctionsInfo m_StubFunctionsInfo;
-	static DWORD ms_DummyStubParam;
+	SysCallDll SysCallDll;
 
 	ADDR m_Environment;
 	ADDR m_Arguments;
@@ -138,7 +144,7 @@ public:
 	int m_SignalDepth;
 
 	//open files
-	File * m_OpenFiles[MAX_OPEN_FILES];
+	IOHandler * m_OpenFiles[MAX_OPEN_FILES];
 
 private:
 	Process(); //private - use methods to create

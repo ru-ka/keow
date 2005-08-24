@@ -26,6 +26,9 @@
 #include "includes.h"
 #include "String.h"
 
+
+static char s_dummy = 0;
+
 /////////////////////////////////////////////////////////////////
 
 string::string()
@@ -205,9 +208,9 @@ int string::compare(const string& str) const
 	return strcmp(c_str(), str.c_str());
 }
 
-char string::operator [] (int pos)
+char& string::operator [] (int pos)
 {
 	if(pos>=m_nLen)
-		return 0;
+		return s_dummy;
 	return m_pChars[pos];
 }
