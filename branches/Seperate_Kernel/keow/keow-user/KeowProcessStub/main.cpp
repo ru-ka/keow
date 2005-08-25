@@ -24,21 +24,23 @@
 // Stub Main
 
 
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 
 //////////////////////////////////////////////////////////////////////////////////////
 
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+//int WINAPI _WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+void StubMain()
 {
 	//the keow/unix files have already been loaded by the time we get here,
 	//so it is safe to load our larger dll of functions now
 
+	OutputDebugString("Stub starting\n");
+
 	LoadLibrary("KeowUserSysCalls.Dll");
 
 	//should never get here (the library takes over)
+	OutputDebugString("Stub failure?\n");
 	ExitProcess(-1);
-	return -1;
 }

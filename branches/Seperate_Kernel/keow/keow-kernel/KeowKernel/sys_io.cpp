@@ -54,7 +54,7 @@ void SysCalls::sys_write(Process &P, CONTEXT &ctx)
 		return;
 	}
 
-	DWORD dwErr = P.SysCallDll.Write(ioh->GetWriteHandle(), (void*)ctx.Ecx, ctx.Edx, &dwWritten);
+	DWORD dwErr = SysCallDll::Write(ioh->GetWriteHandle(), (void*)ctx.Ecx, ctx.Edx, &dwWritten);
 	if(dwErr != 0)
 	{
 		ctx.Eax = -Win32ErrToUnixError(dwErr);
@@ -90,7 +90,7 @@ void SysCalls::sys_writev(Process &P, CONTEXT &ctx)
 		return;
 	}
 
-	DWORD dwErr = P.SysCallDll.WriteV(ioh->GetWriteHandle(), pV, count, &dwWritten);
+	DWORD dwErr = SysCallDll::WriteV(ioh->GetWriteHandle(), pV, count, &dwWritten);
 	if(dwErr != 0)
 	{
 		ctx.Eax = -Win32ErrToUnixError(dwErr);
@@ -125,7 +125,7 @@ void SysCalls::sys_read(Process &P, CONTEXT &ctx)
 		return;
 	}
 
-	DWORD dwErr = P.SysCallDll.Read(ioh->GetWriteHandle(), (void*)ctx.Ecx, ctx.Edx, &dwRead);
+	DWORD dwErr = SysCallDll::Read(ioh->GetWriteHandle(), (void*)ctx.Ecx, ctx.Edx, &dwRead);
 	if(dwErr != 0)
 	{
 		ctx.Eax = -Win32ErrToUnixError(dwErr);

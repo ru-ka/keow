@@ -46,6 +46,12 @@ public:
 private: 
 	MemoryHelper();
 	virtual ~MemoryHelper();
+
+	enum ReadWrite {
+		Read,
+		Write
+	};
+	static bool ProcessReadWriteMemory(HANDLE hProcess, LPVOID pRemoteAddr, LPVOID pLocalAddr, DWORD len, DWORD * pDone, ReadWrite rw );
 };
 
 #endif // !defined(AFX_MEMORYHELPER_H__1A80F3C0_1A72_426A_B6E5_6D4BD43E2EC6__INCLUDED_)

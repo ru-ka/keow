@@ -27,15 +27,18 @@
 
 
 //global
-struct SysCallDll::RemoteAddrInfo AddrInfo;
+SysCallDll::RemoteAddrInfo AddrInfo;
 
 static void LoadAddressInfo()
 {
 	memset(&AddrInfo, 0, sizeof(AddrInfo));
 
-#define SET_ADDR(func) AddrInfo.#func = func
+#define SET_ADDR(func) AddrInfo.##func = (LPVOID)(SysCallDll::##func )
 
-//	SET_ADDR(Write);
+	SET_ADDR(Write);
+	SET_ADDR(WriteV);
+	SET_ADDR(Read);
+	SET_ADDR(ExitProcess);
 
 #undef SET_ADDR
 }
@@ -52,9 +55,11 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID p)
 		//to send it to the kernel
 		//(see Process::ConvertProcessToKeow()
 
+		OutputDebugString("SysCallDll loading\n");
 		LoadAddressInfo();
 
 		//pass control to the kernel to re-develop us into a keow process
+		OutputDebugString("SysCallDll transfering to kernel\n");
 		__asm {
 			lea eax, AddrInfo
 

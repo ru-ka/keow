@@ -29,11 +29,13 @@
 #include "SysCallDll.h"
 
 
+#define PROC g_pKernelThreadLocals->pProcess
+
 ////////////////////////////////////////////////////////////////////////
 
 void _stdcall SysCallDll::ExitProcess(UINT exitcode)
 {
-	P->InjectFunctionCall(m_RemoteAddresses.ExitProcess, &exitcode, sizeof(UINT), false);
+	PROC->InjectFunctionCall(PROC->SysCallAddr.ExitProcess, &exitcode, sizeof(UINT), false);
 }
 
 
@@ -45,7 +47,7 @@ DWORD _stdcall SysCallDll::Write(HANDLE h, LPVOID buf, DWORD len, DWORD *pdwWrit
 		len,
 		0
 	};
-	DWORD dwRet = P->InjectFunctionCall(m_RemoteAddresses.Write, &stack, sizeof(stack), true);
+	DWORD dwRet = PROC->InjectFunctionCall(PROC->SysCallAddr.Write, &stack, sizeof(stack), true);
 	if(pdwWritten)
 		*pdwWritten = stack[3];
 	return 0;
@@ -53,7 +55,7 @@ DWORD _stdcall SysCallDll::Write(HANDLE h, LPVOID buf, DWORD len, DWORD *pdwWrit
 
 DWORD _stdcall SysCallDll::WriteV(HANDLE h, linux::iovec *pVec, int count, DWORD *pdwWritten)
 {
-	return ERROR_1;
+	return E_FAIL;
 }
 
 DWORD _stdcall SysCallDll::Read(HANDLE h, LPVOID buf, DWORD len, DWORD *pdwRead)
@@ -64,7 +66,7 @@ DWORD _stdcall SysCallDll::Read(HANDLE h, LPVOID buf, DWORD len, DWORD *pdwRead)
 		len,
 		0
 	};
-	DWORD dwRet = P->InjectFunctionCall(m_RemoteAddresses.Read, &stack, sizeof(stack), true);
+	DWORD dwRet = PROC->InjectFunctionCall(PROC->SysCallAddr.Read, &stack, sizeof(stack), true);
 	if(pdwRead)
 		*pdwRead = stack[3];
 	return 0;

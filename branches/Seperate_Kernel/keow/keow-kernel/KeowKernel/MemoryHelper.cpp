@@ -137,59 +137,129 @@ bool MemoryHelper::DeallocateMemory(ADDR addr, DWORD size)
 
 /*****************************************************************************/
 
-bool MemoryHelper::WriteMemory(HANDLE hToProcess, ADDR toAddr, int len, ADDR fromAddr)
+bool MemoryHelper::ProcessReadWriteMemory(HANDLE hProcess, LPVOID pRemoteAddr, LPVOID pLocalAddr, DWORD len, DWORD * pDone, ReadWrite rw )
 {
-	int offset, size, write;
-	DWORD dwWritten;
+	/* It's not documented (anywhere I could find) but Read/Write ProcessMemory() calls
+	   appear to fail if either te local or remote addresses cross a 4k boundary.
+	   Therefore this routine has to transfer memory in chunks to ensure
+	   that neither end does.
 
-	for(offset=0,size=len; size>0; offset+=write,size-=write)
+	   Example: | is a 4k boundary, . is not accessed, * is copied
+
+		local buffer   | . . . * | * * * * | * * * * | * * * . |
+                            ___|   ----- |
+                           /    ____/   /
+                          /    /    ___/
+	                     - -----   /
+		remote buffer  | * * * * | * * * * | * * * * | . . . . |
+
+		Basically, divide the local buffer into 4k chunks and then transfer those
+		chunks (possibly in two goes) with the remote process.
+	 */
+
+	DWORD pLocal = (DWORD)pLocalAddr;
+	DWORD pRemote = (DWORD)pRemoteAddr;
+
+	DWORD dwCopied = 0;
+	DWORD dwAmountLeft = len;
+	while(dwAmountLeft != 0)
 	{
-		write = size>SIZE4k ? SIZE4k : size;
-		if( (((DWORD)toAddr+offset) & 0x00000FFF) != 0)
-		{
-			//write needs to not cross a 4k boundary?
-			int bytes_left = 0x1000 - (((DWORD)toAddr+offset) & 0x00000FFF);
-			if(bytes_left < write)
-				write = bytes_left;
-		}
-		if(!WriteProcessMemory(hToProcess, toAddr+offset, fromAddr+offset, write, &dwWritten))
+		DWORD dwNext4k;
+		DWORD dwXfer;
+		BOOL bRet;
+
+		//determine which peice of the local buffer to copy
+		dwNext4k = (pLocal & 0xFFFFF000) + SIZE4k;
+		DWORD dwLocalToCopy = dwNext4k - pLocal;
+
+		if(dwLocalToCopy > dwAmountLeft)
+			dwLocalToCopy = dwAmountLeft;
+
+
+		//determine first block of the remote copy
+
+		dwNext4k = (pRemote & 0xFFFFF000) + SIZE4k;
+		DWORD dwRemoteToCopy = dwNext4k - pRemote;
+
+		if(dwRemoteToCopy > dwLocalToCopy)
+			dwRemoteToCopy = dwLocalToCopy;
+
+		if(rw == Read)
+			bRet = ReadProcessMemory(hProcess, (LPVOID)pRemote, (LPVOID)pLocal, dwRemoteToCopy, &dwXfer);
+		else
+			bRet = WriteProcessMemory(hProcess, (LPVOID)pRemote, (LPVOID)pLocal, dwRemoteToCopy, &dwXfer);
+		if(bRet==FALSE)
 		{
 			DWORD err = GetLastError();
-			ktrace("error 0x%lx in write program segment\n", err);
-			return false;
+			ktrace("error 0x%lx in xfer program segment\n", err);
+			//keep trying //return false;
 		}
+		pLocal += dwRemoteToCopy;
+		pRemote += dwRemoteToCopy;
+		dwCopied += dwXfer;
+
+		//determine second block of the remote copy
+		//we already did part of a 4k block, so the rest will be less than 4k and
+		//easily fit now.
+
+		dwRemoteToCopy = dwLocalToCopy - dwRemoteToCopy; //all the rest
+
+		if(dwRemoteToCopy!=0)
+		{
+			if(rw == Read)
+				bRet = ReadProcessMemory(hProcess, (LPVOID)pRemote, (LPVOID)pLocal, dwRemoteToCopy, &dwXfer);
+			else
+				bRet = WriteProcessMemory(hProcess, (LPVOID)pRemote, (LPVOID)pLocal, dwRemoteToCopy, &dwXfer);
+			if(bRet==FALSE)
+			{
+				DWORD err = GetLastError();
+				ktrace("error 0x%lx in xfer program segment\n", err);
+				//keep trying //return false;
+			}
+			pLocal += dwRemoteToCopy;
+			pRemote += dwRemoteToCopy;
+			dwCopied += dwXfer;
+		}
+
+		dwAmountLeft -= dwLocalToCopy;
+	}
+
+	if(pDone)
+		*pDone = dwCopied;
+
+	return true;
+}
+
+bool MemoryHelper::WriteMemory(HANDLE hToProcess, ADDR toAddr, int len, ADDR fromAddr)
+{
+	DWORD dwWritten;
+	if(!ProcessReadWriteMemory(hToProcess, toAddr, fromAddr, len, &dwWritten, Write))
+	{
+		DWORD err = GetLastError();
+		ktrace("error 0x%lx in write program segment\n", err);
+		return false;
 	}
 	return true;
 }
 
 bool MemoryHelper::ReadMemory(ADDR toAddr, HANDLE hFromProcess, ADDR fromAddr, int len)
 {
-	int offset, size, read;
 	DWORD dwRead;
-
-	for(offset=0,size=len; size>0; offset+=read,size-=read)
+	if(!ProcessReadWriteMemory(hFromProcess, fromAddr, toAddr, len, &dwRead, Read))
 	{
-		read = size>SIZE4k ? SIZE4k : size;
-		if( (((DWORD)fromAddr+offset) & 0x00000FFF) != 0)
-		{
-			//write needs to not cross a 4k boundary?
-			int bytes_left = 0x1000 - (((DWORD)fromAddr+offset) & 0x00000FFF);
-			if(bytes_left < read)
-				read = bytes_left;
-		}
-		if(!ReadProcessMemory(hFromProcess, fromAddr+offset, toAddr+offset, read, &dwRead))
-		{
-			DWORD err = GetLastError();
-			ktrace("error 0x%lx in read program segment\n", err);
-			return false;
-		}
+		DWORD err = GetLastError();
+		ktrace("error 0x%lx in read program segment\n", err);
+		return false;
 	}
 	return true;
 }
 
+/*
+ * Copy memory between two managed processes
+ */
 bool MemoryHelper::TransferMemory(HANDLE hFromProcess, ADDR fromAddr, HANDLE hToProcess, ADDR toAddr, int len)
 {
-	BYTE buf[1024];
+	BYTE buf[SIZE4k];
 
 	for(int i=0; i<len; i+=sizeof(buf))
 	{
@@ -272,8 +342,8 @@ ADDR MemoryHelper::CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFro
 	itAddr=string_addresses.begin();
 	while(itSize!=string_sizes.end())
 	{
-		//array entry
-		WriteMemory(hToProcess, pToArray, sizeof(ADDR), pToData);
+		//array entry (copy over value of pToData)
+		WriteMemory(hToProcess, pToArray, sizeof(ADDR), (ADDR)&pToData);
 		pToArray += sizeof(ADDR);
 
 		//data
