@@ -37,7 +37,7 @@
 void SysCalls::sys_exit(Process &P, CONTEXT &ctx)
 {
 	ktrace("Process terminating, code 0x%08lx\n", ctx.Ebx);
-	P.SysCallDll.ExitProcess((UINT)ctx.Ebx);
+	SysCallDll::ExitProcess((UINT)ctx.Ebx);
 }
 
 

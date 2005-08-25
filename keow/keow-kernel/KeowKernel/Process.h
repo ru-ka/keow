@@ -127,7 +127,7 @@ public:
 	PtraceData m_ptrace;
 
 	//info about what resources the stub can provide
-	SysCallDll SysCallDll;
+	SysCallDll::RemoteAddrInfo SysCallAddr;
 
 	ADDR m_Environment;
 	ADDR m_Arguments;

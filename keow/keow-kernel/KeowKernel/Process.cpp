@@ -78,6 +78,8 @@ Process::Process()
 	m_OpenFiles[2] = g_pKernelTable->m_pMainConsole->clone();
 
 	m_hWaitTerminatingEvent = CreateEvent(NULL,FALSE,FALSE,NULL);
+
+	memset(&SysCallAddr, 0, sizeof(SysCallAddr));
 }
 
 Process::~Process()
@@ -254,17 +256,16 @@ void Process::DebuggerLoop()
 			break;
 
 		case OUTPUT_DEBUG_STRING_EVENT:
-			if(evt.u.DebugString.fUnicode)
 			{
 				int bufLen = evt.u.DebugString.nDebugStringLength*2;
 				char * buf = new char[bufLen];
 
-				WideCharToMultiByte(CP_ACP, 0, (wchar_t*)evt.u.DebugString.lpDebugStringData, evt.u.DebugString.nDebugStringLength, buf, bufLen, 0, NULL);
-				ktrace("relay: %*s\n", bufLen, buf);
-			}
-			else
-			{
-				ktrace("relay: %*s\n", evt.u.DebugString.nDebugStringLength, evt.u.DebugString.lpDebugStringData);
+				ReadMemory(buf, (ADDR)evt.u.DebugString.lpDebugStringData, evt.u.DebugString.nDebugStringLength);
+				buf[evt.u.DebugString.nDebugStringLength] = 0;
+
+				ktrace("relay: %*s\n", evt.u.DebugString.nDebugStringLength, buf);
+
+				delete buf;
 			}
 			break;
 
@@ -294,7 +295,7 @@ void Process::ConvertProcessToKeow()
 	CONTEXT ctx;
 	ctx.ContextFlags = CONTEXT_FULL;
 	GetThreadContext(m_Win32PInfo.hThread, &ctx);
-	ReadMemory(&SysCallDll.m_RemoteAddresses, (ADDR)ctx.Eax, sizeof(SysCallDll.m_RemoteAddresses));
+	ReadMemory(&SysCallAddr, (ADDR)ctx.Eax, sizeof(SysCallAddr));
 
 	//disable single-step that the stub started (to alert us)
 	ctx.EFlags &= ~(0x100L); //8th bit is trap flag
@@ -909,12 +910,12 @@ void Process::SetSingleStep(bool set)
 
 bool Process::ReadMemory(LPVOID pBuf, ADDR addr, DWORD len)
 {
-	return 0==MemoryHelper::ReadMemory((ADDR)pBuf, m_Win32PInfo.hProcess, addr, len);
+	return MemoryHelper::ReadMemory((ADDR)pBuf, m_Win32PInfo.hProcess, addr, len);
 }
 
 bool Process::WriteMemory(ADDR addr, DWORD len, LPVOID pBuf)
 {
-	return 0==MemoryHelper::WriteMemory(m_Win32PInfo.hProcess, addr, len, (ADDR)pBuf);
+	return MemoryHelper::WriteMemory(m_Win32PInfo.hProcess, addr, len, (ADDR)pBuf);
 }
 
 
@@ -966,7 +967,7 @@ void Process::HandleSignal(int sig)
 	{
 	case SIGKILL:
 		ktrace("killed - sigkill\n");
-		SysCallDll.ExitProcess(-sig);
+		SysCallDll::ExitProcess(-sig);
 		return;
 	case SIGSTOP:
 		ktrace("stopping on sigstop\n");
@@ -1042,7 +1043,7 @@ void Process::HandleSignal(int sig)
 		case SIGPOLL:
 		case SIGPROF:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
-			SysCallDll.ExitProcess(-sig);
+			SysCallDll::ExitProcess(-sig);
 			break;
 
 		//ptrace
@@ -1061,13 +1062,13 @@ void Process::HandleSignal(int sig)
 		case SIGSYS:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			GenerateCoreDump();
-			SysCallDll.ExitProcess(-sig);
+			SysCallDll::ExitProcess(-sig);
 			break;
 
 		default:
 			ktrace("IMPLEMENT default action for signal %d\n", sig);
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
-			SysCallDll.ExitProcess(-sig);
+			SysCallDll::ExitProcess(-sig);
 			break;
 		}
 	}

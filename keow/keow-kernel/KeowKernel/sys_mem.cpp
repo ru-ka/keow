@@ -83,7 +83,7 @@ void SysCalls::sys_brk(Process &P, CONTEXT &ctx)
 
 /*****************************************************************************/
 
-
+#if 0
 namespace linux {
 	struct mmap_arg_struct {
 		unsigned long addr;
@@ -94,6 +94,7 @@ namespace linux {
 		unsigned long offset;
 	};
 };
+#endif 
 
 /*
  * unsigned long sys_mmap(mmap_arg_struct* args)

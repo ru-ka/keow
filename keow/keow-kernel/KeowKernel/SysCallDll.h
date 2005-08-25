@@ -46,30 +46,24 @@ class Process; //exception to the rule, just to allow a pointer to the associate
 
 class SysCallDll
 {
-public: //functionality provided
-	void _stdcall ExitProcess(UINT exitcode);
+public:
+	//functionality provided
+	static void _stdcall ExitProcess(UINT exitcode);
 
-	DWORD _stdcall Write(HANDLE h, LPVOID buf, DWORD len, DWORD *pdwWritten);
-	DWORD _stdcall WriteV(HANDLE h, linux::iovec *pVec, int count, DWORD *pdwWritten);
+	static DWORD _stdcall Write(HANDLE h, LPVOID buf, DWORD len, DWORD *pdwWritten);
+	static DWORD _stdcall WriteV(HANDLE h, linux::iovec *pVec, int count, DWORD *pdwWritten);
 
-	DWORD _stdcall Read(HANDLE h, LPVOID buf, DWORD len, DWORD *pdwRead);
+	static DWORD _stdcall Read(HANDLE h, LPVOID buf, DWORD len, DWORD *pdwRead);
 
-public: //for passing info to the kernel
+
+	//corresponding addresses
 	struct RemoteAddrInfo {
 		LPVOID ExitProcess;
 		LPVOID Write;
 		LPVOID WriteV;
 		LPVOID Read;
 	};
-
-public: //support stuff
-	SysCallDll(Process * proc = NULL)
-		: P(proc)
-	{
-	}
-
-	RemoteAddrInfo m_RemoteAddresses;
-	Process * P;
 };
+
 
 #endif
