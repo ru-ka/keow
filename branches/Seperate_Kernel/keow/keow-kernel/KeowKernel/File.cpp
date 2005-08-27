@@ -30,39 +30,33 @@
 
 //////////////////////////////////////////////////////////////////////
 
-IOHFile::IOHFile()
+IOHFile::IOHFile(Path path)
 {
-	m_Handle = INVALID_HANDLE_VALUE;
+	m_RemoteHandle = INVALID_HANDLE_VALUE;
+	m_Path = path;
+
+	DebugBreak();
+//	CreateFile(path.GetWin32Path(), access, share, 0, OPEN_EXISTING, flags, 0);
+//	DuplicateHandle(GetCurrentProcess(), h, P->g_pkSysCallDll::CreateFile(path.GetWin32Path().c_str);
 }
 
 IOHFile::~IOHFile()
 {
-	CloseHandle(m_Handle);
+	SysCallDll::CloseHandle(m_RemoteHandle);
 }
 
-
-bool IOHFile::Write(LPVOID buffer, DWORD count, DWORD& written)
+HANDLE IOHFile::GetRemoteWriteHandle()
 {
-	return WriteFile(m_Handle, buffer, count, &written, NULL) != 0;
+	return m_RemoteHandle;
 }
-
-bool IOHFile::Read(LPVOID buffer, DWORD count, DWORD& read)
+HANDLE IOHFile::GetRemoteReadHandle()
 {
-	return ReadFile(m_Handle, buffer, count, &read, NULL) != 0;
-}
-
-HANDLE IOHFile::GetWriteHandle()
-{
-	return m_Handle;
-}
-HANDLE IOHFile::GetReadHandle()
-{
-	return m_Handle;
+	return m_RemoteHandle;
 }
 
 IOHandler * IOHFile::clone()
 {
-	IOHFile * pF = new IOHFile();
-	pF->m_Handle = m_Handle;
+	IOHFile * pF = new IOHFile(m_Path);
+	pF->m_RemoteHandle = m_RemoteHandle;
 	return pF;
 }

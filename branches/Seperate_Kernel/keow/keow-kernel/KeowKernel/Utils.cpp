@@ -39,24 +39,18 @@ void ktrace(const char *format, ...)
 	va_list va;
 	va_start(va, format);
 
-	char * pNext = g_pKernelThreadLocals->ktrace_buffer;
-	size_t size = sizeof(g_pKernelThreadLocals->ktrace_buffer);
+	char * pNext = g_pTraceBuffer;
+	size_t size = KTRACE_BUFFER_SIZE;
 
-	if(g_pKernelThreadLocals->pProcess==NULL || IsBadReadPtr(g_pKernelThreadLocals->pProcess, sizeof(Process)))
-		StringCbPrintfEx(g_pKernelThreadLocals->ktrace_buffer, size, &pNext, &size, 0, "kernel:");
+	if(P==NULL || IsBadReadPtr(P, sizeof(Process)))
+		StringCbPrintfEx(g_pTraceBuffer, size, &pNext, &size, 0, "kernel:");
 	else
-		StringCbPrintfEx(g_pKernelThreadLocals->ktrace_buffer, size, &pNext, &size, 0, "pid %d:", g_pKernelThreadLocals->pProcess->m_Pid);
+		StringCbPrintfEx(g_pTraceBuffer, size, &pNext, &size, 0, "pid %d:", P->m_Pid);
 
 	StringCbVPrintfEx(pNext, size, &pNext, &size, 0, format, va);
 
-	OutputDebugString(g_pKernelThreadLocals->ktrace_buffer);
+	OutputDebugString(g_pTraceBuffer);
 
-	if(g_pKernelTable
-	&& g_pKernelTable->m_pMainConsole)
-	{
-		DWORD written;
-		g_pKernelTable->m_pMainConsole->Write(g_pKernelThreadLocals->ktrace_buffer, sizeof(g_pKernelThreadLocals->ktrace_buffer)-size, written);
-	}
 }
 
 void halt()

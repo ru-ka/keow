@@ -35,10 +35,10 @@
  * stub out here to remove IMPLEMENT... messages from ktrace
  */
 
-void SysCalls::sys_rt_sigreturn(Process &P, CONTEXT &ctx)		{ctx.Eax = -ENOSYS;}
-void SysCalls::sys_rt_sigaction(Process &P, CONTEXT &ctx)		{ctx.Eax = -ENOSYS;}
-void SysCalls::sys_rt_sigprocmask(Process &P, CONTEXT &ctx)		{ctx.Eax = -ENOSYS;}
-void SysCalls::sys_rt_sigpending(Process &P, CONTEXT &ctx)		{ctx.Eax = -ENOSYS;}
-void SysCalls::sys_rt_sigtimedwait(Process &P, CONTEXT &ctx)	{ctx.Eax = -ENOSYS;}
-void SysCalls::sys_rt_sigqueueinfo(Process &P, CONTEXT &ctx)	{ctx.Eax = -ENOSYS;}
-void SysCalls::sys_rt_sigsuspend(Process &P, CONTEXT &ctx)		{ctx.Eax = -ENOSYS;}
+void SysCalls::sys_rt_sigreturn(CONTEXT &ctx)		{ctx.Eax = -ENOSYS;}
+void SysCalls::sys_rt_sigaction(CONTEXT &ctx)		{ctx.Eax = -ENOSYS;}
+void SysCalls::sys_rt_sigprocmask(CONTEXT &ctx)		{ctx.Eax = -ENOSYS;}
+void SysCalls::sys_rt_sigpending(CONTEXT &ctx)		{ctx.Eax = -ENOSYS;}
+void SysCalls::sys_rt_sigtimedwait(CONTEXT &ctx)	{ctx.Eax = -ENOSYS;}
+void SysCalls::sys_rt_sigqueueinfo(CONTEXT &ctx)	{ctx.Eax = -ENOSYS;}
+void SysCalls::sys_rt_sigsuspend(CONTEXT &ctx)		{ctx.Eax = -ENOSYS;}

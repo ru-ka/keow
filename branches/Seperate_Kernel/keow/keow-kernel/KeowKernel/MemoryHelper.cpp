@@ -108,7 +108,7 @@ ADDR MemoryHelper::AllocateMemAndProtect(ADDR addr, DWORD size, DWORD prot)
 {
 	ADDR addrActual = AllocateMemAndProtectProcess(GetCurrentProcess(), addr, size, prot);
 	if(addrActual != (ADDR)-1)
-		g_pKernelThreadLocals->pProcess->m_MemoryAllocations.push_back(new Process::MemoryAlloc(addrActual, size, prot));
+		P->m_MemoryAllocations.push_back(new Process::MemoryAlloc(addrActual, size, prot));
 	return addrActual;
 }
 
@@ -118,15 +118,15 @@ bool MemoryHelper::DeallocateMemory(ADDR addr, DWORD size)
 		return false;
 
 	Process::MemoryAllocationsList::iterator it;
-	for(it=g_pKernelThreadLocals->pProcess->m_MemoryAllocations.begin();
-	    it!=g_pKernelThreadLocals->pProcess->m_MemoryAllocations.end();
+	for(it=P->m_MemoryAllocations.begin();
+	    it!=P->m_MemoryAllocations.end();
 		++it)
 	{
 		Process::MemoryAlloc * pAlloc = *it;
 		if(pAlloc->addr == addr
 		&& pAlloc->len == size)
 		{
-			g_pKernelThreadLocals->pProcess->m_MemoryAllocations.erase(it);
+			P->m_MemoryAllocations.erase(it);
 			break;
 		}
 	}

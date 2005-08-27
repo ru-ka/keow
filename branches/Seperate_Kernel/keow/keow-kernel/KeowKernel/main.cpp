@@ -32,7 +32,9 @@
 KernelTable * g_pKernelTable;
 
 //thread local stuff for current thread state in kernel handler
-_declspec(thread) KernelThreadLocals * g_pKernelThreadLocals;
+//static const int KTRACE_BUFFER_SIZE = 32000;
+_declspec(thread) char * g_pTraceBuffer;
+_declspec(thread) Process * P;
 
 
 static char * InitialEnv[] = {
@@ -47,8 +49,8 @@ static char * InitialEnv[] = {
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
-	g_pKernelThreadLocals = new KernelThreadLocals();
-	g_pKernelThreadLocals->pProcess = NULL;
+	g_pTraceBuffer = new char [KTRACE_BUFFER_SIZE];
+	P = NULL;
 
 	g_pKernelTable= new KernelTable();
 

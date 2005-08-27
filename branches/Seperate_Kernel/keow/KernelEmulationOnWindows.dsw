@@ -26,6 +26,12 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name KeowUtils
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name KeowConsole
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name KeowProcessStub
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -38,6 +44,9 @@ Package=<5>
 
 Package=<4>
 {{{
+    Begin Project Dependency
+    Project_Dep_Name KeowUserSysCallsDll
+    End Project Dependency
 }}}
 
 ###############################################################################

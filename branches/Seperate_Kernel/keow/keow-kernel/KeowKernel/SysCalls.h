@@ -36,10 +36,10 @@ class SysCalls
 {
 public:
 	static void InitSysCallTable();
-	static void HandleInt80SysCall(Process &P, CONTEXT& ctx);
+	static void HandleInt80SysCall(CONTEXT& ctx);
 
 protected:
-	typedef void (*SYSCALL_HANDLER)(Process &P, CONTEXT& ctx);
+	typedef void (*SYSCALL_HANDLER)(CONTEXT& ctx);
 
 	static SYSCALL_HANDLER syscall_handlers[NR_syscalls];
 	static const char* syscall_names[NR_syscalls];
@@ -48,7 +48,7 @@ private:
 	SysCalls() {}
 
 //syscall prototypes
-#define PROTO_SYSCALL(n) static void sys_##n(Process &P, CONTEXT& ctx)
+#define PROTO_SYSCALL(n) static void sys_##n(CONTEXT& ctx)
 
 	PROTO_SYSCALL(unhandled);
 

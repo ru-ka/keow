@@ -30,45 +30,45 @@
 // any more parameters and the caller just puts a struct pointer in one of these
 // eax is the return value
 
-void SysCalls::sys_getuid(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getuid(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_uid;
+	ctx.Eax = P->m_uid;
 }
 
-void SysCalls::sys_geteuid(Process &P, CONTEXT &ctx)
+void SysCalls::sys_geteuid(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_euid;
+	ctx.Eax = P->m_euid;
 }
 
-void SysCalls::sys_getgid(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getgid(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_gid;
+	ctx.Eax = P->m_gid;
 }
 
-void SysCalls::sys_getegid(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getegid(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_egid;
+	ctx.Eax = P->m_egid;
 }
 
 
-void SysCalls::sys_getuid32(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getuid32(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_uid;
+	ctx.Eax = P->m_uid;
 }
 
-void SysCalls::sys_geteuid32(Process &P, CONTEXT &ctx)
+void SysCalls::sys_geteuid32(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_euid;
+	ctx.Eax = P->m_euid;
 }
 
-void SysCalls::sys_getgid32(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getgid32(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_gid;
+	ctx.Eax = P->m_gid;
 }
 
-void SysCalls::sys_getegid32(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getegid32(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_egid;
+	ctx.Eax = P->m_egid;
 }
 
 /*****************************************************************************/
@@ -76,7 +76,7 @@ void SysCalls::sys_getegid32(Process &P, CONTEXT &ctx)
 /*
  * int setreuid(int ruid, int euid)
  */
-void SysCalls::sys_setreuid(Process &P, CONTEXT &ctx)
+void SysCalls::sys_setreuid(CONTEXT &ctx)
 {
 	int ruid = ctx.Ebx;
 	int euid = ctx.Ecx;
@@ -86,10 +86,10 @@ void SysCalls::sys_setreuid(Process &P, CONTEXT &ctx)
 	if(ruid != -1)
 	{
 		//only root can set real uid
-		if(P.m_uid == 0
-		|| P.m_euid == 0)
+		if(P->m_uid == 0
+		|| P->m_euid == 0)
 		{
-			P.m_uid = ruid;
+			P->m_uid = ruid;
 			ctx.Eax = 0;
 		}
 	}
@@ -98,13 +98,13 @@ void SysCalls::sys_setreuid(Process &P, CONTEXT &ctx)
 	{
 		//root can set to anything
 		//users can set to any existing id
-		if(P.m_uid == 0
-		|| P.m_euid == 0
-		|| euid == P.m_uid
-		|| euid == P.m_euid
-		|| euid == P.m_saved_uid )
+		if(P->m_uid == 0
+		|| P->m_euid == 0
+		|| euid == P->m_uid
+		|| euid == P->m_euid
+		|| euid == P->m_saved_uid )
 		{
-			P.m_euid = euid;
+			P->m_euid = euid;
 			ctx.Eax = 0;
 		}
 	}
@@ -114,7 +114,7 @@ void SysCalls::sys_setreuid(Process &P, CONTEXT &ctx)
 /*
  * int setregid(int rgid, int egid)
  */
-void SysCalls::sys_setregid(Process &P, CONTEXT &ctx)
+void SysCalls::sys_setregid(CONTEXT &ctx)
 {
 	int rgid = ctx.Ebx;
 	int egid = ctx.Ecx;
@@ -124,10 +124,10 @@ void SysCalls::sys_setregid(Process &P, CONTEXT &ctx)
 	if(rgid != -1)
 	{
 		//only root can set real gid
-		if(P.m_uid == 0
-		|| P.m_euid == 0)
+		if(P->m_uid == 0
+		|| P->m_euid == 0)
 		{
-			P.m_gid = rgid;
+			P->m_gid = rgid;
 			ctx.Eax = 0;
 		}
 	}
@@ -136,25 +136,25 @@ void SysCalls::sys_setregid(Process &P, CONTEXT &ctx)
 	{
 		//root can set to anything
 		//users can set to any existing id
-		if(P.m_uid == 0
-		|| P.m_euid == 0
-		|| egid == P.m_gid
-		|| egid == P.m_egid
-		|| egid == P.m_saved_gid )
+		if(P->m_uid == 0
+		|| P->m_euid == 0
+		|| egid == P->m_gid
+		|| egid == P->m_egid
+		|| egid == P->m_saved_gid )
 		{
-			P.m_egid = egid;
+			P->m_egid = egid;
 			ctx.Eax = 0;
 		}
 	}
 
 }
 
-void SysCalls::sys_setreuid32(Process &P, CONTEXT &ctx)
+void SysCalls::sys_setreuid32(CONTEXT &ctx)
 {
-	sys_setreuid(P, ctx);
+	sys_setreuid(ctx);
 }
 
-void SysCalls::sys_setregid32(Process &P, CONTEXT &ctx)
+void SysCalls::sys_setregid32(CONTEXT &ctx)
 {
-	sys_setregid(P, ctx);
+	sys_setregid(ctx);
 }

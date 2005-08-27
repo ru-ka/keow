@@ -60,6 +60,7 @@
 #include "FilesystemKeow.h"
 #include "FilesystemProc.h"
 #include "IOHandler.h"
+#include "Device.h"
 #include "Process.h"
 #include "MountPoint.h"
 #include "KernelTable.h"

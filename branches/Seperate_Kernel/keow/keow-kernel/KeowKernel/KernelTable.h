@@ -36,6 +36,7 @@
 #include "File.h"
 #include "MountPoint.h"
 #include "Path.h"
+#include "DevConsole.h"
 
 
 class KernelTable  
@@ -62,10 +63,10 @@ public:
 	typedef list<MountPoint*> MountPointList;
 	MountPointList m_MountPoints;
 
-	typedef list<IOHandler*> DeviceList;
+	typedef list<Device*> DeviceList;
 	DeviceList m_Devices;
 
-	IOHandler * m_pMainConsole;
+	DevConsole * m_pMainConsole;
 };
 
 
@@ -79,7 +80,10 @@ struct KernelThreadLocals
 
 //refs to the global single copies
 extern KernelTable * g_pKernelTable;
-extern _declspec(thread) KernelThreadLocals * g_pKernelThreadLocals;
+
+static const int KTRACE_BUFFER_SIZE = 32000;
+extern _declspec(thread) char * g_pTraceBuffer;
+extern _declspec(thread) Process * P;
 
 
 #endif // !defined(AFX_KERNELTABLE_H__232A87EB_0936_4CC2_8C52_5412CEC21F68__INCLUDED_)

@@ -6,76 +6,42 @@
 #include "IOHNtConsole.h"
 
 
-const char * IOHNtConsole::ms_ConsoleProcessExe = "KeowConsole.exe";
-
 //////////////////////////////////////////////////////////////////////
 
-IOHNtConsole::IOHNtConsole()
+IOHNtConsole::IOHNtConsole(DevConsole* pConsole)
 {
-}
+	m_pConsole = pConsole;
 
-IOHNtConsole::IOHNtConsole(string Title)
-{
-	m_Title = Title;
-	m_hConsoleRead = m_hConsoleWrite = 0;
+	DuplicateHandle(GetCurrentProcess(), pConsole->m_hConsoleRead,
+		P->m_Win32PInfo.hProcess, &m_hRemoteConsoleRead,
+		0, FALSE, DUPLICATE_SAME_ACCESS);
 
-	//need a console process to do the actual terminal stuff
-
-	STARTUPINFO si;
-	PROCESS_INFORMATION pi;
-
-	//make stdin, stdout talk with us
-	SECURITY_ATTRIBUTES sa;
-	sa.nLength = sizeof(sa);
-	sa.bInheritHandle = TRUE;
-	sa.lpSecurityDescriptor = NULL;
-
-	memset(&si,0,sizeof(si));
-	si.cb = sizeof(si);
-	si.dwFlags = STARTF_USESTDHANDLES;
-	CreatePipe( &si.hStdInput, &m_hConsoleWrite, &sa, 0);
-	CreatePipe( &m_hConsoleRead, &si.hStdOutput, &sa, 0);
-	
-	string cmdline = ms_ConsoleProcessExe;
-	cmdline += " Keow Console";
-
-	CreateProcess(NULL, (char*)cmdline.c_str(), 0, 0, TRUE, 0, 0, 0, &si, &pi);
+	DuplicateHandle(GetCurrentProcess(), pConsole->m_hConsoleWrite,
+		P->m_Win32PInfo.hProcess, &m_hRemoteConsoleWrite,
+		0, FALSE, DUPLICATE_SAME_ACCESS);
 }
 
 IOHNtConsole::~IOHNtConsole()
 {
-	CloseHandle(m_hConsoleRead);
-	CloseHandle(m_hConsoleWrite);
-}
-
-bool IOHNtConsole::Write(LPVOID buffer, DWORD count, DWORD& written)
-{
-	DWORD ret = WriteFile(m_hConsoleWrite, buffer, count, &written, NULL);
-	FlushFileBuffers(m_hConsoleWrite);
-	return ret != 0;
-}
-
-bool IOHNtConsole::Read(LPVOID buffer, DWORD count, DWORD& read)
-{
-	return ReadFile(m_hConsoleRead, buffer, count, &read, NULL) != 0;
+	SysCallDll::CloseHandle(m_hRemoteConsoleRead);
+	SysCallDll::CloseHandle(m_hRemoteConsoleWrite);
 }
 
 
-HANDLE IOHNtConsole::GetWriteHandle()
+HANDLE IOHNtConsole::GetRemoteWriteHandle()
 {
-	return m_hConsoleWrite;
+	return m_hRemoteConsoleWrite;
 }
-HANDLE IOHNtConsole::GetReadHandle()
+HANDLE IOHNtConsole::GetRemoteReadHandle()
 {
-	return m_hConsoleRead;
+	return m_hRemoteConsoleRead;
 }
 
 
 IOHandler * IOHNtConsole::clone()
 {
-	IOHNtConsole * pC = new IOHNtConsole();
-	pC->m_Title = m_Title;
-	pC->m_hConsoleRead = m_hConsoleRead;
-	pC->m_hConsoleWrite = m_hConsoleWrite;
+	IOHNtConsole * pC = new IOHNtConsole(m_pConsole);
+	pC->m_hRemoteConsoleRead = m_hRemoteConsoleRead;
+	pC->m_hRemoteConsoleWrite = m_hRemoteConsoleWrite;
 	return pC;
 }

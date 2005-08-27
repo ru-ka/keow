@@ -75,7 +75,7 @@ void Path::SetUnixPath(string path)
 	else
 	{
 		//relative to current processes path
-		AppendUnixPath( g_pKernelThreadLocals->pProcess->m_UnixPwd.GetUnixPath() );
+		AppendUnixPath( P->m_UnixPwd.GetUnixPath() );
 	}
 
 	AppendUnixPath(path);

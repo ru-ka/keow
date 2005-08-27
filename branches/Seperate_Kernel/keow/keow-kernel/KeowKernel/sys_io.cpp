@@ -34,9 +34,8 @@
  * write bytes to a handle
  * sys_write(handle,text,len)
  */
-void SysCalls::sys_write(Process &P, CONTEXT &ctx)
+void SysCalls::sys_write(CONTEXT &ctx)
 {
-	DWORD dwWritten;
 	int fd;
 	IOHandler * ioh;
 	
@@ -47,32 +46,24 @@ void SysCalls::sys_write(Process &P, CONTEXT &ctx)
 		return;
 	}
 
-	ioh = P.m_OpenFiles[fd];
+	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
 		ctx.Eax = -EBADF;
 		return;
 	}
 
-	DWORD dwErr = SysCallDll::Write(ioh->GetWriteHandle(), (void*)ctx.Ecx, ctx.Edx, &dwWritten);
-	if(dwErr != 0)
-	{
-		ctx.Eax = -Win32ErrToUnixError(dwErr);
-		return;
-	}
-
-	ctx.Eax = dwWritten;
+	ctx.Eax = SysCallDll::write(ioh->GetRemoteWriteHandle(), (void*)ctx.Ecx, ctx.Edx);
 }
 
 /*
  * int writev(int filedes, struct iovec* v, int count)
  * this is a write from several buffers
  */
-void SysCalls::sys_writev(Process &P, CONTEXT &ctx)
+void SysCalls::sys_writev(CONTEXT &ctx)
 {
 	linux::iovec *pV = (linux::iovec *)ctx.Ecx;
 	int count = ctx.Edx;
-	DWORD dwWritten;
 	int fd;
 	IOHandler * ioh;
 	
@@ -83,21 +74,14 @@ void SysCalls::sys_writev(Process &P, CONTEXT &ctx)
 		return;
 	}
 
-	ioh = P.m_OpenFiles[fd];
+	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
 		ctx.Eax = -EBADF;
 		return;
 	}
 
-	DWORD dwErr = SysCallDll::WriteV(ioh->GetWriteHandle(), pV, count, &dwWritten);
-	if(dwErr != 0)
-	{
-		ctx.Eax = -Win32ErrToUnixError(dwErr);
-		return;
-	}
-
-	ctx.Eax = dwWritten;
+	ctx.Eax = SysCallDll::writev(ioh->GetRemoteWriteHandle(), pV, count);
 }
 
 /*****************************************************************************/
@@ -105,9 +89,8 @@ void SysCalls::sys_writev(Process &P, CONTEXT &ctx)
 /*
  * unsigned long sys_read(int fd, char*buf, unsigned long size)
  */
-void SysCalls::sys_read(Process &P, CONTEXT &ctx)
+void SysCalls::sys_read(CONTEXT &ctx)
 {
-	DWORD dwRead;
 	int fd;
 	IOHandler * ioh;
 	
@@ -118,21 +101,14 @@ void SysCalls::sys_read(Process &P, CONTEXT &ctx)
 		return;
 	}
 
-	ioh = P.m_OpenFiles[fd];
+	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
 		ctx.Eax = -EBADF;
 		return;
 	}
 
-	DWORD dwErr = SysCallDll::Read(ioh->GetWriteHandle(), (void*)ctx.Ecx, ctx.Edx, &dwRead);
-	if(dwErr != 0)
-	{
-		ctx.Eax = -Win32ErrToUnixError(dwErr);
-		return;
-	}
-
-	ctx.Eax = dwRead;
+	ctx.Eax = SysCallDll::read(ioh->GetRemoteWriteHandle(), (void*)ctx.Ecx, ctx.Edx);
 }
 
 /*****************************************************************************/
@@ -140,9 +116,9 @@ void SysCalls::sys_read(Process &P, CONTEXT &ctx)
 /*
  * access(filename, perms)
  */
-void SysCalls::sys_access(Process &P, CONTEXT &ctx)
+void SysCalls::sys_access(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	Path p;
 	DWORD attr;
@@ -177,9 +153,9 @@ void SysCalls::sys_access(Process &P, CONTEXT &ctx)
  * int open(path, access, perms)
  * open or create a file
  */
-void SysCalls::sys_open(Process &P, CONTEXT &ctx)
+void SysCalls::sys_open(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	Path p;
 	DWORD access = pCtx->Ecx;
@@ -258,9 +234,9 @@ void SysCalls::sys_open(Process &P, CONTEXT &ctx)
 /*
  * int close(handle)
  */
-void SysCalls::sys_close(Process &P, CONTEXT &ctx)
+void SysCalls::sys_close(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int fd;
 	IOHandler * ioh;
@@ -300,9 +276,9 @@ void SysCalls::sys_close(Process &P, CONTEXT &ctx)
 /*
  * int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
  */
-void SysCalls::sys_select(Process &P, CONTEXT &ctx)
+void SysCalls::sys_select(CONTEXT &ctx)
 {
-	sys__newselect(P,ctx);
+	sys__newselect(ctx);
 }
 
 
@@ -312,9 +288,9 @@ void SysCalls::sys_select(Process &P, CONTEXT &ctx)
 /*
  * int ioctl(int fd, int request, ...)
  */
-void SysCalls::sys_ioctl(Process &P, CONTEXT &ctx)
+void SysCalls::sys_ioctl(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int fd;
 	IOHandler * ioh;
@@ -344,16 +320,16 @@ void SysCalls::sys_ioctl(Process &P, CONTEXT &ctx)
 /*
  * int getcwd(char* buf, int size)
  */
-void SysCalls::sys_getcwd(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getcwd(CONTEXT &ctx)
 {
 	int cnt = (int)ctx.Ecx;
-	string cwd = P.m_UnixPwd.GetUnixPath();
+	string cwd = P->m_UnixPwd.GetUnixPath();
 	if(cnt < 1+cwd.length())
 	{
 		cnt = cwd.length();
 		cwd[cnt-1] = 0;
 	}
-	P.WriteMemory((ADDR)ctx.Ebx, cnt, (char*)cwd.c_str());
+	P->WriteMemory((ADDR)ctx.Ebx, cnt, (char*)cwd.c_str());
 	ctx.Eax = 0;
 }
 
@@ -365,9 +341,9 @@ void SysCalls::sys_getcwd(Process &P, CONTEXT &ctx)
 /*
  * int chdir(const char* path)
  */
-void SysCalls::sys_chdir(Process &P, CONTEXT &ctx)
+void SysCalls::sys_chdir(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	Path p;
 	p.SetUnixPath((const char*)pCtx->Ebx);
@@ -388,9 +364,9 @@ void SysCalls::sys_chdir(Process &P, CONTEXT &ctx)
 /*
  * int fchdir(int fd)
  */
-void SysCalls::sys_fchdir(Process &P, CONTEXT &ctx)
+void SysCalls::sys_fchdir(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int fd;
 	IOHandler * ioh;
@@ -420,9 +396,9 @@ void SysCalls::sys_fchdir(Process &P, CONTEXT &ctx)
 /*
  * int fcntl(int fd, int cmd, ...)
  */
-void SysCalls::sys_fcntl(Process &P, CONTEXT &ctx)
+void SysCalls::sys_fcntl(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int fd;
 	IOHandler * ioh;
@@ -507,9 +483,9 @@ void SysCalls::sys_fcntl(Process &P, CONTEXT &ctx)
 /*
  * int dup(int fd)
  */
-void SysCalls::sys_dup(Process &P, CONTEXT &ctx)
+void SysCalls::sys_dup(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int fdnew;
 	DWORD OldEcx;
@@ -537,9 +513,9 @@ void SysCalls::sys_dup(Process &P, CONTEXT &ctx)
 /*
  * int dup2(int fd, int newfd)
  */
-void SysCalls::sys_dup2(Process &P, CONTEXT &ctx)
+void SysCalls::sys_dup2(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int fdold, fdnew;
 	IOHandler *ioh_old;
@@ -593,9 +569,9 @@ void SysCalls::sys_dup2(Process &P, CONTEXT &ctx)
 /*
  * int getdents64(int fd, dirent64* d, int bytes)
  */
-void SysCalls::sys_getdents64(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getdents64(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	linux::dirent64 * s = (linux::dirent64 *)pCtx->Ecx;
 	int maxbytes = pCtx->Edx;
@@ -631,9 +607,9 @@ void SysCalls::sys_getdents64(Process &P, CONTEXT &ctx)
 /*
  * int stat(const char * name,  struct stat* buf)
  */
-void SysCalls::sys_stat(Process &P, CONTEXT &ctx)
+void SysCalls::sys_stat(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	const char * fname = (const char*)pCtx->Ebx;
 	linux::stat * buf = (linux::stat*)pCtx->Ecx;
@@ -672,9 +648,9 @@ void SysCalls::sys_stat(Process &P, CONTEXT &ctx)
 /*
  * int lstat(const char * name,  struct stat* buf)
  */
-void SysCalls::sys_lstat(Process &P, CONTEXT &ctx)
+void SysCalls::sys_lstat(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	const char * fname = (const char*)pCtx->Ebx;
 	linux::stat * buf = (linux::stat*)pCtx->Ecx;
@@ -714,9 +690,9 @@ void SysCalls::sys_lstat(Process &P, CONTEXT &ctx)
 /*
  * int fstat(int fd,  struct stat* buf)
  */
-void SysCalls::sys_fstat(Process &P, CONTEXT &ctx)
+void SysCalls::sys_fstat(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	linux::stat * buf = (linux::stat*)pCtx->Ecx;
 	int fd;
@@ -749,9 +725,9 @@ void SysCalls::sys_fstat(Process &P, CONTEXT &ctx)
 /*
  * int stat64(const char * name,  struct stat64* buf)
  */
-void SysCalls::sys_stat64(Process &P, CONTEXT &ctx)
+void SysCalls::sys_stat64(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	const char * fname = (const char*)pCtx->Ebx;
 	linux::stat64 * buf = (linux::stat64*)pCtx->Ecx;
@@ -790,9 +766,9 @@ void SysCalls::sys_stat64(Process &P, CONTEXT &ctx)
 /*
  * int lstat64(const char * name,  struct stat64* buf)
  */
-void SysCalls::sys_lstat64(Process &P, CONTEXT &ctx)
+void SysCalls::sys_lstat64(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	const char * fname = (const char*)pCtx->Ebx;
 	linux::stat64 * buf = (linux::stat64*)pCtx->Ecx;
@@ -832,9 +808,9 @@ void SysCalls::sys_lstat64(Process &P, CONTEXT &ctx)
 /*
  * int fstat64(int fd,  struct stat64* buf)
  */
-void SysCalls::sys_fstat64(Process &P, CONTEXT &ctx)
+void SysCalls::sys_fstat64(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	linux::stat64 * buf = (linux::stat64*)pCtx->Ecx;
 	int fd;
@@ -873,9 +849,9 @@ void SysCalls::sys_fstat64(Process &P, CONTEXT &ctx)
 /*
  * int readlink(path, buf, size)
  */
-void SysCalls::sys_readlink(Process &P, CONTEXT &ctx)
+void SysCalls::sys_readlink(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int c;
 
@@ -918,9 +894,9 @@ void SysCalls::sys_readlink(Process &P, CONTEXT &ctx)
 /*
  * int pipe(int filesdes[2])
  */
-void SysCalls::sys_pipe(Process &P, CONTEXT &ctx)
+void SysCalls::sys_pipe(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int *fds = (int*)pCtx->Ebx;
 
@@ -957,9 +933,9 @@ void SysCalls::sys_pipe(Process &P, CONTEXT &ctx)
 /*
  * int link(olfpath, newpath)
  */
-void SysCalls::sys_link(Process &P, CONTEXT &ctx)
+void SysCalls::sys_link(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	Path OldP(false), NewP(false);
 
@@ -977,9 +953,9 @@ void SysCalls::sys_link(Process &P, CONTEXT &ctx)
 /*
  * int unlink(path)
  */
-void SysCalls::sys_unlink(Process &P, CONTEXT &ctx)
+void SysCalls::sys_unlink(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	Path p(false);
 	p.SetUnixPath((const char *)pCtx->Ebx);
@@ -1018,9 +994,9 @@ void SysCalls::sys_unlink(Process &P, CONTEXT &ctx)
 /*
  * int _llseek(int fd, ulong offset_high, ulong offset_low, loff_t* result, uint whence)
  */
-void SysCalls::sys__llseek(Process &P, CONTEXT &ctx)	
+void SysCalls::sys__llseek(CONTEXT &ctx)	
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int fd = pCtx->Ebx;
 	LONG offset_high = pCtx->Ecx;
@@ -1078,9 +1054,9 @@ void SysCalls::sys__llseek(Process &P, CONTEXT &ctx)
 /*
  * off_t lseek(int fildes, off_t offset, int whence)
  */
-void SysCalls::sys_lseek(Process &P, CONTEXT &ctx)
+void SysCalls::sys_lseek(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	//use llseek
 	CONTEXT ctx2;
@@ -1110,9 +1086,9 @@ void SysCalls::sys_lseek(Process &P, CONTEXT &ctx)
 /*
  * int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
  */
-void SysCalls::sys__newselect(Process &P, CONTEXT &ctx)
+void SysCalls::sys__newselect(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int numFds = pCtx->Ebx;
 	linux::fd_set *pReadFds = (linux::fd_set*)pCtx->Ecx;
@@ -1196,9 +1172,9 @@ void SysCalls::sys__newselect(Process &P, CONTEXT &ctx)
  * int mkdir(path)
  * create a new directory
  */
-void SysCalls::sys_mkdir(Process &P, CONTEXT &ctx)
+void SysCalls::sys_mkdir(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	DWORD mode = pCtx->Ecx;
 
@@ -1220,9 +1196,9 @@ void SysCalls::sys_mkdir(Process &P, CONTEXT &ctx)
  * int rmdir(path)
  * remove a directory - it must be empty
  */
-void SysCalls::sys_rmdir(Process &P, CONTEXT &ctx)
+void SysCalls::sys_rmdir(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	Path p(false);
 	p.SetUnixPath((const char *)pCtx->Ebx);
@@ -1262,9 +1238,9 @@ void SysCalls::sys_rmdir(Process &P, CONTEXT &ctx)
 /*
  * int rename(oldpath, newpath)
  */
-void SysCalls::sys_rename(Process &P, CONTEXT &ctx)
+void SysCalls::sys_rename(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	Path OldP, NewP;
 

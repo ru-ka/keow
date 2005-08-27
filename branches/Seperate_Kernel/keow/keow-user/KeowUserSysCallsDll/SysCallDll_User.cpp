@@ -26,52 +26,52 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "includes.h"
-#include "SysCallDll.h"
 
+
+//How to return from these functions so that the kernel/debugger see's it
+
+#define RET(val)  { DWORD __x=val; {__asm mov eax, __x  __asm int 3}; return val; }
 
 ////////////////////////////////////////////////////////////////////////
 
 DWORD _stdcall SysCallDll::CloseHandle(HANDLE h)
 {
-	DWORD stack[] = {
-		(DWORD)h,
-	};
-	return P->InjectFunctionCall(P->SysCallAddr.CloseHandle, &stack, sizeof(stack));
+	RET( ::CloseHandle(h) );
 }
 
 
 DWORD _stdcall SysCallDll::exit(UINT exitcode)
 {
-	return P->InjectFunctionCall(P->SysCallAddr.exit, &exitcode, sizeof(UINT));
+	::ExitProcess(exitcode);
+
+	//never get here
+	RET(-1);
 }
 
 
 DWORD _stdcall SysCallDll::write(HANDLE h, LPVOID buf, DWORD len)
 {
-	DWORD stack[] = {
-		(DWORD)h,
-		(DWORD)buf,
-		len
-	};
-	return P->InjectFunctionCall(P->SysCallAddr.write, &stack, sizeof(stack));
+	DWORD dw;
+	DWORD n = WriteFile(h, buf, len, &dw, NULL);
+	RET(n);
 }
 
 DWORD _stdcall SysCallDll::writev(HANDLE h, linux::iovec *pVec, int count)
 {
-	DWORD stack[] = {
-		(DWORD)h,
-		(DWORD)pVec,
-		count
-	};
-	return P->InjectFunctionCall(P->SysCallAddr.writev, &stack, sizeof(stack));
+	int total=0;
+	while(count--)
+	{
+		DWORD dw=0;
+		if(!WriteFile(h, pVec->iov_base, pVec->iov_len, &dw, NULL))
+			RET(GetLastError());
+		total += dw;
+	}
+	RET(total);
 }
 
 DWORD _stdcall SysCallDll::read(HANDLE h, LPVOID buf, DWORD len)
 {
-	DWORD stack[] = {
-		(DWORD)h,
-		(DWORD)buf,
-		len
-	};
-	return P->InjectFunctionCall(P->SysCallAddr.read, &stack, sizeof(stack));
+	DWORD dw;
+	DWORD n = ReadFile(h, buf, len, &dw, NULL);
+	RET(n);
 }

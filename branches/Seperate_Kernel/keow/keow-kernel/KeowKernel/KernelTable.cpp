@@ -54,7 +54,7 @@ KernelTable::KernelTable()
 	SysCalls::InitSysCallTable();
 
 	//main console
-	m_pMainConsole = new IOHNtConsole("Main Console");
+	m_pMainConsole = new DevConsole(0);
 
 }
 

@@ -38,16 +38,16 @@
  * It starts at process creation time as the end of the bss segment,
  * and continues to grow (and shrink) from there.
  */
-void SysCalls::sys_brk(Process &P, CONTEXT &ctx)
+void SysCalls::sys_brk(CONTEXT &ctx)
 {
 	ADDR p;
-	ADDR old_brk = P.m_ElfLoadData.brk;
+	ADDR old_brk = P->m_ElfLoadData.brk;
 	ADDR new_brk = (ADDR)ctx.Ebx;
 
 	if(new_brk == 0)
 	{
 		//return current location
-		ctx.Eax = (DWORD)P.m_ElfLoadData.brk;
+		ctx.Eax = (DWORD)P->m_ElfLoadData.brk;
 		ktrace("brk(0) = 0x%08lx\n", ctx.Eax);
 		return;
 	}
@@ -74,7 +74,7 @@ void SysCalls::sys_brk(Process &P, CONTEXT &ctx)
 		//ZeroMemory(old_brk, new_brk-old_brk);
 	}
 
-	P.m_ElfLoadData.brk = new_brk;
+	P->m_ElfLoadData.brk = new_brk;
 	ktrace("brk(x) = 0x%08lx\n", new_brk);
 	ctx.Eax = (DWORD)new_brk;
 	return;
@@ -101,9 +101,9 @@ namespace linux {
  *
  * Map a section of a file into memory, or alternatively a peice of swap file (no fd). 
  */
-void SysCalls::sys_mmap(Process &P, CONTEXT &ctx)
+void SysCalls::sys_mmap(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	linux::mmap_arg_struct * args = (linux::mmap_arg_struct *)pCtx->Ebx;
 	DWORD err = -EINVAL;
@@ -271,9 +271,9 @@ void SysCalls::sys_mmap(Process &P, CONTEXT &ctx)
 /*
  * void munmap(void* start, unsigned long len)
  */
-void SysCalls::sys_munmap(Process &P, CONTEXT &ctx)
+void SysCalls::sys_munmap(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	ADDR addr = (ADDR)pCtx->Ebx;
 	DWORD len = pCtx->Ecx;
@@ -301,7 +301,7 @@ void SysCalls::sys_munmap(Process &P, CONTEXT &ctx)
 /*
  * int mprotect(const void *addr, size_t len, int prot)
  */
-void SysCalls::sys_mprotect(Process &P, CONTEXT &ctx)
+void SysCalls::sys_mprotect(CONTEXT &ctx)
 {
 	void* addr = (void*)ctx.Ebx;
 	DWORD len = ctx.Ecx;
