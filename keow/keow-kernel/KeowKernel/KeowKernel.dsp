@@ -97,6 +97,14 @@ SOURCE=.\ConstantMapping.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\DevConsole.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\Device.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\File.cpp
 # End Source File
 # Begin Source File
@@ -202,6 +210,14 @@ SOURCE=.\Utils.cpp
 # Begin Source File
 
 SOURCE=.\ConstantMapping.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\DevConsole.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\Device.h
 # End Source File
 # Begin Source File
 

@@ -38,11 +38,8 @@ public:
 	IOHandler();
 	virtual ~IOHandler();
 
-	virtual bool Write(void* buffer, DWORD count, DWORD& written) = 0;
-	virtual bool Read(void* buffer, DWORD count, DWORD& read) = 0;
-
-	virtual HANDLE GetWriteHandle() = 0;
-	virtual HANDLE GetReadHandle() = 0;
+	virtual HANDLE GetRemoteWriteHandle() = 0;
+	virtual HANDLE GetRemoteReadHandle() = 0;
 
 	virtual IOHandler* clone() = 0;
 };

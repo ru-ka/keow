@@ -34,10 +34,10 @@
  * exit process with a return code
  * EBX = exit code
  */
-void SysCalls::sys_exit(Process &P, CONTEXT &ctx)
+void SysCalls::sys_exit(CONTEXT &ctx)
 {
 	ktrace("Process terminating, code 0x%08lx\n", ctx.Ebx);
-	SysCallDll::ExitProcess((UINT)ctx.Ebx);
+	SysCallDll::exit((UINT)ctx.Ebx);
 }
 
 
@@ -47,9 +47,9 @@ void SysCalls::sys_exit(Process &P, CONTEXT &ctx)
 /*
  * int sigaction(int signum, const struct old_sigaction *act, struct old_sigaction *oldact);
  */
-void SysCalls::sys_sigaction(Process &P, CONTEXT &ctx)
+void SysCalls::sys_sigaction(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	DWORD signum = pCtx->Ebx;
 	linux::old_sigaction *act = (linux::old_sigaction*)pCtx->Ecx;
@@ -88,9 +88,9 @@ void SysCalls::sys_sigaction(Process &P, CONTEXT &ctx)
 /*
  * int sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
  */
-void SysCalls::sys_sigprocmask(Process &P, CONTEXT &ctx)
+void SysCalls::sys_sigprocmask(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	linux::sigset_t *set = (linux::sigset_t*)pCtx->Ecx;
 	linux::sigset_t *oldset = (linux::sigset_t*)pCtx->Edx;
@@ -139,9 +139,9 @@ void SysCalls::sys_sigprocmask(Process &P, CONTEXT &ctx)
 /*
  * pid_t getpgrp()
  */
-void SysCalls::sys_getpgrp(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getpgrp(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_ProcessGroupPID;
+	ctx.Eax = P->m_ProcessGroupPID;
 }
 
 /*****************************************************************************/
@@ -149,11 +149,11 @@ void SysCalls::sys_getpgrp(Process &P, CONTEXT &ctx)
 /*
  * pid_t getpgid()
  */
-void SysCalls::sys_getpgid(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getpgid(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
-	ctx.Eax = P.m_ProcessGroupGID;
+	ctx.Eax = P->m_ProcessGroupGID;
 #endif
 }
 
@@ -163,9 +163,9 @@ void SysCalls::sys_getpgid(Process &P, CONTEXT &ctx)
 /*
  * pid_t setpgrp(int pid, int pgid)
  */
-void SysCalls::sys_setpgid(Process &P, CONTEXT &ctx)
+void SysCalls::sys_setpgid(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	DWORD pid = pCtx->Ebx;
 	DWORD pgid = pCtx->Ecx;
@@ -193,9 +193,9 @@ void SysCalls::sys_setpgid(Process &P, CONTEXT &ctx)
 /*
  * pid_t fork()
  */
-void SysCalls::sys_fork(Process &P, CONTEXT &ctx)
+void SysCalls::sys_fork(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	pCtx->Eax = DoFork(pCtx);
 #endif
@@ -204,9 +204,9 @@ void SysCalls::sys_fork(Process &P, CONTEXT &ctx)
 /*
  * int execve(filename, argv[], envp[])
  */
-void SysCalls::sys_execve(Process &P, CONTEXT &ctx)
+void SysCalls::sys_execve(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	pCtx->Eax = DoExecve((const char*)pCtx->Ebx, (char**)pCtx->Ecx, (char**)pCtx->Edx);
 #endif
@@ -217,9 +217,9 @@ void SysCalls::sys_execve(Process &P, CONTEXT &ctx)
 /*
  * pid_t wait4(pid_t pid, int *status, int options, rusage *ru)
  */
-void SysCalls::sys_wait4(Process &P, CONTEXT &ctx)
+void SysCalls::sys_wait4(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	int wait_pid = (int)pCtx->Ebx;
 	int* status = (int*)pCtx->Ecx;

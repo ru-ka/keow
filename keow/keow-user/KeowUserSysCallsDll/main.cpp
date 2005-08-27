@@ -27,6 +27,7 @@
 
 
 //global
+class SysCallDll;
 SysCallDll::RemoteAddrInfo AddrInfo;
 
 static void LoadAddressInfo()
@@ -35,14 +36,27 @@ static void LoadAddressInfo()
 
 #define SET_ADDR(func) AddrInfo.##func = (LPVOID)(SysCallDll::##func )
 
-	SET_ADDR(Write);
-	SET_ADDR(WriteV);
-	SET_ADDR(Read);
-	SET_ADDR(ExitProcess);
+	SET_ADDR(CloseHandle);
+	SET_ADDR(write);
+	SET_ADDR(writev);
+	SET_ADDR(read);
+	SET_ADDR(exit);
 
 #undef SET_ADDR
 }
 
+
+static char g_TraceBuffer[1024];
+
+void ktrace(const char * format, ...)
+{
+	va_list va;
+	va_start(va, format);
+
+	wvsprintf(g_TraceBuffer, format, va);
+
+	OutputDebugString(g_TraceBuffer);
+}
 
 
 BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID p)

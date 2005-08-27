@@ -58,7 +58,7 @@ public:
 	DWORD StartNewImageRunning();
 	static Process* StartInit(PID pid, Path& path, char ** InitialEnvironment);
 
-	DWORD InjectFunctionCall(void *func, void *pStackData, int nStackDataSize, bool bWaitForReply);
+	DWORD InjectFunctionCall(void *func, void *pStackData, int nStackDataSize);
 
 	virtual ~Process();
 

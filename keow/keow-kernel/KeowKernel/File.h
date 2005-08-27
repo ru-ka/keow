@@ -38,19 +38,17 @@
 class IOHFile : public IOHandler
 {
 public:
-	IOHFile();
+	IOHFile(Path path);
 	virtual ~IOHFile();
 
-	virtual bool Write(void* buffer, DWORD count, DWORD& written);
-	virtual bool Read(void* buffer, DWORD count, DWORD& read);
-
-	virtual HANDLE GetWriteHandle();
-	virtual HANDLE GetReadHandle();
+	virtual HANDLE GetRemoteWriteHandle();
+	virtual HANDLE GetRemoteReadHandle();
 
 	virtual IOHandler* clone();
 
 protected:
-	HANDLE m_Handle;
+	Path m_Path;
+	HANDLE m_RemoteHandle;
 };
 
 #endif // !defined(AFX_FILE_H__5FA578F4_1C37_466C_BED7_3CE1E76298CB__INCLUDED_)

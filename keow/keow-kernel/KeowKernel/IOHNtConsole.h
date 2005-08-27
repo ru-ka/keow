@@ -12,23 +12,17 @@
 class IOHNtConsole : public IOHandler
 {
 public:
-	IOHNtConsole(string Title);
+	IOHNtConsole(DevConsole * pConsole);
 	virtual ~IOHNtConsole();
 
-	virtual bool Write(void* buffer, DWORD count, DWORD& written);
-	virtual bool Read(void* buffer, DWORD count, DWORD& read);
-
-	virtual HANDLE GetWriteHandle();
-	virtual HANDLE GetReadHandle();
+	virtual HANDLE GetRemoteWriteHandle();
+	virtual HANDLE GetRemoteReadHandle();
 
 	virtual IOHandler* clone();
 
 protected:
-	IOHNtConsole();
-	static const char * ms_ConsoleProcessExe;
-
-	string m_Title;
-	HANDLE m_hConsoleRead, m_hConsoleWrite;
+	HANDLE m_hRemoteConsoleRead, m_hRemoteConsoleWrite;
+	DevConsole * m_pConsole;
 };
 
 #endif // !defined(AFX_IOHNTCONSOLE_H__0DCCBAED_CE76_4433_A2D4_0FD17F465626__INCLUDED_)

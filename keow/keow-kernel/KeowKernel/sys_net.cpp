@@ -33,7 +33,7 @@
 /*
  * int socketcall(int call, unsigned long *args);
  */
-void SysCalls::sys_socketcall(Process &P, CONTEXT &ctx)
+void SysCalls::sys_socketcall(CONTEXT &ctx)
 {
 	ktrace("IMPLEMENT sys_socketcall (unix domain socket?, not inet?)\n");
 	ctx.Eax = -ENOSYS;

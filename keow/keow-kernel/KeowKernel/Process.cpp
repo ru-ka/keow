@@ -27,7 +27,7 @@
 
 #include "includes.h"
 #include "Process.h"
-
+#include "IohNtConsole.h"
 #include "SysCalls.h"
 
 
@@ -72,11 +72,6 @@ Process::Process()
 
 	m_dwExitCode = -SIGABRT; //in case not set later
 
-	//std in,out,err
-	m_OpenFiles[0] = g_pKernelTable->m_pMainConsole->clone();
-	m_OpenFiles[1] = g_pKernelTable->m_pMainConsole->clone();
-	m_OpenFiles[2] = g_pKernelTable->m_pMainConsole->clone();
-
 	m_hWaitTerminatingEvent = CreateEvent(NULL,FALSE,FALSE,NULL);
 
 	memset(&SysCallAddr, 0, sizeof(SysCallAddr));
@@ -108,7 +103,7 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialEnvironment)
 	set stack/cpu contexts
 	let process run
 	*/
-	Process * P = new Process();
+	P = new Process();
 	P->m_Pid = pid;
 	P->m_ParentPid = 0;
 	P->m_ProcessFileImage = path;
@@ -158,10 +153,10 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialEnvironment)
 /*static*/ DWORD WINAPI Process::KernelProcessHandlerMain(LPVOID param)
 {
 	//need thread stuff
-	g_pKernelThreadLocals = new KernelThreadLocals();
-	g_pKernelThreadLocals->pProcess = (Process*)param;
+	g_pTraceBuffer = new char [KTRACE_BUFFER_SIZE];
+	P = (Process*)param;
 
-	g_pKernelThreadLocals->pProcess->m_bInWin32Setup = true;
+	P->m_bInWin32Setup = true;
 
 	//Need COM
 	CoInitialize(NULL);//Ex(NULL, COINIT_MULTITHREADED);
@@ -169,27 +164,28 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialEnvironment)
 	//Start the stub
 	STARTUPINFO si;
 	GetStartupInfo(&si);
-	if(CreateProcess(NULL, (char*)KEOW_PROCESS_STUB, NULL, NULL, FALSE, DEBUG_ONLY_THIS_PROCESS|DEBUG_PROCESS, NULL, g_pKernelThreadLocals->pProcess->m_UnixPwd.GetWin32Path().c_str(), &si, &g_pKernelThreadLocals->pProcess->m_Win32PInfo) == FALSE)
+	if(CreateProcess(NULL, (char*)KEOW_PROCESS_STUB, NULL, NULL, FALSE, DEBUG_ONLY_THIS_PROCESS|DEBUG_PROCESS, NULL, P->m_UnixPwd.GetWin32Path().c_str(), &si, &P->m_Win32PInfo) == FALSE)
 	{
 		//failed
-		g_pKernelThreadLocals->pProcess->m_Win32PInfo.hProcess = NULL;
-		SetEvent(g_pKernelThreadLocals->pProcess->m_hProcessStartEvent);
+		P->m_Win32PInfo.hProcess = NULL;
+		SetEvent(P->m_hProcessStartEvent);
 		return 0;
 	}
 
 	//started now
-	SetEvent(g_pKernelThreadLocals->pProcess->m_hProcessStartEvent);
+	SetEvent(P->m_hProcessStartEvent);
 
 
 	//start the debugging stuff
-	g_pKernelThreadLocals->pProcess->DebuggerLoop();
+	P->DebuggerLoop();
 	ktrace("process handler debug loop exitted\n");
 
 
 	//cleanup
 
-	//delete thread stuff
-	delete g_pKernelThreadLocals;
+	//clean up thread local stuff
+	delete g_pTraceBuffer;
+	P=NULL;
 
 	CoUninitialize();
 
@@ -297,6 +293,19 @@ void Process::ConvertProcessToKeow()
 	GetThreadContext(m_Win32PInfo.hThread, &ctx);
 	ReadMemory(&SysCallAddr, (ADDR)ctx.Eax, sizeof(SysCallAddr));
 
+#ifdef _DEBUG
+	//ensure correct coding - all functions are populated
+	for(int a=0; a<sizeof(SysCallAddr); a+=sizeof(DWORD))
+	{
+		DWORD * pa = (DWORD*)( ((LPBYTE)&SysCallAddr) + a );
+		if(*pa == 0)
+		{
+			ktrace("Bad SysCallDll coding in dll\n");
+			DebugBreak();
+		}
+	}
+#endif
+
 	//disable single-step that the stub started (to alert us)
 	ctx.EFlags &= ~(0x100L); //8th bit is trap flag
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
@@ -319,6 +328,12 @@ void Process::ConvertProcessToKeow()
 
 	//not fork or exec, must be 'init', the very first process
 	LoadImage(m_ProcessFileImage, false);
+
+	//std in,out,err
+	m_OpenFiles[0] = new IOHNtConsole(g_pKernelTable->m_pMainConsole);
+	m_OpenFiles[1] = new IOHNtConsole(g_pKernelTable->m_pMainConsole);
+	m_OpenFiles[2] = new IOHNtConsole(g_pKernelTable->m_pMainConsole);
+
 }
 
 
@@ -354,7 +369,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 				SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
 				//handle int 80h
-				SysCalls::HandleInt80SysCall(*this, ctx);
+				SysCalls::HandleInt80SysCall(ctx);
 
 				//set any context changes
 				SetThreadContext(m_Win32PInfo.hThread, &ctx);
@@ -967,7 +982,7 @@ void Process::HandleSignal(int sig)
 	{
 	case SIGKILL:
 		ktrace("killed - sigkill\n");
-		SysCallDll::ExitProcess(-sig);
+		SysCallDll::exit(-sig);
 		return;
 	case SIGSTOP:
 		ktrace("stopping on sigstop\n");
@@ -1043,7 +1058,7 @@ void Process::HandleSignal(int sig)
 		case SIGPOLL:
 		case SIGPROF:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
-			SysCallDll::ExitProcess(-sig);
+			SysCallDll::exit(-sig);
 			break;
 
 		//ptrace
@@ -1062,13 +1077,13 @@ void Process::HandleSignal(int sig)
 		case SIGSYS:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			GenerateCoreDump();
-			SysCallDll::ExitProcess(-sig);
+			SysCallDll::exit(-sig);
 			break;
 
 		default:
 			ktrace("IMPLEMENT default action for signal %d\n", sig);
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
-			SysCallDll::ExitProcess(-sig);
+			SysCallDll::exit(-sig);
 			break;
 		}
 	}
@@ -1146,7 +1161,7 @@ void Process::GenerateCoreDump()
 	DebugBreak();
 }
 
-DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSize, bool bWaitForReply)
+DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSize)
 {
 	//Expect that the func is declared as _stdcall calling convention.
 	//(actually it ought to be from the SysCallDll::RemoteAddrInfo) 
@@ -1167,17 +1182,15 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 
 	ADDR addr = (ADDR)TempCtx.Esp;
-	ADDR ParamAddr = addr;
 
+	WriteMemory(addr, sizeof(DWORD), &OrigCtx.Eip); //return address
+	addr += sizeof(DWORD);
+
+	ADDR ParamAddr = addr;
 	WriteMemory(addr, nStackDataSize, pStackData);
 	addr += nStackDataSize;
 
-	WriteMemory(addr, sizeof(DWORD), &OrigCtx.Eip); //return address
 
-
-	//need to monitor the function?
-	if(!bWaitForReply)
-		return 0;
 
 
 	//resume the process to let it run the function
@@ -1186,7 +1199,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 	DEBUG_EVENT evt;
 	for(;;) {
-		//SetSingleStep(true); //debug
+		SetSingleStep(true); //debug
 
 		ContinueDebugEvent(m_Win32PInfo.dwProcessId, m_Win32PInfo.dwThreadId, DBG_CONTINUE);
 
@@ -1202,7 +1215,15 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 				CONTEXT ctx;
 				ctx.ContextFlags = CONTEXT_FULL; //preserve everything
 				GetThreadContext(m_Win32PInfo.hThread, &ctx);
-				ktrace("single step, eip 0x%08lx\n", ctx.Eip);
+				ktrace("syscalldll single step, eip 0x%08lx\n", ctx.Eip);
+			}
+			else
+			{
+				//not expecting an exception in the SysCallDll
+				ktrace("unexpected exception from SysCallDll: 0x%8lx\n", evt.u.Exception.ExceptionRecord.ExceptionCode);
+#ifdef _DEBUG
+				DebugBreak();
+#endif
 			}
 		}
 
@@ -1227,6 +1248,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	GetThreadContext(m_Win32PInfo.hThread, &TempCtx);
 	DWORD dwRet = TempCtx.Eax;
 
+	//Eax will be set (if required) by the system call handler that requested the injection
 	SetThreadContext(m_Win32PInfo.hThread, &OrigCtx);
 
 	return dwRet;

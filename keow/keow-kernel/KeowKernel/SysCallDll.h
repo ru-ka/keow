@@ -42,26 +42,36 @@ class Process; //exception to the rule, just to allow a pointer to the associate
 //This means the kernel can inject a call (&stack params) into the user process
 //and not need to inject any stack cleanup code.
 
-//WE DO expect that EAX will contain any return code if needed
+//On both platforms (linux/win32) the function return value is in EAX.
+//So all functions return a DWORD.
+//The functions try to return the appropriate Unix error code
+//
 
 class SysCallDll
 {
 public:
 	//functionality provided
-	static void _stdcall ExitProcess(UINT exitcode);
 
-	static DWORD _stdcall Write(HANDLE h, LPVOID buf, DWORD len, DWORD *pdwWritten);
-	static DWORD _stdcall WriteV(HANDLE h, linux::iovec *pVec, int count, DWORD *pdwWritten);
+#define SC static DWORD __stdcall
 
-	static DWORD _stdcall Read(HANDLE h, LPVOID buf, DWORD len, DWORD *pdwRead);
+	SC CloseHandle(HANDLE h);
 
+	SC exit(UINT exitcode);
+
+	SC write(HANDLE h, LPVOID buf, DWORD len);
+	SC writev(HANDLE h, linux::iovec *pVec, int count);
+
+	SC read(HANDLE h, LPVOID buf, DWORD len);
+
+#undef SC
 
 	//corresponding addresses
 	struct RemoteAddrInfo {
-		LPVOID ExitProcess;
-		LPVOID Write;
-		LPVOID WriteV;
-		LPVOID Read;
+		LPVOID CloseHandle;
+		LPVOID exit;
+		LPVOID write;
+		LPVOID writev;
+		LPVOID read;
 	};
 };
 

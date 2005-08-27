@@ -35,9 +35,9 @@
  * int  mount(const char *source, const char *target, const char *filesystemtype,
  *				unsigned long mountflags, const void *data);
  */
-void SysCalls::sys_mount(Process &P, CONTEXT &ctx)
+void SysCalls::sys_mount(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	const char *source = (const char*)pCtx->Ebx;
 	const char *target = (const char*)pCtx->Ecx;
@@ -133,9 +133,9 @@ void SysCalls::sys_mount(Process &P, CONTEXT &ctx)
 /*
  * int umount(const char *target)
  */
-void SysCalls::sys_umount(Process &P, CONTEXT &ctx)
+void SysCalls::sys_umount(CONTEXT &ctx)
 {
-	sys_unhandled(P,ctx);
+	sys_unhandled(ctx);
 #if 0
 	const char *target = (const char*)pCtx->Ebx;
 	if(target==0)

@@ -33,7 +33,7 @@
 /*
  *  uname(struct utsname *name)
  */
-void SysCalls::sys_uname(Process &P, CONTEXT &ctx)
+void SysCalls::sys_uname(CONTEXT &ctx)
 {
 	linux::new_utsname * pU = (linux::new_utsname *)ctx.Ebx;
 	linux::new_utsname U;
@@ -46,7 +46,7 @@ void SysCalls::sys_uname(Process &P, CONTEXT &ctx)
 	StringCbCopy(U.machine, sizeof(U.machine), "i386");  //we need this value?
 	U.domainname[0] = 0;
 
-	P.WriteMemory((ADDR)pU, siz, &U);
+	P->WriteMemory((ADDR)pU, siz, &U);
 
 	ctx.Eax = 0;
 }
@@ -57,9 +57,9 @@ void SysCalls::sys_uname(Process &P, CONTEXT &ctx)
 /*
  * int getpid()
  */
-void SysCalls::sys_getpid(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getpid(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_Pid;
+	ctx.Eax = P->m_Pid;
 }
 
 /*****************************************************************************/
@@ -67,9 +67,9 @@ void SysCalls::sys_getpid(Process &P, CONTEXT &ctx)
 /*
  * int getppid()
  */
-void SysCalls::sys_getppid(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getppid(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_ParentPid;
+	ctx.Eax = P->m_ParentPid;
 }
 
 
@@ -78,10 +78,10 @@ void SysCalls::sys_getppid(Process &P, CONTEXT &ctx)
 /*
  * mode_t umask(mode_t mask)
  */
-void SysCalls::sys_umask(Process &P, CONTEXT &ctx)
+void SysCalls::sys_umask(CONTEXT &ctx)
 {
-	ctx.Eax = P.m_umask;
-	P.m_umask = ctx.Ebx;
+	ctx.Eax = P->m_umask;
+	P->m_umask = ctx.Ebx;
 }
 
 
@@ -90,7 +90,7 @@ void SysCalls::sys_umask(Process &P, CONTEXT &ctx)
 /*
  * time_t time(time_t *t);
  */
-void SysCalls::sys_time(Process &P, CONTEXT &ctx)
+void SysCalls::sys_time(CONTEXT &ctx)
 {
 	SYSTEMTIME st;
 	FILETIME ft;
@@ -101,7 +101,7 @@ void SysCalls::sys_time(Process &P, CONTEXT &ctx)
 	ctx.Eax = FILETIME_TO_TIME_T(ft);
 
 	if(ctx.Ebx)
-		P.WriteMemory((ADDR)ctx.Ebx, sizeof(DWORD), &ctx.Eax);
+		P->WriteMemory((ADDR)ctx.Ebx, sizeof(DWORD), &ctx.Eax);
 }
 
 
@@ -110,7 +110,7 @@ void SysCalls::sys_time(Process &P, CONTEXT &ctx)
 /*
  * long getrlimit(uint resource, rlimit* rlim)
  */
-void SysCalls::sys_ugetrlimit(Process &P, CONTEXT &ctx)
+void SysCalls::sys_ugetrlimit(CONTEXT &ctx)
 {
 	linux::rlimit *pRLim = (linux::rlimit *)ctx.Ecx;
 	linux::rlimit RLim;
@@ -162,13 +162,13 @@ void SysCalls::sys_ugetrlimit(Process &P, CONTEXT &ctx)
 		return;
 	}
 
-	P.WriteMemory((ADDR)pRLim, sizeof(RLim), &RLim);
+	P->WriteMemory((ADDR)pRLim, sizeof(RLim), &RLim);
 }
 
 /*
  * same as ugetrlimit except unsigned values
  */
-void SysCalls::sys_getrlimit(Process &P, CONTEXT &ctx)
+void SysCalls::sys_getrlimit(CONTEXT &ctx)
 {
 	linux::rlimit *pRLim = (linux::rlimit *)ctx.Ecx;
 	linux::rlimit RLim;
@@ -220,7 +220,7 @@ void SysCalls::sys_getrlimit(Process &P, CONTEXT &ctx)
 		return;
 	}
 
-	P.WriteMemory((ADDR)pRLim, sizeof(RLim), &RLim);
+	P->WriteMemory((ADDR)pRLim, sizeof(RLim), &RLim);
 }
 
 
@@ -230,7 +230,7 @@ void SysCalls::sys_getrlimit(Process &P, CONTEXT &ctx)
 /*
  * int reboot(int magic, int magic2, int flag, void *arg);
  */
-void SysCalls::sys_reboot(Process &P, CONTEXT &ctx)
+void SysCalls::sys_reboot(CONTEXT &ctx)
 {
 	ctx.Eax = -EINVAL;
 
@@ -262,7 +262,7 @@ void SysCalls::sys_reboot(Process &P, CONTEXT &ctx)
 /*
  * int kill(pid, sig)
  */
-void SysCalls::sys_kill(Process &P, CONTEXT &ctx)
+void SysCalls::sys_kill(CONTEXT &ctx)
 {
 	PID pid = ctx.Ebx;
 	unsigned int sig = ctx.Ecx;
@@ -311,7 +311,7 @@ void SysCalls::sys_kill(Process &P, CONTEXT &ctx)
 	PID pgrp = 0;
 
 	if(pid==0)
-		pgrp = P.m_Pid; //our group
+		pgrp = P->m_Pid; //our group
 	else
 		pgrp = -pid; //dest group
 
@@ -339,7 +339,7 @@ void SysCalls::sys_kill(Process &P, CONTEXT &ctx)
  * int gettimeofday(timeval* tv, timezone* tz)
  * same as time() but has tv_usec too;
  */
-void SysCalls::sys_gettimeofday(Process &P, CONTEXT &ctx)
+void SysCalls::sys_gettimeofday(CONTEXT &ctx)
 {
 	linux::timeval * pTv = (linux::timeval*)ctx.Ebx;
 	//never used for linux -   linux::timezone * tz = (linux::timezone*)pCtx->Ecx;
@@ -353,7 +353,7 @@ void SysCalls::sys_gettimeofday(Process &P, CONTEXT &ctx)
 	tv.tv_sec = FILETIME_TO_TIME_T(ft);
 	tv.tv_usec = st.wMilliseconds;
 
-	P.WriteMemory((ADDR)pTv, sizeof(tv), &tv);
+	P->WriteMemory((ADDR)pTv, sizeof(tv), &tv);
 	ctx.Eax = 0;
 }
 
@@ -363,7 +363,7 @@ void SysCalls::sys_gettimeofday(Process &P, CONTEXT &ctx)
 /*
  * long ptrace(enum request, int pid, void* addr, void* data)
  */
-void SysCalls::sys_ptrace(Process &P, CONTEXT &ctx)
+void SysCalls::sys_ptrace(CONTEXT &ctx)
 {
 	int request = ctx.Ebx;
 	int pid = ctx.Ecx;
@@ -376,8 +376,8 @@ void SysCalls::sys_ptrace(Process &P, CONTEXT &ctx)
 	{
 	case PTRACE_TRACEME:
 		ktrace("ptrace PTRACE_TRACEME\n");
-		P.m_ptrace.OwnerPid = P.m_ParentPid;
-		P.m_ptrace.Request = PTRACE_TRACEME;
+		P->m_ptrace.OwnerPid = P->m_ParentPid;
+		P->m_ptrace.Request = PTRACE_TRACEME;
 		ctx.Eax = 0;
 		break;
 
@@ -459,7 +459,7 @@ void SysCalls::sys_ptrace(Process &P, CONTEXT &ctx)
 			//usr.signal = SIGTRAP; //man ptrace says parent thinks Traced is in this state
 
 			char * wanted = ((char*)&usr) + (DWORD)addr;
-			P.WriteMemory((ADDR)data, sizeof(DWORD), wanted);
+			P->WriteMemory((ADDR)data, sizeof(DWORD), wanted);
 
 			ktrace("ptrace [0x%x]=0x%x eax=0x%x orig_eax=0x%x\n", addr, *((DWORD*)wanted), usr.regs.eax, usr.regs.orig_eax);
 
@@ -499,20 +499,20 @@ void SysCalls::sys_ptrace(Process &P, CONTEXT &ctx)
 /*
  * int nanosleep(timespec*req, timespec*rem)
  */
-void SysCalls::sys_nanosleep(Process &P, CONTEXT &ctx)
+void SysCalls::sys_nanosleep(CONTEXT &ctx)
 {
 	linux::timespec * pReq = (linux::timespec*)ctx.Ebx;
 	linux::timespec * pRem = (linux::timespec*)ctx.Ecx;
 	linux::timespec req;
 	linux::timespec rem;
 
-	P.ReadMemory(&req, (ADDR)pReq, sizeof(req));
+	P->ReadMemory(&req, (ADDR)pReq, sizeof(req));
 
 	DWORD start = GetTickCount();
 	DWORD msec = (req.tv_sec*1000) + (req.tv_nsec/1000000); //milliseconds to wait
 
 	//signal interruptable wait
-	if(WaitForSingleObject(P.m_hWaitTerminatingEvent, msec) == WAIT_OBJECT_0)
+	if(WaitForSingleObject(P->m_hWaitTerminatingEvent, msec) == WAIT_OBJECT_0)
 	{
 		ctx.Eax = -EINTR;
 	}
@@ -534,7 +534,7 @@ void SysCalls::sys_nanosleep(Process &P, CONTEXT &ctx)
 		rem.tv_sec = msec/1000;
 		rem.tv_nsec = msec%1000 * 1000000;
 
-		P.WriteMemory((ADDR)pRem, sizeof(rem), &rem);
+		P->WriteMemory((ADDR)pRem, sizeof(rem), &rem);
 	}
 }
 
