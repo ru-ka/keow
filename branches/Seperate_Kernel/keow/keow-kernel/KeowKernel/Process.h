@@ -48,15 +48,17 @@ typedef BYTE* ADDR;
 class Process  
 {
 public:
+	int FindFreeFD();
+
 	void GenerateCoreDump();
 	void SendSignal(int sig);
 	void HandleSignal(int sig);
 
-	bool WriteMemory(ADDR addr, DWORD len, LPVOID pBuf);
+	bool WriteMemory(ADDR addr, DWORD len, const void * pBuf);
 	bool ReadMemory(LPVOID pBuf, ADDR addr, DWORD len);
 
 	DWORD StartNewImageRunning();
-	static Process* StartInit(PID pid, Path& path, char ** InitialEnvironment);
+	static Process* StartInit(PID pid, Path& path, char ** InitialArguments, char ** InitialEnvironment);
 
 	DWORD InjectFunctionCall(void *func, void *pStackData, int nStackDataSize);
 
@@ -113,6 +115,8 @@ public:
 		ADDR interpreter_start;
 		ADDR bss_start, brk;
 		ADDR last_lib_addr;
+
+		char Interpreter[MAX_PATH];
 	};
 	ElfLoadData	m_ElfLoadData;
 
@@ -149,6 +153,7 @@ public:
 private:
 	Process(); //private - use methods to create
 protected:
+	void TraceContext(int LinesBefore, int LinesAfter, CONTEXT &ctx);
 	void SetSingleStep(bool set);
 	void ForkCopyOtherProcess(Process * pOther);
 	void CopyProcessHandles(Process* pParent);

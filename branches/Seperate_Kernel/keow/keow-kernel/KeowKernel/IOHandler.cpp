@@ -40,3 +40,9 @@ IOHandler::~IOHandler()
 {
 
 }
+
+
+IOHandler* IOHandler::CreateForPath(Path& path)
+{
+	return new IOHFile(path);
+}

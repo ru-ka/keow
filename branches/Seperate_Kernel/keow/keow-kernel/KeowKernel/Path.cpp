@@ -217,7 +217,7 @@ string Path::GetWin32Path()
 			w2 += '\\';
 			w2 += element;
 			w2 += ".lnk";
-			if(GetFileAttributes(w2.c_str()) != INVALID_FILE_ATTRIBUTES)
+			if(GetFileAttributes(w2) != INVALID_FILE_ATTRIBUTES)
 			{
 				//possibly a link, check it fully
 
@@ -396,8 +396,8 @@ HRESULT Path::CreateLink(const string& LinkPath, const string& DestPath, const s
         IPersistFile* ppf; 
  
         // Set the path to the shortcut target and add the description. 
-        psl->SetPath(DestPath.c_str()); 
-        psl->SetDescription(Description.c_str()); 
+        psl->SetPath(DestPath); 
+        psl->SetDescription(Description); 
  
         // Query IShellLink for the IPersistFile interface for saving the 
         // shortcut in persistent storage. 
@@ -406,15 +406,17 @@ HRESULT Path::CreateLink(const string& LinkPath, const string& DestPath, const s
         if (SUCCEEDED(hres)) 
         { 
             string wsz;
-			wsz.reserve(MAX_PATH * sizeof(wchar_t)); 
  
             // Ensure that the string is Unicode. 
-            MultiByteToWideChar(CP_ACP, 0, LinkPath.c_str(), -1, (wchar_t*)wsz.c_str(), MAX_PATH); 
-			
+            MultiByteToWideChar(CP_ACP, 0, LinkPath.c_str(), -1, (wchar_t*)wsz.GetBuffer(MAX_PATH), MAX_PATH); 
+
             // TODO: Check return value from MultiByteWideChar to ensure success.
  
             // Save the link by calling IPersistFile::Save. 
             hres = ppf->Save((wchar_t*)wsz.c_str(), TRUE); 
+
+			wsz.ReleaseBuffer();			
+
             ppf->Release(); 
         } 
         psl->Release(); 

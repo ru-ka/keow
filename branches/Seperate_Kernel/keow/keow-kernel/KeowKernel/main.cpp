@@ -46,6 +46,11 @@ static char * InitialEnv[] = {
 	NULL
 };
 
+static char * InitialArgs[] = {
+	"",
+	NULL
+};
+
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
@@ -98,7 +103,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	ktrace("Loading 'init'");
 	Path InitPath;
 	InitPath.SetUnixPath( KernelStartup::GetInitProgram() );
-	Process * proc = Process::StartInit(1, InitPath, InitialEnv);
+	InitialArgs[0] = strdup(InitPath.GetUnixPath());
+	Process * proc = Process::StartInit(1, InitPath, InitialArgs, InitialEnv);
 	if(proc == 0)
 	{
 		ktrace("Failed to load 'init'\n");

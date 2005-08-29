@@ -58,7 +58,7 @@ void ktrace(const char *format, ...)
 	char * pNext = TraceBuffer;
 	size_t size = sizeof(TraceBuffer);
 
-	StringCbPrintfEx(TraceBuffer, size, &pNext, &size, 0, "kernel:");
+	StringCbPrintfEx(TraceBuffer, size, &pNext, &size, 0, "console:");
 
 	StringCbVPrintf(pNext, size, format, va);
 
@@ -83,7 +83,6 @@ int main(int argc, char* argv[])
 	//now use the console window for io
 	g_hConsoleInput  = CreateFile("CONIN$",  GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
 	g_hConsoleOutput = CreateFile("CONOUT$", GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
-
 
 
 	//set title as given
@@ -131,8 +130,8 @@ int main(int argc, char* argv[])
 		DWORD dwAvail;
 		if(PeekNamedPipe(g_hKernelTextOutput, NULL, 0, NULL, &dwAvail, NULL) == 0)
 		{
-			//kernel disappeared and left us behind
-			if(GetLastError()==ERROR_BROKEN_PIPE)
+			//kernel disappeared and left us behind?
+			//if(GetLastError()==ERROR_BROKEN_PIPE)
 				ExitProcess(0);
 		}
 		else

@@ -57,6 +57,8 @@ public:
 
 	char& operator [] (int pos);
 
+	operator const char *() const; 
+
 	bool operator == (const char * str) const;
 	bool operator == (const string& str) const;
 	bool operator != (const char * str) const;
@@ -68,6 +70,9 @@ public:
 	int find(char c, int pos=0) const;
 	string substr(int pos, int len) const;
 	string substr(int pos) const;
+
+	char * GetBuffer(int size);
+	void ReleaseBuffer();
 
 protected:
 	char * m_pChars;

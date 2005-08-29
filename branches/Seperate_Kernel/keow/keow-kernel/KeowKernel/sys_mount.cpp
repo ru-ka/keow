@@ -37,7 +37,7 @@
  */
 void SysCalls::sys_mount(CONTEXT &ctx)
 {
-	sys_unhandled(ctx);
+	Unhandled(ctx);
 #if 0
 	const char *source = (const char*)pCtx->Ebx;
 	const char *target = (const char*)pCtx->Ecx;
@@ -135,7 +135,7 @@ void SysCalls::sys_mount(CONTEXT &ctx)
  */
 void SysCalls::sys_umount(CONTEXT &ctx)
 {
-	sys_unhandled(ctx);
+	Unhandled(ctx);
 #if 0
 	const char *target = (const char*)pCtx->Ebx;
 	if(target==0)

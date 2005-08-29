@@ -95,7 +95,7 @@ Process::~Process()
 //The pid is as assigned by the kernel
 //The initial environment is as supplied
 //
-Process* Process::StartInit(PID pid, Path& path, char ** InitialEnvironment)
+Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char ** InitialEnvironment)
 {
 	/*
 	launch win32 process stub
@@ -114,7 +114,7 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialEnvironment)
 
 
 	//env and args
-	P->m_Arguments = 0; //no args for init?
+	P->m_Arguments = (ADDR)InitialArguments;
 	P->m_Environment = (ADDR)InitialEnvironment;
 
 	P->m_bDoExec = P->m_bDoFork = false;
@@ -164,7 +164,7 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialEnvironment)
 	//Start the stub
 	STARTUPINFO si;
 	GetStartupInfo(&si);
-	if(CreateProcess(NULL, (char*)KEOW_PROCESS_STUB, NULL, NULL, FALSE, DEBUG_ONLY_THIS_PROCESS|DEBUG_PROCESS, NULL, P->m_UnixPwd.GetWin32Path().c_str(), &si, &P->m_Win32PInfo) == FALSE)
+	if(CreateProcess(NULL, (char*)KEOW_PROCESS_STUB, NULL, NULL, FALSE, DEBUG_ONLY_THIS_PROCESS|DEBUG_PROCESS, NULL, P->m_UnixPwd.GetWin32Path(), &si, &P->m_Win32PInfo) == FALSE)
 	{
 		//failed
 		P->m_Win32PInfo.hProcess = NULL;
@@ -349,7 +349,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	switch(evt.u.Exception.ExceptionRecord.ExceptionCode)
 	{
 	case EXCEPTION_SINGLE_STEP:
-		ktrace("single step, eip 0x%08lx\n", ctx.Eip);
+		TraceContext(0,0,ctx);
 		break;
 	case EXCEPTION_ACCESS_VIOLATION:
 		{
@@ -550,7 +550,6 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 	ADDR pMem, pWantMem;
 	DWORD protection;//, oldprot;
 	DWORD loadok;
-	char Interpreter[MAX_PATH] = "";
 	ADDR pMemTemp = NULL;
 	ADDR pBaseAddr = 0;
 
@@ -570,6 +569,8 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 	}
 	ktrace("using base address 0x%08lx\n", pBaseAddr);
 
+	
+	pElfLoadData->Interpreter[0] = 0;
 	pElfLoadData->start_addr = pElfHdr->e_entry + pBaseAddr;
 
 	loadok=1;
@@ -593,7 +594,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 			pWantMem = phdr->p_vaddr + pBaseAddr;
 			protection = ElfProtectionToWin32Protection(phdr->p_flags);
 			//phdr->p_memsz = (phdr->p_memsz + (phdr->p_align-1)) & (~(phdr->p_align-1)); //round up to alignment boundary
-			pMem = MemoryHelper::AllocateMemAndProtectProcess(m_Win32PInfo.hProcess, pWantMem, phdr->p_memsz, PAGE_EXECUTE_READWRITE);
+			pMem = MemoryHelper::AllocateMemAndProtect(pWantMem, phdr->p_memsz, PAGE_EXECUTE_READWRITE);
 			if(pMem!=pWantMem)
 			{
 				DWORD err = GetLastError();
@@ -602,11 +603,8 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 				break;
 			}
 			//need to load into our memory, then copy to process
-			//seems you cannot write across a 4k boundary, so write in blocks
 			if(phdr->p_filesz != 0)
 			{
-				//int offset, size, write;
-
 				pMemTemp = (ADDR)realloc(pMemTemp, phdr->p_filesz);
 				SetFilePointer(hImg, phdr->p_offset, 0, FILE_BEGIN);
 				ReadFile(hImg, pMemTemp, phdr->p_filesz, &dwRead, 0);
@@ -615,8 +613,8 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 				{
 					DWORD err = GetLastError();
 					ktrace("error 0x%lx in write program segment\n", err);
-					//loadok = 0;
-					//break;
+					loadok = 0;
+					break;
 				}
 			}
 
@@ -655,7 +653,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 		if(phdr->p_type == PT_INTERP)
 		{
 			SetFilePointer(hImg, phdr->p_offset, 0, FILE_BEGIN);
-			ReadFile(hImg, Interpreter, phdr->p_filesz, &dwRead, 0);
+			ReadFile(hImg, pElfLoadData->Interpreter, phdr->p_filesz, &dwRead, 0);
 		}
 	}
 
@@ -663,10 +661,10 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 	//NO!! //pElf->brk = (void*)( ((DWORD)pElf->brk + (SIZE4k-1)) & (~(SIZE4k-1)) ); 
 
 	//load interpreter?
-	if(Interpreter[0]!=0)
+	if(pElfLoadData->Interpreter[0]!=0)
 	{
-		if(strcmp(Interpreter,"/usr/lib/libc.so.1") == 0
-		|| strcmp(Interpreter,"/usr/lib/ld.so.1") == 0 )
+		if(strcmp(pElfLoadData->Interpreter, "/usr/lib/libc.so.1")==0
+		|| strcmp(pElfLoadData->Interpreter, "/usr/lib/ld.so.1")==0 )
 		{
 			//IBCS2 interpreter? (tst from linux binfmt_elf.c)
 			//I think these expect to use intel Call Gates 
@@ -682,8 +680,8 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 		ElfLoadData LoadData2;
 		LoadData2 = *pElfLoadData;
 
-		Path InterpPath(Interpreter);
-		HANDLE hInterpImg = CreateFile(InterpPath.GetWin32Path().c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0);
+		Path InterpPath(pElfLoadData->Interpreter);
+		HANDLE hInterpImg = CreateFile(InterpPath.GetWin32Path(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0);
 		if(hInterpImg==INVALID_HANDLE_VALUE)
 		{
 			ktrace("failed to load interpreter: %s\n", InterpPath.GetUnixPath().c_str());
@@ -694,7 +692,9 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 			struct linux::elf32_hdr hdr2;
 			ReadFile(hInterpImg, &hdr2, sizeof(hdr2), &dwRead, 0);
 
-			loadok = LoadElfImage(hInterpImg, &hdr2, &LoadData2, true);
+			DWORD rc = LoadElfImage(hInterpImg, &hdr2, &LoadData2, true);
+			if(rc!=0)
+				loadok=0;
 
 			m_ElfLoadData.interpreter_start = LoadData2.start_addr;
 			m_ElfLoadData.interpreter_base = LoadData2.interpreter_base;
@@ -810,6 +810,13 @@ DWORD Process::StartNewImageRunning()
 
 	*/
 
+	if(m_ElfLoadData.interpreter_start==0)
+	{
+		m_ElfLoadData.interpreter_base = m_ElfLoadData.program_base;
+		m_ElfLoadData.interpreter_start = m_ElfLoadData.start_addr;
+		ktrace("elf, no interpreter: entry @ 0x%08lx\n", m_ElfLoadData.interpreter_start);
+	}
+
 	ADDR pEnv, pArgs;
 	DWORD EnvCnt, ArgCnt;
 	if(m_ParentPid==0)
@@ -824,9 +831,19 @@ DWORD Process::StartNewImageRunning()
 		pArgs = MemoryHelper::CopyStringListBetweenProcesses(pParent->m_Win32PInfo.hProcess, m_Arguments, m_Win32PInfo.hProcess, &ArgCnt);
 	}
 
+	//need an interpreter?
+	ADDR InterpAddr = 0;
+	if(m_ElfLoadData.Interpreter[0]!=0)
+	{
+		++ArgCnt; //interpreter comes first
+		int len = strlen(m_ElfLoadData.Interpreter) + 1; //include the null
+		InterpAddr = MemoryHelper::AllocateMemAndProtect(0, len, PAGE_EXECUTE_READWRITE);
+		WriteMemory(InterpAddr, len, m_ElfLoadData.Interpreter);
+	}
+
 	//stack data needed
 	const int AUX_RESERVE = 2*sizeof(DWORD)*20; //heaps for what is below
-	int stack_needed = sizeof(ADDR)*(EnvCnt+ArgCnt) + AUX_RESERVE + sizeof(ADDR)/*end marker*/;
+	int stack_needed = sizeof(ADDR)*(EnvCnt+1+ArgCnt+1) + AUX_RESERVE + sizeof(ADDR)/*end marker*/;
 
 	CONTEXT ctx;
 	ctx.ContextFlags = CONTEXT_FULL;
@@ -838,16 +855,26 @@ DWORD Process::StartNewImageRunning()
 	ctx.Esp -= stack_needed;
 
 	//copy data to the stack
+	//write so that first written are popped first
 	ADDR addr = (ADDR)ctx.Esp;
 
 	//argc
 	WriteMemory(addr, sizeof(DWORD), &ArgCnt);
 	addr += sizeof(DWORD);
-	//argv[]: clone the array of pointers
+	//additional first arg?
+	if(InterpAddr)
+	{
+		WriteMemory(addr, sizeof(DWORD), &InterpAddr);
+		addr += sizeof(DWORD);
+		--ArgCnt; //so next bit sees the original size
+	}
+	//argv[]: clone the array of pointers that are already in the target process
+	//include the null end entry
 	MemoryHelper::TransferMemory(m_Win32PInfo.hProcess, pArgs, m_Win32PInfo.hProcess, addr, (ArgCnt+1)*sizeof(ADDR));
 	addr += (ArgCnt+1)*sizeof(ADDR);
 
-	//envp[]: clone the array of pointers
+	//envp[]: clone the array of pointers that are already in the target process
+	//include the null end entry
 	MemoryHelper::TransferMemory(m_Win32PInfo.hProcess, pEnv, m_Win32PInfo.hProcess, addr, (EnvCnt+1)*sizeof(ADDR));
 	addr += (EnvCnt+1)*sizeof(ADDR);
 
@@ -864,6 +891,7 @@ DWORD Process::StartNewImageRunning()
 		addr += sizeof(Aux);
 
 	PUSH_AUX_VAL(AT_ENTRY,	(DWORD)m_ElfLoadData.start_addr) //real start - ignoring 'interpreter'
+	PUSH_AUX_VAL(AT_BASE,	(DWORD)m_ElfLoadData.interpreter_base)
 	PUSH_AUX_VAL(AT_PHNUM,	m_ElfLoadData.phdr_phnum)
 	PUSH_AUX_VAL(AT_PHENT,	m_ElfLoadData.phdr_phent)
 	PUSH_AUX_VAL(AT_PHDR,	(DWORD)m_ElfLoadData.phdr_addr)
@@ -889,7 +917,7 @@ DWORD Process::StartNewImageRunning()
 	ctx.Ebp = 0;
 
 	//start here
-	ctx.Eip = (DWORD)(m_ElfLoadData.interpreter_start ? m_ElfLoadData.interpreter_start : m_ElfLoadData.start_addr);
+	ctx.Eip = (DWORD)m_ElfLoadData.interpreter_start;
 
 	//set
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
@@ -928,7 +956,7 @@ bool Process::ReadMemory(LPVOID pBuf, ADDR addr, DWORD len)
 	return MemoryHelper::ReadMemory((ADDR)pBuf, m_Win32PInfo.hProcess, addr, len);
 }
 
-bool Process::WriteMemory(ADDR addr, DWORD len, LPVOID pBuf)
+bool Process::WriteMemory(ADDR addr, DWORD len, const void * pBuf)
 {
 	return MemoryHelper::WriteMemory(m_Win32PInfo.hProcess, addr, len, (ADDR)pBuf);
 }
@@ -1158,7 +1186,7 @@ void Process::HandleSignal(int sig)
 
 void Process::GenerateCoreDump()
 {
-	DebugBreak();
+	ktrace("Core Dump\n");
 }
 
 DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSize)
@@ -1199,7 +1227,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 	DEBUG_EVENT evt;
 	for(;;) {
-		SetSingleStep(true); //debug
+		//SetSingleStep(true); //debug
 
 		ContinueDebugEvent(m_Win32PInfo.dwProcessId, m_Win32PInfo.dwThreadId, DBG_CONTINUE);
 
@@ -1215,7 +1243,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 				CONTEXT ctx;
 				ctx.ContextFlags = CONTEXT_FULL; //preserve everything
 				GetThreadContext(m_Win32PInfo.hThread, &ctx);
-				ktrace("syscalldll single step, eip 0x%08lx\n", ctx.Eip);
+				TraceContext(0,0, ctx);
 			}
 			else
 			{
@@ -1252,4 +1280,37 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	SetThreadContext(m_Win32PInfo.hThread, &OrigCtx);
 
 	return dwRet;
+}
+
+
+// Output current process context
+// and disassemble instructions
+void Process::TraceContext(int LinesBefore, int LinesAfter, CONTEXT &ctx)
+{
+	BYTE buf[4];
+	ReadMemory(buf, (ADDR)ctx.Eip, sizeof(buf));
+
+	ktrace("0x%08lX %02X %02X %02X %02X  %-12s   eax=%08lx ebx=%08lx ecx=%08lx edx=%08lx esi=%08lx edi=%08lx eip=%08lx esp=%08lx ebp=%08lx flags=%08lx \n",
+		    ctx.Eip,buf[0],buf[1],buf[2],buf[3],
+			                             "instr",
+												 ctx.Eax,  ctx.Ebx,  ctx.Ecx,  ctx.Edx,  ctx.Esi,  ctx.Edi,  ctx.Eip,  ctx.Esp,  ctx.Ebp,  ctx.EFlags);
+
+	/*
+	ktrace("0x%08lX %02X %02X %02X %02X  %-12s\n", ctx.Eip, buf[0],buf[1],buf[2],buf[3], "instr");
+
+	ktrace("eax=%08lx ebx=%08lx ecx=%08lx edx=%08lx esi=%08lx edi=%08lx eip=%08lx esp=%08lx ebp=%08lx flags=%08lx \n",
+			ctx.Eax,  ctx.Ebx,  ctx.Ecx,  ctx.Edx,  ctx.Esi,  ctx.Edi,  ctx.Eip,  ctx.Esp,  ctx.Ebp,  ctx.EFlags);
+			*/
+}
+
+
+// Find a free entry in the open files list
+int Process::FindFreeFD()
+{
+	int fd;
+	for(fd=0; fd<MAX_OPEN_FILES; ++fd)
+		if(m_OpenFiles[fd] == NULL)
+			return fd;
+
+	return -1; //none
 }

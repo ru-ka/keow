@@ -28,6 +28,9 @@
 #include "includes.h"
 
 
+SysCallDll::RemoteAddrInfo AddrInfo;
+
+
 //How to return from these functions so that the kernel/debugger see's it
 
 #define RET(val)  { DWORD __x=val; {__asm mov eax, __x  __asm int 3}; return val; }
@@ -37,6 +40,16 @@
 DWORD _stdcall SysCallDll::CloseHandle(HANDLE h)
 {
 	RET( ::CloseHandle(h) );
+}
+
+DWORD _stdcall SysCallDll::SetFilePointer(HANDLE h, DWORD PosLo, DWORD PosHi, DWORD from)
+{
+	RET( ::SetFilePointer(h, PosLo, (LONG*)&PosHi, from) );
+}
+
+DWORD _stdcall SysCallDll::SetEndOfFile(HANDLE h)
+{
+	RET( ::SetEndOfFile(h) );
 }
 
 

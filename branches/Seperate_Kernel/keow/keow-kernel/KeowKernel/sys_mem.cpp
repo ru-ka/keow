@@ -103,7 +103,7 @@ namespace linux {
  */
 void SysCalls::sys_mmap(CONTEXT &ctx)
 {
-	sys_unhandled(ctx);
+	Unhandled(ctx);
 #if 0
 	linux::mmap_arg_struct * args = (linux::mmap_arg_struct *)pCtx->Ebx;
 	DWORD err = -EINVAL;
@@ -273,7 +273,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
  */
 void SysCalls::sys_munmap(CONTEXT &ctx)
 {
-	sys_unhandled(ctx);
+	Unhandled(ctx);
 #if 0
 	ADDR addr = (ADDR)pCtx->Ebx;
 	DWORD len = pCtx->Ecx;

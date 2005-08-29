@@ -40,6 +40,27 @@ DWORD _stdcall SysCallDll::CloseHandle(HANDLE h)
 }
 
 
+DWORD _stdcall SysCallDll::SetFilePointer(HANDLE h, DWORD PosLo, DWORD PosHi, DWORD from)
+{
+	DWORD stack[] = {
+		(DWORD)h,
+		(DWORD)PosLo,
+		(DWORD)PosHi,
+		(DWORD)from,
+	};
+	return P->InjectFunctionCall(P->SysCallAddr.SetFilePointer, &stack, sizeof(stack));
+}
+
+DWORD _stdcall SysCallDll::SetEndOfFile(HANDLE h)
+{
+	DWORD stack[] = {
+		(DWORD)h,
+	};
+	return P->InjectFunctionCall(P->SysCallAddr.SetEndOfFile, &stack, sizeof(stack));
+}
+
+
+
 DWORD _stdcall SysCallDll::exit(UINT exitcode)
 {
 	return P->InjectFunctionCall(P->SysCallAddr.exit, &exitcode, sizeof(UINT));

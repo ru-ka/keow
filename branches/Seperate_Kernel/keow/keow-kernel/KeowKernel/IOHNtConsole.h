@@ -15,8 +15,12 @@ public:
 	IOHNtConsole(DevConsole * pConsole);
 	virtual ~IOHNtConsole();
 
+	virtual bool Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags);
+
 	virtual HANDLE GetRemoteWriteHandle();
 	virtual HANDLE GetRemoteReadHandle();
+	virtual HANDLE GetKernelWriteHandle();
+	virtual HANDLE GetKernelReadHandle();
 
 	virtual IOHandler* clone();
 

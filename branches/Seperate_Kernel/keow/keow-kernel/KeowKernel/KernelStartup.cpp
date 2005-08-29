@@ -180,8 +180,8 @@ void KernelStartup::AutoMountDrives()
 	//files may no exist, if so don't create them
 	FILE * fMtab = NULL;
 	p.SetUnixPath("/etc/mtab");
-	if(GetFileAttributes(p.GetWin32Path().c_str())!=INVALID_FILE_ATTRIBUTES)
-		fMtab = fopen(p.GetWin32Path().c_str(), "wb");
+	if(GetFileAttributes(p.GetWin32Path())!=INVALID_FILE_ATTRIBUTES)
+		fMtab = fopen(p.GetWin32Path(), "wb");
 
 	char drive[] = "X:\\";
 	char mnt[] = "/mnt/X";
@@ -197,8 +197,8 @@ void KernelStartup::AutoMountDrives()
 		{
 			//try to make the mount directory /mnt/X
 			p.SetUnixPath(mnt);
-			CreateDirectory(p.GetWin32Path().c_str(), NULL);
-			if(GetFileAttributes(p.GetWin32Path().c_str())&FILE_ATTRIBUTE_DIRECTORY)
+			CreateDirectory(p.GetWin32Path(), NULL);
+			if(GetFileAttributes(p.GetWin32Path())&FILE_ATTRIBUTE_DIRECTORY)
 			{
 				ktrace("automatic drive mount: %s on /mnt/%c\n", drive, *pMntLetter);
 
@@ -219,8 +219,8 @@ void KernelStartup::AutoMountDrives()
 
 	//also want /proc mounted
 	p.SetUnixPath("/proc");
-	CreateDirectory(p.GetWin32Path().c_str(), NULL);
-	if(GetFileAttributes(p.GetWin32Path().c_str())&FILE_ATTRIBUTE_DIRECTORY)
+	CreateDirectory(p.GetWin32Path(), NULL);
+	if(GetFileAttributes(p.GetWin32Path())&FILE_ATTRIBUTE_DIRECTORY)
 	{
 		//record the mount
 		MountPoint * pMp = MountPoint::Mount(p, "", new FilesystemProc(), NULL, 0);

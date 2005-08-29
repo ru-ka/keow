@@ -55,6 +55,9 @@ public:
 #define SC static DWORD __stdcall
 
 	SC CloseHandle(HANDLE h);
+	SC SetFilePointer(HANDLE h, DWORD PosLo, DWORD PosHi, DWORD from);
+	SC SetEndOfFile(HANDLE h);
+
 
 	SC exit(UINT exitcode);
 
@@ -68,6 +71,9 @@ public:
 	//corresponding addresses
 	struct RemoteAddrInfo {
 		LPVOID CloseHandle;
+		LPVOID SetFilePointer;
+		LPVOID SetEndOfFile;
+
 		LPVOID exit;
 		LPVOID write;
 		LPVOID writev;
