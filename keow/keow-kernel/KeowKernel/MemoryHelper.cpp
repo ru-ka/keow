@@ -106,7 +106,7 @@ ADDR MemoryHelper::AllocateMemAndProtectProcess(HANDLE hProcess, ADDR addr, DWOR
 
 ADDR MemoryHelper::AllocateMemAndProtect(ADDR addr, DWORD size, DWORD prot)
 {
-	ADDR addrActual = AllocateMemAndProtectProcess(GetCurrentProcess(), addr, size, prot);
+	ADDR addrActual = AllocateMemAndProtectProcess(P->m_Win32PInfo.hProcess, addr, size, prot);
 	if(addrActual != (ADDR)-1)
 		P->m_MemoryAllocations.push_back(new Process::MemoryAlloc(addrActual, size, prot));
 	return addrActual;
@@ -300,23 +300,15 @@ ADDR MemoryHelper::CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFro
 			if(pStr==NULL)
 				break; //end of list
 
-			//see how big the string is
-			//TODO read in blocks for efficiency
-			BYTE data;
-			DWORD strLen = 0;
 			string_addresses.push_back(pStr);
-			for(;;)
-			{
-				ReadMemory(&data, hFromProcess, pStr, sizeof(data));
-				if(data==NULL)
-					break; //end of string
-				strLen++;
-				datasize++;
-				pStr++;
-			}
-			datasize++; //include the null
-			strLen++; //include the null
+
+			//see how big the string is
+			string s;
+			s = ReadString(hFromProcess, pStr);
+			DWORD strLen = s.length()+1; //include the null
 			string_sizes.push_back(strLen);
+
+			datasize += strLen;
 			count++;
 
 			pFrom += sizeof(ADDR);
@@ -347,7 +339,7 @@ ADDR MemoryHelper::CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFro
 		pToArray += sizeof(ADDR);
 
 		//data
-		TransferMemory(hFromProcess, *itAddr, hToProcess, pTo, *itSize);
+		TransferMemory(hFromProcess, *itAddr, hToProcess, pToData, *itSize);
 		pToData += *itSize;
 
 		//next (they are paired)
@@ -355,8 +347,40 @@ ADDR MemoryHelper::CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFro
 		++itAddr;
 	}
 	//null terminate
-	pToArray = 0;
-	WriteMemory(hToProcess, pTo, sizeof(ADDR), (ADDR)&pToArray);
+	pToData = 0; //just a zero dword to write
+	WriteMemory(hToProcess, pToArray, sizeof(ADDR), (ADDR)&pToData);
 
 	return pTo; //array started here
+}
+
+
+string MemoryHelper::ReadString(HANDLE hFromProcess, ADDR fromAddr)
+{
+	string str;
+
+	//read in 4k allocation blocks (to be faster than reading bytes)
+	DWORD next4k;
+	char buf[SIZE4k];
+	DWORD len;
+	DWORD addr;
+
+	addr = (DWORD)fromAddr;
+	for(;;)
+	{
+		next4k = (addr & 0xFFFFF000) + SIZE4k;
+		len = next4k - addr;
+
+		ReadMemory((ADDR)buf, hFromProcess, (ADDR)addr, len);
+
+		for(DWORD i=0; i<len; ++i)
+		{
+			if(buf[i]==0)
+				return str;
+
+			str += buf[i];
+		}
+
+		//next block
+		addr += len;
+	}
 }

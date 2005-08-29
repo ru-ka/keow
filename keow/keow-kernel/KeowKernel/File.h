@@ -38,8 +38,10 @@
 class IOHFile : public IOHandler
 {
 public:
-	IOHFile(Path path);
+	IOHFile(Path &path);
 	virtual ~IOHFile();
+
+	virtual bool Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags);
 
 	virtual HANDLE GetRemoteWriteHandle();
 	virtual HANDLE GetRemoteReadHandle();

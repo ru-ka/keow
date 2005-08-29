@@ -35,7 +35,8 @@ DevConsole::DevConsole(int tty)
 	string cmdline = "KeowConsole.exe";
 	cmdline += " Keow Console";
 
-	CreateProcess(NULL, (char*)cmdline.c_str(), 0, 0, TRUE, 0, 0, 0, &si, &pi);
+	CreateProcess(NULL, cmdline.GetBuffer(cmdline.length()), 0, 0, TRUE, 0, 0, 0, &si, &pi);
+	cmdline.ReleaseBuffer();
 }
 
 DevConsole::~DevConsole()

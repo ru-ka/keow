@@ -30,14 +30,12 @@
 
 //////////////////////////////////////////////////////////////////////
 
-IOHFile::IOHFile(Path path)
+IOHFile::IOHFile(Path &path)
 {
 	m_RemoteHandle = INVALID_HANDLE_VALUE;
 	m_Path = path;
 
-	DebugBreak();
-//	CreateFile(path.GetWin32Path(), access, share, 0, OPEN_EXISTING, flags, 0);
-//	DuplicateHandle(GetCurrentProcess(), h, P->g_pkSysCallDll::CreateFile(path.GetWin32Path().c_str);
+	//don't open yet, use Open()
 }
 
 IOHFile::~IOHFile()
@@ -60,3 +58,18 @@ IOHandler * IOHFile::clone()
 	pF->m_RemoteHandle = m_RemoteHandle;
 	return pF;
 }
+
+bool IOHFile::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags)
+{
+	//Open in the kernel, then move the handle to the user
+
+	HANDLE h = CreateFile(m_Path.GetWin32Path(), win32access, win32share, 0, disposition, flags, 0);
+	if(h==INVALID_HANDLE_VALUE)
+		return false;
+
+	//move handle to the user
+	DuplicateHandle(GetCurrentProcess(), h, P->m_Win32PInfo.hProcess, &m_RemoteHandle, 0, FALSE, DUPLICATE_SAME_ACCESS);
+
+	return true;
+}
+

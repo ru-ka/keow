@@ -47,10 +47,10 @@ protected:
 private:
 	SysCalls() {}
 
+	static void Unhandled(CONTEXT& ctx);
+
 //syscall prototypes
 #define PROTO_SYSCALL(n) static void sys_##n(CONTEXT& ctx)
-
-	PROTO_SYSCALL(unhandled);
 
 	PROTO_SYSCALL(exit);
 	PROTO_SYSCALL(fork);

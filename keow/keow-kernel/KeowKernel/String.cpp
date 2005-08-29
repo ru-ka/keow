@@ -214,3 +214,21 @@ char& string::operator [] (int pos)
 		return s_dummy;
 	return m_pChars[pos];
 }
+
+string::operator const char *() const
+{
+	return m_pChars;
+}
+
+
+char * string::GetBuffer(int size)
+{
+	reserve(size+1);
+	return m_pChars;
+}
+
+void string::ReleaseBuffer()
+{
+	m_nLen = strlen(m_pChars);
+}
+

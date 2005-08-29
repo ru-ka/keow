@@ -27,8 +27,7 @@
 
 
 //global
-class SysCallDll;
-SysCallDll::RemoteAddrInfo AddrInfo;
+extern SysCallDll::RemoteAddrInfo AddrInfo;
 
 static void LoadAddressInfo()
 {
@@ -37,6 +36,9 @@ static void LoadAddressInfo()
 #define SET_ADDR(func) AddrInfo.##func = (LPVOID)(SysCallDll::##func )
 
 	SET_ADDR(CloseHandle);
+	SET_ADDR(SetFilePointer);
+	SET_ADDR(SetEndOfFile);
+
 	SET_ADDR(write);
 	SET_ADDR(writev);
 	SET_ADDR(read);

@@ -59,6 +59,7 @@ void halt()
 
 	ktrace("Kernel halted.");
 
+	ExitProcess(0);
 	while(GetMessage(&msg,0,0,0))
 	{
 		TranslateMessage(&msg);
