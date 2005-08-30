@@ -73,3 +73,86 @@ bool IOHFile::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD
 	return true;
 }
 
+bool IOHFile::Stat64(linux::stat64 * s)
+{
+	if(!s)
+		return false;
+
+
+	WIN32_FILE_ATTRIBUTE_DATA fi;
+	ULARGE_INTEGER i;
+
+
+	IOHandler::BasicStat64(s, 0);
+
+
+	if(!GetFileAttributesEx(m_Path.GetWin32Path(), GetFileExInfoStandard, &fi))
+		return false;
+
+
+	if(fi.dwFileAttributes & FILE_ATTRIBUTE_READONLY)
+		s->st_mode = 0555;  // r-xr-xr-x
+	else
+		s->st_mode = 0755;  // rwxr-xr-x
+
+	if(fi.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		s->st_mode |= S_IFDIR;
+	else
+	if(m_Path.IsSymbolicLink())
+		s->st_mode |= S_IFLNK;
+	else
+		s->st_mode |= S_IFREG; //regular file
+		/*
+	#define S_IFMT  00170000
+	#define S_IFSOCK 0140000
+	#define S_IFLNK	 0120000
+	#define S_IFREG  0100000
+	#define S_IFBLK  0060000
+	#define S_IFDIR  0040000
+	#define S_IFCHR  0020000
+	#define S_IFIFO  0010000
+	#define S_ISUID  0004000
+	#define S_ISGID  0002000
+	#define S_ISVTX  0001000
+		*/
+
+
+	s->st_nlink = 1;//fi.nNumberOfLinks;
+	s->st_uid = 0;
+	s->st_gid = 0;
+
+	s->st_dev = 3<<8|4;
+	s->st_rdev = 3<<8|4;
+
+	s->st_ino = 1999;    //dummy inode
+	s->__st_ino = 1999;
+
+	i.LowPart = fi.nFileSizeLow;
+	i.HighPart = fi.nFileSizeHigh;
+	s->st_size = i.QuadPart;
+
+	s->st_blksize = 512; //block size for efficient IO
+	
+	s->st_blocks = (unsigned long)((s->st_size+511) / 512); //size in 512 byte blocks
+
+	s->st_atime = FILETIME_TO_TIME_T(fi.ftLastAccessTime);
+	s->st_mtime = FILETIME_TO_TIME_T(fi.ftLastWriteTime);
+	s->st_ctime = FILETIME_TO_TIME_T(fi.ftCreationTime);
+
+
+	return true;
+}
+
+__int64 IOHFile::Length()
+{
+	linux::stat64 s;
+	Stat64(&s);
+	return s.st_size;
+}
+
+DWORD IOHFile::Seek(__int64 pos, DWORD from)
+{
+	LARGE_INTEGER li;
+	li.QuadPart = pos;
+	return SysCallDll::SetFilePointer(m_RemoteHandle, li.LowPart, li.HighPart, from);
+}

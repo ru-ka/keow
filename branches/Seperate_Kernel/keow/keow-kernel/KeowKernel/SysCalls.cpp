@@ -316,9 +316,11 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 	SetLastError(0);
 	DWORD syscall = ctx.Eax;
 
+	ktrace("\n"); //just get some blank lines to break up output between syscalls
+
 	if(syscall < NR_syscalls)
 	{
-		ktrace("debug: syscall %d [%s] from @ 0x%08lx\n", ctx.Eax, syscall_names[ctx.Eax], ctx.Eip);
+		ktrace("debug: SYSCALL %d [%s] from @ 0x%08lx\n", ctx.Eax, syscall_names[ctx.Eax], ctx.Eip);
 
 		if(P->m_ptrace.OwnerPid
 		&& P->m_ptrace.Request == PTRACE_SYSCALL )
@@ -362,7 +364,7 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 		Unhandled(ctx);
 	}
 
-	ktrace("debug: syscall return (Eax=0x%lx,%ld)\n", ctx.Eax, ctx.Eax);
+	ktrace("debug: SYSCALL return (Eax=0x%lx,%ld)\n", ctx.Eax, ctx.Eax);
 }
 
 //////////////////////////////////////////////////////////////////////////////

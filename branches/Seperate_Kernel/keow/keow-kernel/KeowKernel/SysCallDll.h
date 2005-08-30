@@ -54,9 +54,13 @@ public:
 
 #define SC static DWORD __stdcall
 
+	SC GetLastError();
 	SC CloseHandle(HANDLE h);
 	SC SetFilePointer(HANDLE h, DWORD PosLo, DWORD PosHi, DWORD from);
 	SC SetEndOfFile(HANDLE h);
+	SC ZeroMem(void *p, DWORD len);
+	SC CreateFileMapping(HANDLE hFile, DWORD Prot, DWORD sizeHi, DWORD sizeLo);
+	SC MapViewOfFileEx(HANDLE hMap, DWORD Prot, DWORD offsetHi, DWORD offsetLo, DWORD len, void* BaseAddr);
 
 
 	SC exit(UINT exitcode);
@@ -70,9 +74,13 @@ public:
 
 	//corresponding addresses
 	struct RemoteAddrInfo {
+		LPVOID GetLastError;
 		LPVOID CloseHandle;
 		LPVOID SetFilePointer;
 		LPVOID SetEndOfFile;
+		LPVOID ZeroMem;
+		LPVOID CreateFileMapping;
+		LPVOID MapViewOfFileEx;
 
 		LPVOID exit;
 		LPVOID write;
