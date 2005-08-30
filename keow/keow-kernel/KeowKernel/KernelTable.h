@@ -70,13 +70,6 @@ public:
 };
 
 
-struct KernelThreadLocals
-{
-	Process * pProcess;
-	char ktrace_buffer[8000];
-};
-
-
 
 //refs to the global single copies
 extern KernelTable * g_pKernelTable;

@@ -54,6 +54,8 @@ void SysCalls::sys_write(CONTEXT &ctx)
 	}
 
 	ctx.Eax = SysCallDll::write(ioh->GetRemoteWriteHandle(), (void*)ctx.Ecx, ctx.Edx);
+	if(ctx.Eax==0)
+		ctx.Eax = Win32ErrToUnixError(SysCallDll::GetLastError());
 }
 
 /*
@@ -82,6 +84,8 @@ void SysCalls::sys_writev(CONTEXT &ctx)
 	}
 
 	ctx.Eax = SysCallDll::writev(ioh->GetRemoteWriteHandle(), pV, count);
+	if(ctx.Eax==0)
+		ctx.Eax = Win32ErrToUnixError(SysCallDll::GetLastError());
 }
 
 /*****************************************************************************/
@@ -108,7 +112,9 @@ void SysCalls::sys_read(CONTEXT &ctx)
 		return;
 	}
 
-	ctx.Eax = SysCallDll::read(ioh->GetRemoteWriteHandle(), (void*)ctx.Ecx, ctx.Edx);
+	ctx.Eax = SysCallDll::read(ioh->GetRemoteReadHandle(), (void*)ctx.Ecx, ctx.Edx);
+	if(ctx.Eax==0)
+		ctx.Eax = Win32ErrToUnixError(SysCallDll::GetLastError());
 }
 
 /*****************************************************************************/
@@ -123,14 +129,14 @@ void SysCalls::sys_access(CONTEXT &ctx)
 	Path p;
 	DWORD attr;
 	char ok = 1;
-	DWORD check = pCtx->Ecx;
+	DWORD check = ctx.Ecx;
 
-	p.SetUnixPath((const char*)pCtx->Ebx);
+	p.SetUnixPath((const char*)ctx.Ebx);
 
 	attr = p.GetFileAttributes();
 	if(attr==INVALID_FILE_ATTRIBUTES)
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 		return;
 	}
 
@@ -140,9 +146,9 @@ void SysCalls::sys_access(CONTEXT &ctx)
 		ok = 0;
 
 	if(ok)
-		pCtx->Eax = 0;
+		ctx.Eax = 0;
 	else
-		pCtx->Eax = -EACCES;
+		ctx.Eax = -EACCES;
 #endif
 }
 
@@ -283,21 +289,21 @@ void SysCalls::sys_ioctl(CONTEXT &ctx)
 	int fd;
 	IOHandler * ioh;
 	
-	fd = pCtx->Ebx;
+	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
 	ioh = pProcessData->FileHandlers[fd];
 	if(ioh == NULL)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
-	pCtx->Eax = ioh->ioctl( pCtx->Ecx, pCtx->Edx );
+	ctx.Eax = ioh->ioctl( ctx.Ecx, ctx.Edx );
 #endif
 }
 
@@ -334,18 +340,18 @@ void SysCalls::sys_chdir(CONTEXT &ctx)
 	Unhandled(ctx);
 #if 0
 	Path p;
-	p.SetUnixPath((const char*)pCtx->Ebx);
+	p.SetUnixPath((const char*)ctx.Ebx);
 
 	if(!SetCurrentDirectory(p.Win32Path()))
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 		return;
 	}
 
 	ktrace("chdir %s\n", p.UnixPath());
 
 	StringCbCopy(pProcessData->unix_pwd, sizeof(pProcessData->unix_pwd), p.UnixPath());
-	pCtx->Eax = 0;
+	ctx.Eax = 0;
 #endif
 }
 
@@ -359,21 +365,26 @@ void SysCalls::sys_fchdir(CONTEXT &ctx)
 	int fd;
 	IOHandler * ioh;
 
-	fd = pCtx->Ebx;
+	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
 	ioh = pProcessData->FileHandlers[fd];
+	if(ioh == NULL)
+	{
+		ctx.Eax = -EBADF;
+		return;
+	}
 
 	//delegate
-	pCtx->Ebx = (DWORD)ioh->GetUnixPath();
+	ctx.Ebx = (DWORD)ioh->GetUnixPath();
 	sys_chdir(pCtx);
 
 	//restore overwritten data
-	pCtx->Ebx = fd; 
+	ctx.Ebx = fd; 
 #endif
 }
 
@@ -391,45 +402,45 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
 	int fd;
 	IOHandler * ioh;
 	
-	fd = pCtx->Ebx;
+	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
 	ioh = pProcessData->FileHandlers[fd];
 	if(ioh == NULL)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
-	pCtx->Eax = -EINVAL;
+	ctx.Eax = -EINVAL;
 
-	switch(pCtx->Ecx)
+	switch(ctx.Ecx)
 	{
 	case F_GETFD:	/* get close_on_exec */
-		pCtx->Eax = ioh->GetInheritable() ? 0 : 1;
+		ctx.Eax = ioh->GetInheritable() ? 0 : 1;
 		break;
 
 	case F_SETFD:   /* set/clear close_on_exec */
-		ioh->SetInheritable(pCtx->Edx==0);
-		pCtx->Eax = 0;
+		ioh->SetInheritable(ctx.Edx==0);
+		ctx.Eax = 0;
 		break;
 
 	case F_GETFL:	/* get file->f_flags */
-		pCtx->Eax = ioh->GetFlags();
+		ctx.Eax = ioh->GetFlags();
 		break;
 
 	case F_SETFL:	/* set file->f_flags */
-		ioh->SetFlags(pCtx->Edx);
-		pCtx->Eax = 0;
+		ioh->SetFlags(ctx.Edx);
+		ctx.Eax = 0;
 		break;
 
 	case F_DUPFD:	/* like dup2() but use any fd<=arg and close-on-exec flag of copy is off */
 		{
-			int maxfd = pCtx->Edx;
+			int maxfd = ctx.Edx;
 			int fdnew;
 			DWORD OldEcx;
 
@@ -437,28 +448,28 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
 			fdnew = FindFreeFD();
 			if(fdnew==-1)
 			{
-				pCtx->Eax = -EMFILE; //too many open files
+				ctx.Eax = -EMFILE; //too many open files
 				return;
 			}
 			if(fdnew > maxfd)
 			{
-				pCtx->Eax = EINVAL;
+				ctx.Eax = EINVAL;
 				return;
 			}
 
 			//use dup2 for actual work
-			OldEcx = pCtx->Ecx;
-			pCtx->Ecx = fdnew;
+			OldEcx = ctx.Ecx;
+			ctx.Ecx = fdnew;
 			sys_dup2(pCtx);
-			pCtx->Ecx = OldEcx;
+			ctx.Ecx = OldEcx;
 			pProcessData->FileHandlers[fdnew]->SetInheritable(false);
 			//eax is already set with the result
 		}
 		break;
 
 	default:
-		ktrace("IMPLEMENT sys_fcntl 0x%lx\n", pCtx->Ecx);
-		pCtx->Eax = -ENOSYS;
+		ktrace("IMPLEMENT sys_fcntl 0x%lx\n", ctx.Ecx);
+		ctx.Eax = -ENOSYS;
 		break;
 	}
 #endif
@@ -482,15 +493,15 @@ void SysCalls::sys_dup(CONTEXT &ctx)
 	fdnew = FindFreeFD();
 	if(fdnew==-1)
 	{
-		pCtx->Eax = -EMFILE; //too many open files
+		ctx.Eax = -EMFILE; //too many open files
 		return;
 	}
 
 	//use dup2 for actual work
-	OldEcx = pCtx->Ecx;
-	pCtx->Ecx = fdnew;
+	OldEcx = ctx.Ecx;
+	ctx.Ecx = fdnew;
 	sys_dup2(pCtx);
-	pCtx->Ecx = OldEcx;
+	ctx.Ecx = OldEcx;
 #endif
 }
 
@@ -509,25 +520,25 @@ void SysCalls::sys_dup2(CONTEXT &ctx)
 	IOHandler *ioh_old;
 
 	//validate old handle
-	fdold = pCtx->Ebx;
+	fdold = ctx.Ebx;
 	if(fdold<0 || fdold>MAX_OPEN_FILES)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
 	ioh_old = pProcessData->FileHandlers[fdold];
 	if(ioh_old == NULL)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
 	//validate new handle
-	fdnew = pCtx->Ecx;
+	fdnew = ctx.Ecx;
 	if(fdnew<0 || fdnew>MAX_OPEN_FILES || fdnew==fdold)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
@@ -542,11 +553,11 @@ void SysCalls::sys_dup2(CONTEXT &ctx)
 	IOHandler *ioh_new = ioh_old->Duplicate(GetCurrentProcess(), GetCurrentProcess());
 	if(ioh_new==NULL)
 	{
-		pCtx->Eax = Win32ErrToUnixError(GetLastError());
+		ctx.Eax = Win32ErrToUnixError(GetLastError());
 		return;
 	}
 	pProcessData->FileHandlers[fdnew] = ioh_new;
-	pCtx->Eax = fdnew;
+	ctx.Eax = fdnew;
 #endif
 }
 
@@ -561,29 +572,34 @@ void SysCalls::sys_getdents64(CONTEXT &ctx)
 {
 	Unhandled(ctx);
 #if 0
-	linux::dirent64 * s = (linux::dirent64 *)pCtx->Ecx;
-	int maxbytes = pCtx->Edx;
+	linux::dirent64 * s = (linux::dirent64 *)ctx.Ecx;
+	int maxbytes = ctx.Edx;
 	int filled = 0;
 	int fd;
 	IOHandler * ioh;
 
-	fd = pCtx->Ebx;
+	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
 	ioh = pProcessData->FileHandlers[fd];
+	if(ioh == NULL)
+	{
+		ctx.Eax = -EBADF;
+		return;
+	}
 
 	filled = ioh->GetDirEnts64(s, maxbytes);
 	if(filled >= 0)
 	{
-		pCtx->Eax = filled;
+		ctx.Eax = filled;
 	}
 	else
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 	}
 #endif
 }
@@ -597,39 +613,32 @@ void SysCalls::sys_getdents64(CONTEXT &ctx)
  */
 void SysCalls::sys_stat(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	const char * fname = (const char*)pCtx->Ebx;
-	linux::stat * buf = (linux::stat*)pCtx->Ecx;
-	Path p;
+	string fname = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	linux::stat * pBuf = (linux::stat*)ctx.Ecx;
+	linux::stat buf;
 
+	//DO resolve symbolic links for stat
+	Path p(true);
 	p.SetUnixPath(fname);
 
-	IOHandler * ioh = p.CreateIOHandler();
+	IOHandler * ioh = IOHandler::CreateForPath(p);
 	if(ioh==NULL)
 	{
-		pCtx->Eax = -ENOMEM;
+		ctx.Eax = -ENOMEM;
 		return;
 	}
 
-	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	if(ioh->Stat(&buf))
 	{
-		if(ioh->Stat(buf))
-		{
-			pCtx->Eax = 0;
-		}
-		else
-		{
-			pCtx->Eax = -Win32ErrToUnixError(GetLastError());
-		}
+		P->WriteMemory((ADDR)pBuf, sizeof(buf), &buf);
+		ctx.Eax = 0;
 	}
 	else
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 	}
 
 	delete ioh;
-#endif
 }
 
 
@@ -638,40 +647,32 @@ void SysCalls::sys_stat(CONTEXT &ctx)
  */
 void SysCalls::sys_lstat(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	const char * fname = (const char*)pCtx->Ebx;
-	linux::stat * buf = (linux::stat*)pCtx->Ecx;
+	string fname = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	linux::stat * pBuf = (linux::stat*)ctx.Ecx;
+	linux::stat buf;
 
 	//don't resolve symbolic links for lstat
 	Path p(false);
 	p.SetUnixPath(fname);
 
-	IOHandler * ioh = p.CreateIOHandler();
+	IOHandler * ioh = IOHandler::CreateForPath(p);
 	if(ioh==NULL)
 	{
-		pCtx->Eax = -ENOMEM;
+		ctx.Eax = -ENOMEM;
 		return;
 	}
 
-	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	if(ioh->Stat(&buf))
 	{
-		if(ioh->Stat(buf))
-		{
-			pCtx->Eax = 0;
-		}
-		else
-		{
-			pCtx->Eax = -Win32ErrToUnixError(GetLastError());
-		}
+		P->WriteMemory((ADDR)pBuf, sizeof(buf), &buf);
+		ctx.Eax = 0;
 	}
 	else
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 	}
 
 	delete ioh;
-#endif
 }
 
 
@@ -680,30 +681,34 @@ void SysCalls::sys_lstat(CONTEXT &ctx)
  */
 void SysCalls::sys_fstat(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	linux::stat * buf = (linux::stat*)pCtx->Ecx;
+	linux::stat * pBuf = (linux::stat*)ctx.Ecx;
+	linux::stat buf;
 	int fd;
 	IOHandler * ioh;
 
-	fd = pCtx->Ebx;
+	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
-
-	if(ioh->Stat(buf))
+	ioh = P->m_OpenFiles[fd];
+	if(ioh == NULL)
 	{
-		pCtx->Eax = 0;
+		ctx.Eax = -EBADF;
+		return;
+	}
+
+	if(ioh->Stat(&buf))
+	{
+		P->WriteMemory((ADDR)pBuf, sizeof(buf), &buf);
+		ctx.Eax = 0;
 	}
 	else
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 	}
-#endif
 }
 
 
@@ -715,39 +720,32 @@ void SysCalls::sys_fstat(CONTEXT &ctx)
  */
 void SysCalls::sys_stat64(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	const char * fname = (const char*)pCtx->Ebx;
-	linux::stat64 * buf = (linux::stat64*)pCtx->Ecx;
+	string fname = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	linux::stat64 * pBuf = (linux::stat64*)ctx.Ecx;
+	linux::stat64 buf;
 
-	Path p;
+	//DO resolve symbolic links for stat
+	Path p(true);
 	p.SetUnixPath(fname);
 
-	IOHandler * ioh = p.CreateIOHandler();
+	IOHandler * ioh = IOHandler::CreateForPath(p);
 	if(ioh==NULL)
 	{
-		pCtx->Eax = -ENOMEM;
+		ctx.Eax = -ENOMEM;
 		return;
 	}
 
-	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	if(ioh->Stat64(&buf))
 	{
-		if(ioh->Stat64(buf))
-		{
-			pCtx->Eax = 0;
-		}
-		else
-		{
-			pCtx->Eax = -Win32ErrToUnixError(GetLastError());
-		}
+		P->WriteMemory((ADDR)pBuf, sizeof(buf), &buf);
+		ctx.Eax = 0;
 	}
 	else
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 	}
 
 	delete ioh;
-#endif
 }
 
 
@@ -756,40 +754,32 @@ void SysCalls::sys_stat64(CONTEXT &ctx)
  */
 void SysCalls::sys_lstat64(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	const char * fname = (const char*)pCtx->Ebx;
-	linux::stat64 * buf = (linux::stat64*)pCtx->Ecx;
+	string fname = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	linux::stat64 * pBuf = (linux::stat64*)ctx.Ecx;
+	linux::stat64 buf;
 
 	//don't resolve symbolic links for lstat
 	Path p(false);
 	p.SetUnixPath(fname);
 
-	IOHandler * ioh = p.CreateIOHandler();
+	IOHandler * ioh = IOHandler::CreateForPath(p);
 	if(ioh==NULL)
 	{
-		pCtx->Eax = -ENOMEM;
+		ctx.Eax = -ENOMEM;
 		return;
 	}
 
-	if(ioh->Open(p, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS))
+	if(ioh->Stat64(&buf))
 	{
-		if(ioh->Stat64(buf))
-		{
-			pCtx->Eax = 0;
-		}
-		else
-		{
-			pCtx->Eax = -Win32ErrToUnixError(GetLastError());
-		}
+		P->WriteMemory((ADDR)pBuf, sizeof(buf), &buf);
+		ctx.Eax = 0;
 	}
 	else
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 	}
 
 	delete ioh;
-#endif
 }
 
 
@@ -798,37 +788,34 @@ void SysCalls::sys_lstat64(CONTEXT &ctx)
  */
 void SysCalls::sys_fstat64(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	linux::stat64 * buf = (linux::stat64*)pCtx->Ecx;
+	linux::stat64 * pBuf = (linux::stat64*)ctx.Ecx;
+	linux::stat64 buf;
 	int fd;
 	IOHandler * ioh;
 
-	fd = pCtx->Ebx;
+	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
-	if(ioh==NULL)
+	ioh = P->m_OpenFiles[fd];
+	if(ioh == NULL)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
-
-	if(ioh->Stat64(buf))
+	if(ioh->Stat64(&buf))
 	{
-		pCtx->Eax = 0;
+		P->WriteMemory((ADDR)pBuf, sizeof(buf), &buf);
+		ctx.Eax = 0;
 	}
 	else
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 	}
-
-#endif
 }
 
 
@@ -846,16 +833,16 @@ void SysCalls::sys_readlink(CONTEXT &ctx)
 	//don't follow symlinks
 	Path p;
 	p.FollowSymLinks(false);
-	p.SetUnixPath((const char*)pCtx->Ebx);
+	p.SetUnixPath((const char*)ctx.Ebx);
 
 	if(p.GetFileAttributes()==INVALID_FILE_ATTRIBUTES)
 	{
-		pCtx->Eax = -ENOENT; //no file
+		ctx.Eax = -ENOENT; //no file
 	}
 	else
 	if(!p.IsSymbolicLink())
 	{
-		pCtx->Eax = -EINVAL; //not a link
+		ctx.Eax = -EINVAL; //not a link
 	}
 	else
 	{
@@ -863,15 +850,15 @@ void SysCalls::sys_readlink(CONTEXT &ctx)
 		p.FollowSymLinks(true);
 
 		//readlink does not copy the null!
-		char *pD = (char*)pCtx->Ecx;
+		char *pD = (char*)ctx.Ecx;
 		const char *pS = p.UnixPath();
-		int max = (int)pCtx->Edx;
+		int max = (int)ctx.Edx;
 		for(c=0; *pS!=0 && c<max; ++c,++pD,++pS)
 		{
 			*pD = *pS;
 		}
 
-		pCtx->Eax = c; //ok
+		ctx.Eax = c; //ok
 	}
 #endif
 }
@@ -886,14 +873,14 @@ void SysCalls::sys_pipe(CONTEXT &ctx)
 {
 	Unhandled(ctx);
 #if 0
-	int *fds = (int*)pCtx->Ebx;
+	int *fds = (int*)ctx.Ebx;
 
 	//handles to open
 	HANDLE hRead, hWrite;
 
 	if(!CreatePipe(&hRead, &hWrite, NULL, 0))
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 		return;
 	}
 
@@ -911,7 +898,7 @@ void SysCalls::sys_pipe(CONTEXT &ctx)
 	fds[1] = FindFreeFD();
 	pProcessData->FileHandlers[fds[1]] = new PipeIOHandler(hWrite);
 
-	pCtx->Eax = 0;
+	ctx.Eax = 0;
 #endif
 }
 
@@ -927,13 +914,13 @@ void SysCalls::sys_link(CONTEXT &ctx)
 #if 0
 	Path OldP(false), NewP(false);
 
-	OldP.SetUnixPath((const char*)pCtx->Ebx);
-	NewP.SetUnixPath((const char*)pCtx->Ecx);
+	OldP.SetUnixPath((const char*)ctx.Ebx);
+	NewP.SetUnixPath((const char*)ctx.Ecx);
 
 	if(CreateHardLink(NewP.Win32Path(), OldP.Win32Path(), NULL))
-		pCtx->Eax = 0;
+		ctx.Eax = 0;
 	else
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 #endif
 }
 
@@ -946,16 +933,16 @@ void SysCalls::sys_unlink(CONTEXT &ctx)
 	Unhandled(ctx);
 #if 0
 	Path p(false);
-	p.SetUnixPath((const char *)pCtx->Ebx);
+	p.SetUnixPath((const char *)ctx.Ebx);
 
 	if(DeleteFile(p.Win32Path()))
 	{
-		pCtx->Eax = 0;
+		ctx.Eax = 0;
 		return;
 	}
 
 	DWORD err = GetLastError();
-	pCtx->Eax = -Win32ErrToUnixError(err);
+	ctx.Eax = -Win32ErrToUnixError(err);
 
 	if(err!=ERROR_SHARING_VIOLATION)
 		return; //return this error
@@ -986,25 +973,25 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
 {
 	Unhandled(ctx);
 #if 0
-	int fd = pCtx->Ebx;
-	LONG offset_high = pCtx->Ecx;
-	LONG offset_low = pCtx->Edx;
-	linux::loff_t* result = (linux::loff_t*)pCtx->Esi;
-	DWORD whence = pCtx->Edi;
+	int fd = ctx.Ebx;
+	LONG offset_high = ctx.Ecx;
+	LONG offset_low = ctx.Edx;
+	linux::loff_t* result = (linux::loff_t*)ctx.Esi;
+	DWORD whence = ctx.Edi;
 
 	IOHandler * ioh;
 
-	fd = pCtx->Ebx;
+	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
 	ioh = pProcessData->FileHandlers[fd];
 	if(ioh == NULL)
 	{
-		pCtx->Eax = -EBADF;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
@@ -1019,7 +1006,7 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
 		method=FILE_CURRENT;
 	else
 	{
-		pCtx->Eax = -EINVAL;
+		ctx.Eax = -EINVAL;
 		return;
 	}
 
@@ -1032,9 +1019,9 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
 	*result = ioh->Seek(li.QuadPart, method);
 
 	if(GetLastError()==0)
-		pCtx->Eax = 0;
+		ctx.Eax = 0;
 	else
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 #endif
 }
 
@@ -1050,21 +1037,21 @@ void SysCalls::sys_lseek(CONTEXT &ctx)
 	CONTEXT ctx2;
 	linux::loff_t result;
 
-	ctx2.Ebx = pCtx->Ebx; //fd
+	ctx2.Ebx = ctx.Ebx; //fd
 	ctx2.Ecx = 0; //offset, high
-	ctx2.Edx = pCtx->Ecx; //offset, low
+	ctx2.Edx = ctx.Ecx; //offset, low
 	ctx2.Esi = (DWORD)(&result);
-	ctx2.Edi = pCtx->Edx; //whence
+	ctx2.Edi = ctx.Edx; //whence
 
 	sys__llseek(&ctx2);
 	if(ctx2.Eax!=0)
 	{
 		//error
-		pCtx->Eax = ctx2.Eax;
+		ctx.Eax = ctx2.Eax;
 		return;
 	}
 
-	pCtx->Eax = (DWORD)(result & 0x7FFFFFFF);
+	ctx.Eax = (DWORD)(result & 0x7FFFFFFF);
 #endif
 }
 
@@ -1078,11 +1065,11 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 {
 	Unhandled(ctx);
 #if 0
-	int numFds = pCtx->Ebx;
-	linux::fd_set *pReadFds = (linux::fd_set*)pCtx->Ecx;
-	linux::fd_set *pWriteFds = (linux::fd_set*)pCtx->Edx;
-	linux::fd_set *pExceptFds = (linux::fd_set*)pCtx->Esi;
-	linux::timeval *pTimeout = (linux::timeval*)pCtx->Edi;
+	int numFds = ctx.Ebx;
+	linux::fd_set *pReadFds = (linux::fd_set*)ctx.Ecx;
+	linux::fd_set *pWriteFds = (linux::fd_set*)ctx.Edx;
+	linux::fd_set *pExceptFds = (linux::fd_set*)ctx.Esi;
+	linux::timeval *pTimeout = (linux::timeval*)ctx.Edi;
 
 	linux::fd_set ReadResults, WriteResults, ExceptResults;
 	LINUX_FD_ZERO(&ReadResults);
@@ -1149,7 +1136,7 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 		*pWriteFds = WriteResults;
 	if(pExceptFds)
 		*pExceptFds = ExceptResults;
-	pCtx->Eax = 0;
+	ctx.Eax = 0;
 #endif
 }
 
@@ -1164,19 +1151,19 @@ void SysCalls::sys_mkdir(CONTEXT &ctx)
 {
 	Unhandled(ctx);
 #if 0
-	DWORD mode = pCtx->Ecx;
+	DWORD mode = ctx.Ecx;
 
 	Path p;
-	p.SetUnixPath((const char *)pCtx->Ebx);
+	p.SetUnixPath((const char *)ctx.Ebx);
 
 	if(CreateDirectory(p.Win32Path(), NULL))
 	{
-		pCtx->Eax = 0;
+		ctx.Eax = 0;
 		return;
 	}
 
 	DWORD err = GetLastError();
-	pCtx->Eax = -Win32ErrToUnixError(err);
+	ctx.Eax = -Win32ErrToUnixError(err);
 #endif
 }
 
@@ -1189,16 +1176,16 @@ void SysCalls::sys_rmdir(CONTEXT &ctx)
 	Unhandled(ctx);
 #if 0
 	Path p(false);
-	p.SetUnixPath((const char *)pCtx->Ebx);
+	p.SetUnixPath((const char *)ctx.Ebx);
 
 	if(RemoveDirectory(p.Win32Path()))
 	{
-		pCtx->Eax = 0;
+		ctx.Eax = 0;
 		return;
 	}
 
 	DWORD err = GetLastError();
-	pCtx->Eax = -Win32ErrToUnixError(err);
+	ctx.Eax = -Win32ErrToUnixError(err);
 
 	if(err!=ERROR_SHARING_VIOLATION)
 		return; //return this error
@@ -1232,8 +1219,8 @@ void SysCalls::sys_rename(CONTEXT &ctx)
 #if 0
 	Path OldP, NewP;
 
-	OldP.SetUnixPath((const char *)pCtx->Ebx);
-	NewP.SetUnixPath((const char *)pCtx->Ecx);
+	OldP.SetUnixPath((const char *)ctx.Ebx);
+	NewP.SetUnixPath((const char *)ctx.Ecx);
 
 	char * p2 = NULL;
 	if(OldP.IsSymbolicLink())
@@ -1245,9 +1232,9 @@ void SysCalls::sys_rename(CONTEXT &ctx)
 	}
 
 	if(MoveFileEx(OldP.Win32Path(), p2?p2:NewP.Win32Path(), MOVEFILE_REPLACE_EXISTING))
-		pCtx->Eax = 0;
+		ctx.Eax = 0;
 	else
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 
 	if(p2)
 		delete p2;

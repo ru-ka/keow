@@ -35,9 +35,13 @@ static void LoadAddressInfo()
 
 #define SET_ADDR(func) AddrInfo.##func = (LPVOID)(SysCallDll::##func )
 
+	SET_ADDR(GetLastError);
 	SET_ADDR(CloseHandle);
 	SET_ADDR(SetFilePointer);
 	SET_ADDR(SetEndOfFile);
+	SET_ADDR(ZeroMem);
+	SET_ADDR(CreateFileMapping);
+	SET_ADDR(MapViewOfFileEx);
 
 	SET_ADDR(write);
 	SET_ADDR(writev);
@@ -85,6 +89,7 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID p)
 			or ebx, 0x100   //trap bit
 			push ebx
 			popfd
+			//now we are single-stepping
 
 			nop
 		}

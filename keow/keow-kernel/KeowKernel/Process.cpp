@@ -835,10 +835,10 @@ DWORD Process::StartNewImageRunning()
 	ADDR InterpAddr = 0;
 	if(m_ElfLoadData.Interpreter[0]!=0)
 	{
-		++ArgCnt; //interpreter comes first
-		int len = strlen(m_ElfLoadData.Interpreter) + 1; //include the null
-		InterpAddr = MemoryHelper::AllocateMemAndProtect(0, len, PAGE_EXECUTE_READWRITE);
-		WriteMemory(InterpAddr, len, m_ElfLoadData.Interpreter);
+//		++ArgCnt; //interpreter comes first
+//		int len = strlen(m_ElfLoadData.Interpreter) + 1; //include the null
+//		InterpAddr = MemoryHelper::AllocateMemAndProtect(0, len, PAGE_EXECUTE_READWRITE);
+//		WriteMemory(InterpAddr, len, m_ElfLoadData.Interpreter);
 	}
 
 	//stack data needed
@@ -1196,6 +1196,8 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	//This means we place args on the stack so that param1 pops first
 	//also we don't need to clean up the stack. The called function does.
 
+	ktrace("Injecting call to SysCallDll func @ 0x%08lx\n", func);
+
 	CONTEXT OrigCtx;
 	OrigCtx.ContextFlags = CONTEXT_FULL; //preserve everything
 	GetThreadContext(m_Win32PInfo.hThread, &OrigCtx);
@@ -1211,9 +1213,11 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 	ADDR addr = (ADDR)TempCtx.Esp;
 
-	WriteMemory(addr, sizeof(DWORD), &OrigCtx.Eip); //return address
+	//return address
+	WriteMemory(addr, sizeof(DWORD), &OrigCtx.Eip);
 	addr += sizeof(DWORD);
 
+	//parameters
 	ADDR ParamAddr = addr;
 	WriteMemory(addr, nStackDataSize, pStackData);
 	addr += nStackDataSize;
@@ -1250,7 +1254,11 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 				//not expecting an exception in the SysCallDll
 				ktrace("unexpected exception from SysCallDll: 0x%8lx\n", evt.u.Exception.ExceptionRecord.ExceptionCode);
 #ifdef _DEBUG
-				DebugBreak();
+				CONTEXT ctx;
+				ctx.ContextFlags = CONTEXT_FULL;
+				GetThreadContext(m_Win32PInfo.hThread, &ctx);
+				TraceContext(0,0, ctx);
+				HandleException(evt);
 #endif
 			}
 		}
@@ -1259,6 +1267,19 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 		{
 			m_dwExitCode = evt.u.ExitProcess.dwExitCode;
 			ExitThread(0); //no longer debugging
+		}
+
+		if(evt.dwDebugEventCode==OUTPUT_DEBUG_STRING_EVENT)
+		{
+			int bufLen = evt.u.DebugString.nDebugStringLength*2;
+			char * buf = new char[bufLen];
+
+			ReadMemory(buf, (ADDR)evt.u.DebugString.lpDebugStringData, evt.u.DebugString.nDebugStringLength);
+			buf[evt.u.DebugString.nDebugStringLength] = 0;
+
+			ktrace("syscalldll relay: %*s\n", evt.u.DebugString.nDebugStringLength, buf);
+
+			delete buf;
 		}
 
 		//ignore the rest
@@ -1275,6 +1296,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 	GetThreadContext(m_Win32PInfo.hThread, &TempCtx);
 	DWORD dwRet = TempCtx.Eax;
+	ktrace("Injection exit @ 0x%08lx\n", TempCtx.Eip);
 
 	//Eax will be set (if required) by the system call handler that requested the injection
 	SetThreadContext(m_Win32PInfo.hThread, &OrigCtx);

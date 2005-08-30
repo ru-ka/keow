@@ -48,6 +48,10 @@ public:
 
 	virtual IOHandler* clone();
 
+	virtual bool Stat64(linux::stat64 * s);
+	__int64 Length();
+	DWORD Seek(__int64 offset, DWORD from);
+
 protected:
 	Path m_Path;
 	HANDLE m_RemoteHandle;

@@ -83,18 +83,6 @@ void SysCalls::sys_brk(CONTEXT &ctx)
 
 /*****************************************************************************/
 
-#if 0
-namespace linux {
-	struct mmap_arg_struct {
-		unsigned long addr;
-		unsigned long len;
-		unsigned long prot;
-		unsigned long flags;
-		unsigned long fd;
-		unsigned long offset;
-	};
-};
-#endif 
 
 /*
  * unsigned long sys_mmap(mmap_arg_struct* args)
@@ -103,31 +91,31 @@ namespace linux {
  */
 void SysCalls::sys_mmap(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	linux::mmap_arg_struct * args = (linux::mmap_arg_struct *)pCtx->Ebx;
+	linux::mmap_arg_struct args;
 	DWORD err = -EINVAL;
 	HANDLE hMap, hFile;
 	DWORD ProtOpen, ProtMap;
 	void *p;
 	DWORD dwFileSize;
-	FileIOHandler * ioh = NULL;
+	IOHFile * ioh = NULL;
 
-	if(args->fd != -1)
+	P->ReadMemory(&args, (ADDR)ctx.Ebx, sizeof(args));
+
+	if(args.fd != -1)
 	{
-		if(args->fd<0 || args->fd>MAX_OPEN_FILES)
+		if(args.fd<0 || args.fd>MAX_OPEN_FILES)
 		{
-			pCtx->Eax = -EBADF;
+			ctx.Eax = -EBADF;
 			return;
 		}
-		ioh = dynamic_cast<FileIOHandler*>(pProcessData->FileHandlers[args->fd]);
+		ioh = dynamic_cast<IOHFile*>(P->m_OpenFiles[args.fd]);
 		if(ioh==NULL)
 		{
-			pCtx->Eax = -EACCES; //not a simple file - can't handle that
+			ctx.Eax = -EACCES; //not a simple file - can't handle that
 			return;
 		}
 
-		ULONGLONG len = ioh->Length();
+		__int64 len = ioh->Length();
 		if(len>LONG_MAX)
 			dwFileSize = LONG_MAX;
 		else
@@ -152,59 +140,61 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	// area, which can't happen in win32. Therefore unless we
 	// need to write (not copy-on-write) to the map, then always
 	// allocate memory and read to get around all these problems.
-	if((args->addr & 0xFFFF00000) != args->addr	    /*64k test*/
-	|| (args->offset & 0xFFFF0000) != args->offset  /*64k test*/
-	|| ((args->fd != -1) && (args->offset+args->len) > dwFileSize)  /*mmap larger than file*/
-	|| ((args->prot & PROT_WRITE)==0 || (args->flags & MAP_SHARED)==0)  /* ReadOnly or private map (not write shared) */
+	if((args.addr & 0xFFFF00000) != args.addr	    /*64k test*/
+	|| (args.offset & 0xFFFF0000) != args.offset  /*64k test*/
+	|| ((args.fd != -1) && (args.offset+args.len) > dwFileSize)  /*mmap larger than file*/
+	|| ((args.prot & PROT_WRITE)==0 || (args.flags & MAP_SHARED)==0)  /* ReadOnly or private map (not write shared) */
 	) {
 
 		//can't handle shared write access in these scenarios
-		if((args->prot & PROT_WRITE) && (args->flags & MAP_SHARED))
+		if((args.prot & PROT_WRITE) && (args.flags & MAP_SHARED))
 		{
-			pCtx->Eax = -EINVAL; //invalid arguments
+			ctx.Eax = -EINVAL; //invalid arguments
 			return;
 		}
 
+		//allocations are rounded up to 4k boundaries
+		int len4k = (args.len+0xFFF) & ~0xFFF;
+
 		//allocate the requested mem size
-		if(args->prot & PROT_WRITE)
+		if(args.prot & PROT_WRITE)
 			ProtMap = PAGE_READWRITE;
 		else
 			ProtMap = PAGE_READONLY;
-		p = AllocateMemAndProtect((ADDR)args->addr, args->len, PAGE_READWRITE); //correct prot after we write mem
+		p = MemoryHelper::AllocateMemAndProtect((ADDR)args.addr, len4k, PAGE_READWRITE); //correct prot after we write mem
 		if(p==(void*)-1)
 		{
-			pCtx->Eax = -ENOMEM;
+			ctx.Eax = -ENOMEM;
 			return;
 		}
 
-		int len4k = (args->len+0xFFF) & ~0xFFF;
-		ZeroMemory(p, len4k);
+		//initialise it
+		SysCallDll::ZeroMem(p, len4k);
 
 		//read file into the memory (unless using swap)
 		if(ioh != NULL)
 		{
-			DWORD dwRead;
 			DWORD dwReadLen;
 
-			dwReadLen = args->len;
-			if(args->offset+args->len > dwFileSize)
-				dwReadLen = dwFileSize - args->offset;
+			dwReadLen = args.len;
+			if(args.offset+args.len > dwFileSize)
+				dwReadLen = dwFileSize - args.offset;
 
-			if(ioh->Seek(args->offset, FILE_BEGIN)==INVALID_SET_FILE_POINTER)
+			if(ioh->Seek(args.offset, FILE_BEGIN)==INVALID_SET_FILE_POINTER)
 			{
-				pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+				ctx.Eax = -Win32ErrToUnixError(GetLastError());
 				return;
 			}
-			if(!ioh->Read(p, dwReadLen, &dwRead) )
+			if(!SysCallDll::read(ioh->GetRemoteReadHandle(), p, dwReadLen))
 			{
-				pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+				ctx.Eax = -Win32ErrToUnixError(GetLastError());
 				return;
 			}
 		}
 
 //can't change protection within the 64k once set?
-//		VirtualProtect(p, args->len, ProtMap, &ProtOpen);
-		pCtx->Eax = (DWORD)p;
+//		VirtualProtect(p, args.len, ProtMap, &ProtOpen);
+		ctx.Eax = (DWORD)p;
 		return;
 	}
 
@@ -217,9 +207,9 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	// we don't get any future updates 
 	// mapping 
 	//protection needed
-	if(args->prot & PROT_WRITE)
+	if(args.prot & PROT_WRITE)
 	{
-		if(args->flags & MAP_PRIVATE)
+		if(args.flags & MAP_PRIVATE)
 		{
 			ProtOpen = PAGE_WRITECOPY;
 			ProtMap = FILE_MAP_COPY;
@@ -241,29 +231,28 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	if(ioh==NULL)
 		hFile=INVALID_HANDLE_VALUE;
 	else
-		hFile=ioh->GetHandle();
+		hFile=ioh->GetRemoteWriteHandle(); //same as Read handle for a file
 
-	//map the file
-	hMap = CreateFileMapping(hFile, NULL, ProtOpen, 0, args->offset+args->len, NULL);
+	//map the file (hMap is in the user process)
+	hMap = (HANDLE)SysCallDll::CreateFileMapping(hFile, ProtOpen, 0, args.offset+args.len);
 	if(hMap==NULL)
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 		return;
 	}
-	p = MapViewOfFileEx(hMap, ProtMap, 0,args->offset, args->len, (void*)args->addr);
+	p = (void*)SysCallDll::MapViewOfFileEx(hMap, ProtMap, 0,args.offset, args.len, (void*)args.addr);
 	if(p==0)
 	{
-		pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 		return;
 	}
 
-	RecordMMapAllocation(hFile, hMap, args->offset, (ADDR)p, args->len, ProtMap);
-	//leave open - CloseHandle(hMap);
+	P->m_MmapList.push_back(new Process::MMapRecord(args.fd, hMap, (ADDR)p, args.offset, args.len, ProtMap));
+	//leave open - CloseHandle(hMap); -its on the other process anyway
 
 	//opened - return actual addr
-	pCtx->Eax = (DWORD)p;
+	ctx.Eax = (DWORD)p;
 	return;
-#endif
 }
 
 /*****************************************************************************/

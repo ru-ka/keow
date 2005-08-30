@@ -423,3 +423,14 @@ HRESULT Path::CreateLink(const string& LinkPath, const string& DestPath, const s
     } 
     return hres; 
 }
+
+
+bool Path::IsSymbolicLink()
+{
+	if(m_FollowSymLinks)
+		return false; //it's not because we'll always resolve them to a real location
+
+	string Dest = GetShortCutTarget(GetWin32Path());
+	return !Dest.empty();
+}
+

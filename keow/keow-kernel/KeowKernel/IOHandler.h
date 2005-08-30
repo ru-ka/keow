@@ -35,6 +35,7 @@
 class IOHandler  
 {
 public:
+	int GetUnixFileType();
 	IOHandler();
 	virtual ~IOHandler();
 
@@ -46,6 +47,11 @@ public:
 	virtual HANDLE GetRemoteReadHandle() = 0;
 
 	virtual IOHandler* clone() = 0;
+
+	bool IOHandler::Stat(linux::stat* s);
+	void IOHandler::BasicStat64(linux::stat64 * s, int file_type);
+	virtual bool IOHandler::Stat64(linux::stat64 * s) = 0;
+
 };
 
 #endif // !defined(AFX_IOHANDLER_H__BDA9DB15_5F09_45C4_9607_507D02C38ACD__INCLUDED_)

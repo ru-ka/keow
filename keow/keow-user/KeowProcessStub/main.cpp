@@ -30,7 +30,6 @@
 //////////////////////////////////////////////////////////////////////////////////////
 
 
-//int WINAPI _WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 void StubMain()
 {
 	//the keow/unix files have already been loaded by the time we get here,

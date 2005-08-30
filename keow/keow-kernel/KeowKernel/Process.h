@@ -104,6 +104,28 @@ public:
 	typedef list<MemoryAlloc*> MemoryAllocationsList;
 	MemoryAllocationsList m_MemoryAllocations;
 
+	struct MMapRecord 
+	{
+		int fd;
+		HANDLE hRemoteMapHandle;
+		DWORD offset;
+		DWORD len;
+		DWORD Protection;
+		ADDR Address;
+
+		MMapRecord(int fd, HANDLE hRemote, ADDR addr, DWORD offs, DWORD size, DWORD prot)
+		{
+			this->fd = fd;
+			hRemoteMapHandle = hRemote;
+			offset = offs;
+			len = size;
+			Protection = prot;
+			Address = addr;
+		}
+	};
+	typedef list<MMapRecord*> MmapList;
+	MmapList m_MmapList;
+
 	struct ElfLoadData {
 		ADDR phdr_addr;
 		DWORD phdr_phnum;

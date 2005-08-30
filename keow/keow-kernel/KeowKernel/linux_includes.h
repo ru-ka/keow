@@ -63,6 +63,15 @@ typedef unsigned __int64 __u64;
 typedef __int64	__kernel_loff_t;
 typedef __kernel_loff_t loff_t;
 
+struct mmap_arg_struct {
+	unsigned long addr;
+	unsigned long len;
+	unsigned long prot;
+	unsigned long flags;
+	unsigned long fd;
+	unsigned long offset;
+};
+
 
 #include <linux/types.h>
 #include <linux/unistd.h>

@@ -31,10 +31,16 @@
 
 ////////////////////////////////////////////////////////////////////////
 
+DWORD _stdcall SysCallDll::GetLastError()
+{
+	return P->InjectFunctionCall(P->SysCallAddr.GetLastError, NULL, 0);
+}
+
+
 DWORD _stdcall SysCallDll::CloseHandle(HANDLE h)
 {
 	DWORD stack[] = {
-		(DWORD)h,
+		(DWORD)h
 	};
 	return P->InjectFunctionCall(P->SysCallAddr.CloseHandle, &stack, sizeof(stack));
 }
@@ -54,12 +60,48 @@ DWORD _stdcall SysCallDll::SetFilePointer(HANDLE h, DWORD PosLo, DWORD PosHi, DW
 DWORD _stdcall SysCallDll::SetEndOfFile(HANDLE h)
 {
 	DWORD stack[] = {
-		(DWORD)h,
+		(DWORD)h
 	};
 	return P->InjectFunctionCall(P->SysCallAddr.SetEndOfFile, &stack, sizeof(stack));
 }
 
 
+DWORD _stdcall SysCallDll::ZeroMem(void *p, DWORD len)
+{
+	DWORD stack[] = {
+		(DWORD)p,
+		len
+	};
+	return P->InjectFunctionCall(P->SysCallAddr.ZeroMem, &stack, sizeof(stack));
+}
+
+
+DWORD _stdcall SysCallDll::CreateFileMapping(HANDLE hFile, DWORD Prot, DWORD sizeHi, DWORD sizeLo)
+{
+	DWORD stack[] = {
+		(DWORD)hFile,
+		Prot,
+		sizeHi,
+		sizeLo
+	};
+	return P->InjectFunctionCall(P->SysCallAddr.CreateFileMapping, &stack, sizeof(stack));
+}
+
+DWORD _stdcall SysCallDll::MapViewOfFileEx(HANDLE hMap, DWORD Prot, DWORD offsetHi, DWORD offsetLo, DWORD len, void* BaseAddr)
+{
+	DWORD stack[] = {
+		(DWORD)hMap,
+		Prot,
+		offsetHi,
+		offsetLo,
+		len,
+		(DWORD)BaseAddr
+	};
+	return P->InjectFunctionCall(P->SysCallAddr.MapViewOfFileEx, &stack, sizeof(stack));
+}
+
+
+/*******************************************************************/
 
 DWORD _stdcall SysCallDll::exit(UINT exitcode)
 {

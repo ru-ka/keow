@@ -384,3 +384,7 @@ string MemoryHelper::ReadString(HANDLE hFromProcess, ADDR fromAddr)
 		addr += len;
 	}
 }
+
+/*****************************************************************************/
+
+

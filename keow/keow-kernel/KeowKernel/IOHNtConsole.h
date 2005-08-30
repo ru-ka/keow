@@ -24,6 +24,8 @@ public:
 
 	virtual IOHandler* clone();
 
+	virtual bool Stat64(linux::stat64 * s);
+
 protected:
 	HANDLE m_hRemoteConsoleRead, m_hRemoteConsoleWrite;
 	DevConsole * m_pConsole;
