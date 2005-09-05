@@ -60,6 +60,7 @@ public:
 	DWORD StartNewImageRunning();
 	static Process* StartInit(PID pid, Path& path, char ** InitialArguments, char ** InitialEnvironment);
 
+	void SetSingleStep(bool set);
 	DWORD InjectFunctionCall(void *func, void *pStackData, int nStackDataSize);
 
 	virtual ~Process();
@@ -176,7 +177,6 @@ private:
 	Process(); //private - use methods to create
 protected:
 	void TraceContext(int LinesBefore, int LinesAfter, CONTEXT &ctx);
-	void SetSingleStep(bool set);
 	void ForkCopyOtherProcess(Process * pOther);
 	void CopyProcessHandles(Process* pParent);
 	void HandleException(DEBUG_EVENT &evt);

@@ -36,6 +36,9 @@ ULARGE_INTEGER Time1Jan1970;
 
 void ktrace(const char *format, ...)
 {
+	if(g_pKernelTable && g_pKernelTable->m_DebugLevel==0)
+		return;
+
 	va_list va;
 	va_start(va, format);
 
@@ -50,7 +53,7 @@ void ktrace(const char *format, ...)
 	StringCbVPrintfEx(pNext, size, &pNext, &size, 0, format, va);
 
 	OutputDebugString(g_pTraceBuffer);
-
+	//Sleep(1); //yield to let vc++ debug view catch up
 }
 
 void halt()

@@ -37,6 +37,9 @@ const int Process::KERNEL_PROCESS_THREAD_STACK_SIZE = 32*1024;
 
 const char * Process::KEOW_PROCESS_STUB = "Keow.exe";
 
+static const int SINGLE_STEP_BIT = 0x100L; //8th bit is trap flag
+
+
 //////////////////////////////////////////////////////////////////////
 
 Process::Process()
@@ -232,6 +235,7 @@ void Process::DebuggerLoop()
 				{
 				case EXCEPTION_SINGLE_STEP:
 					ConvertProcessToKeow();
+					SetSingleStep(false); //DEBUG - keep it up
 					break;
 				case EXCEPTION_BREAKPOINT:
 					//seems to get generated when kernel32 loads.
@@ -259,7 +263,7 @@ void Process::DebuggerLoop()
 				ReadMemory(buf, (ADDR)evt.u.DebugString.lpDebugStringData, evt.u.DebugString.nDebugStringLength);
 				buf[evt.u.DebugString.nDebugStringLength] = 0;
 
-				ktrace("relay: %*s\n", evt.u.DebugString.nDebugStringLength, buf);
+				ktrace("relay: %*s", evt.u.DebugString.nDebugStringLength, buf);
 
 				delete buf;
 			}
@@ -342,15 +346,29 @@ void Process::ConvertProcessToKeow()
 //
 void Process::HandleException(DEBUG_EVENT &evt)
 {
+	/* From Winnt.H for reference
+		#define CONTEXT_CONTROL         (CONTEXT_i386 | 0x00000001L) // SS:SP, CS:IP, FLAGS, BP
+		#define CONTEXT_INTEGER         (CONTEXT_i386 | 0x00000002L) // AX, BX, CX, DX, SI, DI
+		#define CONTEXT_SEGMENTS        (CONTEXT_i386 | 0x00000004L) // DS, ES, FS, GS
+		#define CONTEXT_FLOATING_POINT  (CONTEXT_i386 | 0x00000008L) // 387 state
+		#define CONTEXT_DEBUG_REGISTERS (CONTEXT_i386 | 0x00000010L) // DB 0-3,6,7
+		#define CONTEXT_EXTENDED_REGISTERS  (CONTEXT_i386 | 0x00000020L) // cpu specific extensions
+
+		#define CONTEXT_FULL (CONTEXT_CONTROL | CONTEXT_INTEGER |\
+							  CONTEXT_SEGMENTS)
+	*/
+
 	CONTEXT ctx;
-	ctx.ContextFlags = CONTEXT_FULL;
+	ctx.ContextFlags = CONTEXT_FULL | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
 	GetThreadContext(m_Win32PInfo.hThread, &ctx);
 
 	switch(evt.u.Exception.ExceptionRecord.ExceptionCode)
 	{
 	case EXCEPTION_SINGLE_STEP:
 		TraceContext(0,0,ctx);
+		ctx.EFlags |= SINGLE_STEP_BIT; //keep it up (DEbug only?)
 		break;
+
 	case EXCEPTION_ACCESS_VIOLATION:
 		{
 			//is this an INT 80 linux SYSCALL?
@@ -362,21 +380,17 @@ void Process::HandleException(DEBUG_EVENT &evt)
 			{
 				//skip over the INT instruction
 				//so that the process resumes on the next instruction
-				CONTEXT ctx;
-				ctx.ContextFlags = CONTEXT_FULL;
-				GetThreadContext(m_Win32PInfo.hThread, &ctx);
 				ctx.Eip += 2;
-				SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
 				//handle int 80h
 				SysCalls::HandleInt80SysCall(ctx);
-
-				//set any context changes
-				SetThreadContext(m_Win32PInfo.hThread, &ctx);
 			}
 			else
 			{
 				ktrace("Access violation @ 0x%08lx\n", evt.u.Exception.ExceptionRecord.ExceptionAddress);
+
+				TraceContext(0,0,ctx);
+
 				SendSignal(SIGSEGV); //access violation
 			}
 		}
@@ -422,6 +436,9 @@ void Process::HandleException(DEBUG_EVENT &evt)
 
 
 	//SetSingleStep(true); //DEBUG - keep it up
+
+	//set any context changes
+	SetThreadContext(m_Win32PInfo.hThread, &ctx);
 }
 
 void Process::CopyProcessHandles(Process *pParent)
@@ -615,6 +632,17 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 					ktrace("error 0x%lx in write program segment\n", err);
 					loadok = 0;
 					break;
+				}
+
+				//zero any remaining space?
+				BYTE zero = 0;
+				DWORD sz = phdr->p_filesz;
+				pMem += phdr->p_filesz;
+				while(sz < phdr->p_memsz)
+				{
+					++pMem;
+					WriteMemory(pMem, 1, &zero);
+					++sz;
 				}
 			}
 
@@ -831,15 +859,6 @@ DWORD Process::StartNewImageRunning()
 		pArgs = MemoryHelper::CopyStringListBetweenProcesses(pParent->m_Win32PInfo.hProcess, m_Arguments, m_Win32PInfo.hProcess, &ArgCnt);
 	}
 
-	//need an interpreter?
-	ADDR InterpAddr = 0;
-	if(m_ElfLoadData.Interpreter[0]!=0)
-	{
-//		++ArgCnt; //interpreter comes first
-//		int len = strlen(m_ElfLoadData.Interpreter) + 1; //include the null
-//		InterpAddr = MemoryHelper::AllocateMemAndProtect(0, len, PAGE_EXECUTE_READWRITE);
-//		WriteMemory(InterpAddr, len, m_ElfLoadData.Interpreter);
-	}
 
 	//stack data needed
 	const int AUX_RESERVE = 2*sizeof(DWORD)*20; //heaps for what is below
@@ -861,13 +880,6 @@ DWORD Process::StartNewImageRunning()
 	//argc
 	WriteMemory(addr, sizeof(DWORD), &ArgCnt);
 	addr += sizeof(DWORD);
-	//additional first arg?
-	if(InterpAddr)
-	{
-		WriteMemory(addr, sizeof(DWORD), &InterpAddr);
-		addr += sizeof(DWORD);
-		--ArgCnt; //so next bit sees the original size
-	}
 	//argv[]: clone the array of pointers that are already in the target process
 	//include the null end entry
 	MemoryHelper::TransferMemory(m_Win32PInfo.hProcess, pArgs, m_Win32PInfo.hProcess, addr, (ArgCnt+1)*sizeof(ADDR));
@@ -890,6 +902,8 @@ DWORD Process::StartNewImageRunning()
 		WriteMemory(addr, sizeof(Aux), &Aux); \
 		addr += sizeof(Aux);
 
+	PUSH_AUX_VAL(AT_GID,	m_gid)
+	PUSH_AUX_VAL(AT_UID,	m_uid)
 	PUSH_AUX_VAL(AT_ENTRY,	(DWORD)m_ElfLoadData.start_addr) //real start - ignoring 'interpreter'
 	PUSH_AUX_VAL(AT_BASE,	(DWORD)m_ElfLoadData.interpreter_base)
 	PUSH_AUX_VAL(AT_PHNUM,	m_ElfLoadData.phdr_phnum)
@@ -934,17 +948,15 @@ void Process::SetSingleStep(bool set)
 	ctx.ContextFlags = CONTEXT_CONTROL;
 	GetThreadContext(m_Win32PInfo.hThread, &ctx);
 
-	const DWORD ss_bit = 0x100L; //8th bit is trap flag
-
 	if(set)
 	{
 		//enable single-step 
-		ctx.EFlags |= ss_bit; 
+		ctx.EFlags |= SINGLE_STEP_BIT; 
 	}
 	else
 	{
 		//disable single-step 
-		ctx.EFlags &= ~ss_bit;
+		ctx.EFlags &= ~SINGLE_STEP_BIT;
 	}
 
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
@@ -1194,12 +1206,12 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	//Expect that the func is declared as _stdcall calling convention.
 	//(actually it ought to be from the SysCallDll::RemoteAddrInfo) 
 	//This means we place args on the stack so that param1 pops first
-	//also we don't need to clean up the stack. The called function does.
+	//Stack&register cleanup is irrelavent because HandleException() restores the correct state
 
 	ktrace("Injecting call to SysCallDll func @ 0x%08lx\n", func);
 
 	CONTEXT OrigCtx;
-	OrigCtx.ContextFlags = CONTEXT_FULL; //preserve everything
+	OrigCtx.ContextFlags = CONTEXT_FULL; //just eip and int registers needed
 	GetThreadContext(m_Win32PInfo.hThread, &OrigCtx);
 
 	CONTEXT TempCtx = OrigCtx;
@@ -1245,7 +1257,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 			if(evt.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_SINGLE_STEP)
 			{
 				CONTEXT ctx;
-				ctx.ContextFlags = CONTEXT_FULL; //preserve everything
+				ctx.ContextFlags = CONTEXT_FULL;
 				GetThreadContext(m_Win32PInfo.hThread, &ctx);
 				TraceContext(0,0, ctx);
 			}
@@ -1277,7 +1289,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 			ReadMemory(buf, (ADDR)evt.u.DebugString.lpDebugStringData, evt.u.DebugString.nDebugStringLength);
 			buf[evt.u.DebugString.nDebugStringLength] = 0;
 
-			ktrace("syscalldll relay: %*s\n", evt.u.DebugString.nDebugStringLength, buf);
+			ktrace("syscalldll relay: %*s", evt.u.DebugString.nDebugStringLength, buf);
 
 			delete buf;
 		}
@@ -1298,8 +1310,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	DWORD dwRet = TempCtx.Eax;
 	ktrace("Injection exit @ 0x%08lx\n", TempCtx.Eip);
 
-	//Eax will be set (if required) by the system call handler that requested the injection
-	SetThreadContext(m_Win32PInfo.hThread, &OrigCtx);
+	//No need to set context back. We'll be resetting the context in the HandleException()
 
 	return dwRet;
 }
