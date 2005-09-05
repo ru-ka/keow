@@ -121,11 +121,12 @@ bool IOHFile::Stat64(linux::stat64 * s)
 	s->st_uid = 0;
 	s->st_gid = 0;
 
-	s->st_dev = 3<<8|4;
-	s->st_rdev = 3<<8|4;
+	//use major '3' and minor as drive letter
+	string w32 = m_Path.GetWin32Path();
+	s->st_dev = s->st_rdev = (3<<8) | (BYTE)(w32[0] - 'A');
 
-	s->st_ino = 1999;    //dummy inode
-	s->__st_ino = 1999;
+	//use hash of filename as inode
+	s->st_ino = s->__st_ino = w32.hash();
 
 	i.LowPart = fi.nFileSizeLow;
 	i.HighPart = fi.nFileSizeHigh;

@@ -31,7 +31,6 @@
 SysCallDll::RemoteAddrInfo AddrInfo;
 DWORD g_LastError = 0;
 
-extern void ktrace(const char * format, ...);
 
 //How to return from these functions so that the kernel/debugger see's it
 //It needs a breakpoint (int 3) and return value in Eax
@@ -63,11 +62,15 @@ DWORD _stdcall SysCallDll::SetEndOfFile(HANDLE h)
 	RET( ::SetEndOfFile(h) );
 }
 
-
-
 DWORD _stdcall SysCallDll::ZeroMem(void *p, DWORD len)
 {
-	RET( (DWORD)::ZeroMemory(p, len) );
+//	RET( (DWORD)::ZeroMemory(p, len) );
+	DWORD i;
+	for(i=0; i<len; ++i)
+	{
+		((LPBYTE)p)[i] = 0;
+	}
+	RET(0);
 }
 
 DWORD _stdcall SysCallDll::CreateFileMapping(HANDLE hFile, DWORD Prot, DWORD sizeHi, DWORD sizeLo)

@@ -232,3 +232,11 @@ void string::ReleaseBuffer()
 	m_nLen = strlen(m_pChars);
 }
 
+DWORD string::hash() const
+{
+	//simple (bad?) hash
+	DWORD h = 0;
+	for(int i=0; i<m_nLen; ++i)
+		h += m_pChars[i];
+	return h;
+}

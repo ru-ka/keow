@@ -64,6 +64,32 @@ void ktrace(const char * format, ...)
 	OutputDebugString(g_TraceBuffer);
 }
 
+void hexdump(BYTE *addr, DWORD len)
+{
+	char buf[5 * 16 + 100];
+	int x;
+
+	x=0;
+	for(DWORD i=0; i<len; ++i)
+	{
+		wsprintf(&buf[x*5], "0x%02x", *addr);
+		buf[x*5+4]=' ';
+		buf[x*5+5]=0;
+
+		if(x<15)
+			++x;
+		else
+		{
+			ktrace("dump %p,%d: %s\n", addr,len, buf);
+			x=0;
+		}
+
+		++addr;
+	}
+	if(x>0)
+		ktrace("dump %p,%d: %s\n", addr,len, buf);
+}
+
 
 BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID p)
 {

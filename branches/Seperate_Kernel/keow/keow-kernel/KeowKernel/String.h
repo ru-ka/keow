@@ -35,6 +35,8 @@
 #include "String.h"
 
 
+//TODO: make string copy-on-write
+
 class string
 {
 public:
@@ -43,6 +45,7 @@ public:
 	string(const char *str);
 	~string();
 
+	DWORD hash() const;
 	int length() const;
 	int capacity() const;
 	bool empty() const;

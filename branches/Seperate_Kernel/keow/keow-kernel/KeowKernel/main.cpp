@@ -43,7 +43,11 @@ static char * InitialEnv[] = {
 	"TERM=ansi80x25", //freebsd console (25-line ansi mode) -- easier to implement than the linux console -- implemented in ioh_console.cpp
 	"PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin",
 	"PWD=/",
-//	"LD_DEBUG=all",
+//	"LD_DEBUG=symbols",
+//	"LD_SHOW_AUXV=y",
+//	"LD_BIND_NOW=y",
+//	"LD_TRACE_LOADED_OBJECTS=y",
+//	"LD_VERBOSE=y",
 	NULL
 };
 

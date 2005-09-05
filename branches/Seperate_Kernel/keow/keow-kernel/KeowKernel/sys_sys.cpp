@@ -37,16 +37,16 @@ void SysCalls::sys_uname(CONTEXT &ctx)
 {
 	linux::new_utsname * pU = (linux::new_utsname *)ctx.Ebx;
 	linux::new_utsname U;
-	DWORD siz = __NEW_UTS_LEN;
 
+	DWORD siz = sizeof(U.sysname);
 	GetComputerName(U.sysname, &siz);
 	StringCbCopy(U.nodename, sizeof(U.nodename), U.sysname);
 	StringCbCopy(U.release, sizeof(U.release), "2.4.20");
-	StringCbCopy(U.version, sizeof(U.version), "KernelEmulationOnWindows");
+	StringCbCopy(U.version, sizeof(U.version), "keow");
 	StringCbCopy(U.machine, sizeof(U.machine), "i386");  //we need this value?
 	U.domainname[0] = 0;
 
-	P->WriteMemory((ADDR)pU, siz, &U);
+	P->WriteMemory((ADDR)pU, sizeof(U), &U);
 
 	ctx.Eax = 0;
 }

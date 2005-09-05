@@ -100,6 +100,10 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	IOHFile * ioh = NULL;
 
 	P->ReadMemory(&args, (ADDR)ctx.Ebx, sizeof(args));
+	ktrace("mmap(fd %d, offset %p, len %p, addr %p)\n", args.fd, args.offset, args.len, args.addr);
+
+	if(args.flags & MAP_ANONYMOUS)
+		args.fd = -1; //swap
 
 	if(args.fd != -1)
 	{
@@ -154,14 +158,16 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 		}
 
 		//allocations are rounded up to 4k boundaries
-		int len4k = (args.len+0xFFF) & ~0xFFF;
+		int len4k = (args.len+0xFFFL) & ~0xFFFL;
+
+		ktrace("fake mmap, len %p\n", len4k);
 
 		//allocate the requested mem size
 		if(args.prot & PROT_WRITE)
 			ProtMap = PAGE_READWRITE;
 		else
 			ProtMap = PAGE_READONLY;
-		p = MemoryHelper::AllocateMemAndProtect((ADDR)args.addr, len4k, PAGE_READWRITE); //correct prot after we write mem
+		p = MemoryHelper::AllocateMemAndProtect((ADDR)args.addr, len4k, PAGE_EXECUTE_READWRITE); //correct prot after we write mem
 		if(p==(void*)-1)
 		{
 			ctx.Eax = -ENOMEM;
@@ -182,18 +188,21 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 
 			if(ioh->Seek(args.offset, FILE_BEGIN)==INVALID_SET_FILE_POINTER)
 			{
-				ctx.Eax = -Win32ErrToUnixError(GetLastError());
+				ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 				return;
 			}
-			if(!SysCallDll::read(ioh->GetRemoteReadHandle(), p, dwReadLen))
+			if(dwReadLen != SysCallDll::read(ioh->GetRemoteReadHandle(), p, dwReadLen))
 			{
-				ctx.Eax = -Win32ErrToUnixError(GetLastError());
+				ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 				return;
 			}
 		}
 
 //can't change protection within the 64k once set?
 //		VirtualProtect(p, args.len, ProtMap, &ProtOpen);
+		if(args.flags & MAP_GROWSDOWN)
+			p = (LPBYTE)p + args.len;
+		ktrace("mmap'ed to 0x%p\n", p);
 		ctx.Eax = (DWORD)p;
 		return;
 	}
@@ -233,17 +242,17 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	else
 		hFile=ioh->GetRemoteWriteHandle(); //same as Read handle for a file
 
-	//map the file (hMap is in the user process)
+	//map the file (hMap & hFile are in the user process)
 	hMap = (HANDLE)SysCallDll::CreateFileMapping(hFile, ProtOpen, 0, args.offset+args.len);
 	if(hMap==NULL)
 	{
-		ctx.Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 		return;
 	}
 	p = (void*)SysCallDll::MapViewOfFileEx(hMap, ProtMap, 0,args.offset, args.len, (void*)args.addr);
 	if(p==0)
 	{
-		ctx.Eax = -Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 		return;
 	}
 
@@ -251,6 +260,9 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	//leave open - CloseHandle(hMap); -its on the other process anyway
 
 	//opened - return actual addr
+	if(args.flags & MAP_GROWSDOWN)
+		p = (LPBYTE)p + args.len;
+	ktrace("mmap'ed to 0x%p\n", p);
 	ctx.Eax = (DWORD)p;
 	return;
 }
@@ -297,6 +309,6 @@ void SysCalls::sys_mprotect(CONTEXT &ctx)
 	DWORD prot = ctx.Edx;
 
 	//for now we are not doing protection
-	//pretent we succeeded
+	//pretend we succeeded
 	ctx.Eax = 0;
 }

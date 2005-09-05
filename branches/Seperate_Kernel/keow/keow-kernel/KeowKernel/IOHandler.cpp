@@ -104,11 +104,11 @@ void IOHandler::BasicStat64(linux::stat64 * s, int file_type)
 	s->st_uid = 0;
 	s->st_gid = 0;
 
-	s->st_dev = 3<<8|4;	//dummy
-	s->st_rdev = 3<<8|4;
+	s->st_dev = 0;	//dummy
+	s->st_rdev = 0;
 
-	s->st_ino = 1999;    //dummy inode
-	s->__st_ino = 1999;
+	s->st_ino = 0;    //dummy inode
+	s->__st_ino = 0;
 
 	s->st_size = 0;
 
