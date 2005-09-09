@@ -50,6 +50,11 @@ public:
 		return m_UnixMountPoint;
 	}
 
+	Filesystem* GetFilesystem()
+	{
+		return m_pFileSystem;
+	}
+
 protected:
 	friend Filesystem;
 

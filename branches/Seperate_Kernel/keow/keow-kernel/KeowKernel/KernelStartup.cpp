@@ -218,7 +218,8 @@ void KernelStartup::AutoMountDrives()
 		++letter;
 	}
 
-	//also want /proc mounted
+	//also want /proc and /dev mounted
+#if(0)
 	p.SetUnixPath("/proc");
 	CreateDirectory(p.GetWin32Path(), NULL);
 	if(GetFileAttributes(p.GetWin32Path())&FILE_ATTRIBUTE_DIRECTORY)
@@ -230,7 +231,18 @@ void KernelStartup::AutoMountDrives()
 		if(fMtab)
 			fprintf(fMtab, "/proc /proc proc rw 0 0 \x0a");
 	}
+	p.SetUnixPath("/dev");
+	CreateDirectory(p.GetWin32Path(), NULL);
+	if(GetFileAttributes(p.GetWin32Path())&FILE_ATTRIBUTE_DIRECTORY)
+	{
+		//record the mount
+		MountPoint * pMp = MountPoint::Mount(p, "", new FilesystemDev(), NULL, 0);
 
+		//update /etc/mtab
+		if(fMtab)
+			fprintf(fMtab, "/dev /dev dev rw 0 0 \x0a");
+	}
+#endif
 
 	//close mtab
 	if(fMtab)

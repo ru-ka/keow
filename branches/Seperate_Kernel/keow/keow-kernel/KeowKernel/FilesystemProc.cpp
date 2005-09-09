@@ -29,8 +29,6 @@
 #include "FilesystemProc.h"
 
 //////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
 
 FilesystemProc::FilesystemProc()
 {
@@ -41,3 +39,34 @@ FilesystemProc::~FilesystemProc()
 {
 
 }
+
+
+IOHandler * FilesystemProc::CreateIOHandler(Path& path)
+{
+	//everything in this filesystem should be a proc object?
+	DebugBreak();
+	return NULL; //new IOHFile(path);
+}
+
+string FilesystemProc::GetPathSeperator()
+{
+	return "/";
+}
+
+bool FilesystemProc::IsSymbolicLink(string& strPath)
+{
+	//no sym links is procfs?
+	return false;
+}
+
+string FilesystemProc::GetLinkDestination(string& strPath)
+{
+	//no sym links is procfs?
+	return strPath;
+}
+
+bool FilesystemProc::IsRelativePath(string& strPath)
+{
+	return strPath[0]!='/';
+}
+

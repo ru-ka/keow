@@ -51,7 +51,7 @@ public:
 	bool empty() const;
 	void reserve(int size);
 
-	string operator + (string str);
+	string operator + (const string& str) const;
 	string& operator += (char c);
 	string& operator += (const char * str);
 	string& operator += (const string& str);

@@ -44,7 +44,9 @@ IOHandler::~IOHandler()
 
 IOHandler* IOHandler::CreateForPath(Path& path)
 {
-	return new IOHFile(path);
+	Filesystem * fs = path.GetFinalFilesystem();
+
+	return fs->CreateIOHandler(path);
 }
 
 
