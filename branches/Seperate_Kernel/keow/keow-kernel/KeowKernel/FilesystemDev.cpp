@@ -21,52 +21,62 @@
  *
  */
 
-// FilesystemProc.cpp: implementation of the FilesystemProc class.
+// FilesystemDev.cpp: implementation of the FilesystemDev class.
 //
 //////////////////////////////////////////////////////////////////////
 
 #include "includes.h"
-#include "FilesystemProc.h"
+#include "FilesystemDev.h"
+
+#include "IOHNull.h"
 
 //////////////////////////////////////////////////////////////////////
 
-FilesystemProc::FilesystemProc()
+FilesystemDev::FilesystemDev()
 {
 
 }
 
-FilesystemProc::~FilesystemProc()
+FilesystemDev::~FilesystemDev()
 {
 
 }
 
 
-IOHandler * FilesystemProc::CreateIOHandler(Path& path)
+IOHandler * FilesystemDev::CreateIOHandler(Path& path)
 {
-	//everything in this filesystem should be a proc object?
+	//everything in this filesystem should be a dev object?
 
-	ktrace("implement /proc path: %s\n", path.GetPathInFilesystem());
-	return NULL;
+	string what = path.GetPathInFilesystem();
+	if(what == "/null")
+	{
+		return new IOHNull();
+	}
+	else
+	{
+		ktrace("implement /dev path: %s\n", what.c_str());
+		return NULL;
+	}
 }
 
-string FilesystemProc::GetPathSeperator()
+string FilesystemDev::GetPathSeperator()
 {
 	return "/";
 }
 
-bool FilesystemProc::IsSymbolicLink(string& strPath)
+bool FilesystemDev::IsSymbolicLink(string& strPath)
 {
-	//no sym links is procfs?
+	//no sym links is /dev?
 	return false;
 }
 
-string FilesystemProc::GetLinkDestination(string& strPath)
+string FilesystemDev::GetLinkDestination(string& strPath)
 {
-	//no sym links is procfs?
+	//no sym links is /dev?
 	return "";
 }
 
-bool FilesystemProc::IsRelativePath(string& strPath)
+bool FilesystemDev::IsRelativePath(string& strPath)
 {
 	return strPath[0]!='/';
 }

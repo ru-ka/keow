@@ -113,6 +113,10 @@ SOURCE=.\Filesystem.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\FilesystemDev.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\FilesystemKeow.cpp
 # End Source File
 # Begin Source File
@@ -126,6 +130,10 @@ SOURCE=.\IOHandler.cpp
 # Begin Source File
 
 SOURCE=.\IOHNtConsole.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\IOHNull.cpp
 # End Source File
 # Begin Source File
 
@@ -229,6 +237,10 @@ SOURCE=.\Filesystem.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\FilesystemDev.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\FilesystemKeow.h
 # End Source File
 # Begin Source File
@@ -246,6 +258,10 @@ SOURCE=.\IOHandler.h
 # Begin Source File
 
 SOURCE=.\IOHNtConsole.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\IOHNull.h
 # End Source File
 # Begin Source File
 

@@ -21,53 +21,30 @@
  *
  */
 
-// FilesystemProc.cpp: implementation of the FilesystemProc class.
+// FilesystemDev.h: interface for the FilesystemDev class.
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "includes.h"
-#include "FilesystemProc.h"
+#if !defined(AFX_FilesystemDev_H__04DF9EB5_9771_4497_B1FF_89F772093E50__INCLUDED_)
+#define AFX_FilesystemDev_H__04DF9EB5_9771_4497_B1FF_89F772093E50__INCLUDED_
 
-//////////////////////////////////////////////////////////////////////
+#if _MSC_VER > 1000
+#pragma once
+#endif // _MSC_VER > 1000
 
-FilesystemProc::FilesystemProc()
+#include "Filesystem.h"
+
+class FilesystemDev : public Filesystem  
 {
+public:
+	FilesystemDev();
+	virtual ~FilesystemDev();
 
-}
+	virtual IOHandler * CreateIOHandler(Path& path);
+	virtual string GetPathSeperator();
+	virtual bool IsSymbolicLink(string& strPath);
+	virtual string GetLinkDestination(string& strPath);
+	virtual bool IsRelativePath(string& strPath);
+};
 
-FilesystemProc::~FilesystemProc()
-{
-
-}
-
-
-IOHandler * FilesystemProc::CreateIOHandler(Path& path)
-{
-	//everything in this filesystem should be a proc object?
-
-	ktrace("implement /proc path: %s\n", path.GetPathInFilesystem());
-	return NULL;
-}
-
-string FilesystemProc::GetPathSeperator()
-{
-	return "/";
-}
-
-bool FilesystemProc::IsSymbolicLink(string& strPath)
-{
-	//no sym links is procfs?
-	return false;
-}
-
-string FilesystemProc::GetLinkDestination(string& strPath)
-{
-	//no sym links is procfs?
-	return "";
-}
-
-bool FilesystemProc::IsRelativePath(string& strPath)
-{
-	return strPath[0]!='/';
-}
-
+#endif // !defined(AFX_FilesystemDev_H__04DF9EB5_9771_4497_B1FF_89F772093E50__INCLUDED_)

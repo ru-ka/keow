@@ -179,11 +179,19 @@ string Path::GetWin32Path()
 	return GetFinalPath();
 }
 
+string Path::GetPathInFilesystem()
+{
+	return m_strPathInMountPoint;
+}
+
+
 string Path::GetFinalPath()
 {
-	return m_strMountRealPath
-		 + (m_pFinalMountPoint ? m_pFinalMountPoint->GetFilesystem()->GetPathSeperator() : "/" )
-		 + m_strPathInMountPoint;
+	string s = m_strMountRealPath;
+	if(!s.empty())
+		s += (m_pFinalMountPoint ? m_pFinalMountPoint->GetFilesystem()->GetPathSeperator() : "/" );
+	s += m_strPathInMountPoint;
+	return s;
 }
 
 // Follows the path across mount points
@@ -224,9 +232,10 @@ void Path::TranverseMountPoints()
 		if(m_FollowSymLinks)
 		{
 			//path as it currently has been calculated
-			string curpath = GetFinalPath()
-				           + m_pFinalMountPoint->GetFilesystem()->GetPathSeperator()
-						   + element;
+			string curpath = GetFinalPath();
+			if(!curpath.empty())
+				curpath += m_pFinalMountPoint->GetFilesystem()->GetPathSeperator();
+			curpath += element;
 
 			string dest = m_pFinalMountPoint->GetFilesystem()->GetLinkDestination(curpath);
 
