@@ -400,8 +400,6 @@ void SysCalls::sys_fchdir(CONTEXT &ctx)
  */
 void SysCalls::sys_fcntl(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	int fd;
 	IOHandler * ioh;
 	
@@ -412,7 +410,7 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
 		ctx.Eax = -EBADF;
@@ -448,7 +446,7 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
 			DWORD OldEcx;
 
 			//find free handle entry
-			fdnew = FindFreeFD();
+			fdnew = P->FindFreeFD();
 			if(fdnew==-1)
 			{
 				ctx.Eax = -EMFILE; //too many open files
@@ -463,9 +461,9 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
 			//use dup2 for actual work
 			OldEcx = ctx.Ecx;
 			ctx.Ecx = fdnew;
-			sys_dup2(pCtx);
+			sys_dup2(ctx);
 			ctx.Ecx = OldEcx;
-			pProcessData->FileHandlers[fdnew]->SetInheritable(false);
+			P->m_OpenFiles[fdnew]->SetInheritable(false);
 			//eax is already set with the result
 		}
 		break;
@@ -475,7 +473,6 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
 		ctx.Eax = -ENOSYS;
 		break;
 	}
-#endif
 }
 
 
@@ -573,8 +570,6 @@ void SysCalls::sys_dup2(CONTEXT &ctx)
  */
 void SysCalls::sys_getdents64(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	linux::dirent64 * s = (linux::dirent64 *)ctx.Ecx;
 	int maxbytes = ctx.Edx;
 	int filled = 0;
@@ -588,23 +583,33 @@ void SysCalls::sys_getdents64(CONTEXT &ctx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ktrace("getdents64(fd %d, %p, max %d)\n", fd, s, maxbytes);
+
+	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
 		ctx.Eax = -EBADF;
 		return;
 	}
 
-	filled = ioh->GetDirEnts64(s, maxbytes);
+	//read locally, copy to process
+	LPBYTE buf = new BYTE[maxbytes];
+	memset(buf,0,maxbytes);
+	//P->ReadMemory(buf, (ADDR)s, maxbytes);
+
+	filled = ioh->GetDirEnts64((linux::dirent64 *)buf, maxbytes);
 	if(filled >= 0)
 	{
+		if(filled>0)
+			P->WriteMemory((ADDR)s, filled, buf);
 		ctx.Eax = filled;
 	}
 	else
 	{
 		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 	}
-#endif
+	
+	delete buf;
 }
 
 

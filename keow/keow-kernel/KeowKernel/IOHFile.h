@@ -53,7 +53,7 @@ public:
 	__int64 Length();
 	DWORD Seek(__int64 offset, DWORD from);
 
-	int GetDirEnts64(linux::dirent64 *de, int maxbytes);
+	virtual int GetDirEnts64(linux::dirent64 *de, int maxbytes);
 
 protected:
 	Path m_Path;

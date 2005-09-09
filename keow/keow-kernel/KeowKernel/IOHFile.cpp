@@ -264,15 +264,10 @@ int IOHFile::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 			}
 		}
 
-		de->d_ino = 1; //dummy value
-
-		de->d_off = filled+sizeof(linux::dirent64); //????
-
-		de->d_reclen = sizeof(linux::dirent64);
-
-
 		p = m_Path;
 		p.AppendUnixPath(wfd.cFileName);
+
+		de->d_ino = p.GetUnixPath().hash(); //dummy value
 
 		de->d_type = 0; //not provided on linux x86 32bit?  (GetUnixFileType(p);
 
@@ -286,8 +281,15 @@ int IOHFile::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 				de->d_name[e] = 0;
 		}
 
-		filled += de->d_reclen;
 
+		de->d_reclen = sizeof(linux::dirent64)-sizeof(de->d_name)+strlen(de->d_name)+1;
+
+		//de->d_off = filled+sizeof(linux::dirent64); //next one will be here
+		de->d_off = filled+de->d_reclen; //next one will be here
+
+
+		filled += de->d_reclen;
+		de = (linux::dirent64*)(((LPBYTE)de) + de->d_reclen); //move pointer along
 	}
 
 	if(err!=0)

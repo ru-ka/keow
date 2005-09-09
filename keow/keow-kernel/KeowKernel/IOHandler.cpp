@@ -33,7 +33,8 @@
 
 IOHandler::IOHandler()
 {
-
+	m_bInheritable = true; //default
+	m_dwFlags = 0;
 }
 
 IOHandler::~IOHandler()
@@ -121,5 +122,12 @@ void IOHandler::BasicStat64(linux::stat64 * s, int file_type)
 	s->st_atime = 0;//FILETIME_TO_TIME_T(fi.ftLastAccessTime);
 	s->st_mtime = 0;//FILETIME_TO_TIME_T(fi.ftLastWriteTime);
 	s->st_ctime = 0;//FILETIME_TO_TIME_T(fi.ftCreationTime);
+}
+
+
+int IOHandler::GetDirEnts64(linux::dirent64 *de, int maxbytes)
+{
+	//none - override to get more
+	return 0;
 }
 
