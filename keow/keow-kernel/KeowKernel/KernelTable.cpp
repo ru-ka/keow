@@ -35,6 +35,7 @@
 KernelTable::KernelTable()
 {
 	m_DebugLevel = 0;
+	m_hLogFile = NULL;
 	m_pRootMountPoint = 0;
 	m_LastPID = 0;
 

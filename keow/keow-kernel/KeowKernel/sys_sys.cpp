@@ -41,13 +41,12 @@ void SysCalls::sys_uname(CONTEXT &ctx)
 	DWORD siz = sizeof(U.sysname);
 	GetComputerName(U.sysname, &siz);
 	StringCbCopy(U.nodename, sizeof(U.nodename), U.sysname);
-	StringCbCopy(U.release, sizeof(U.release), "2.4.20");
+	StringCbCopy(U.release, sizeof(U.release), "2.0.0"); //"2.4.20");
 	StringCbCopy(U.version, sizeof(U.version), "keow");
 	StringCbCopy(U.machine, sizeof(U.machine), "i386");  //we need this value?
 	U.domainname[0] = 0;
 
 	P->WriteMemory((ADDR)pU, sizeof(U), &U);
-
 	ctx.Eax = 0;
 }
 
@@ -60,6 +59,14 @@ void SysCalls::sys_uname(CONTEXT &ctx)
 void SysCalls::sys_getpid(CONTEXT &ctx)
 {
 	ctx.Eax = P->m_Pid;
+P->DumpMemory((ADDR)(0x009e4d48-16), 32);
+DWORD dw;
+P->ReadMemory(&dw,(ADDR)0x009e4d48,4);
+if(dw!=0)
+{
+dw=0;
+//P->WriteMemory((ADDR)0x009e4d48,4,&dw);
+}
 }
 
 /*****************************************************************************/

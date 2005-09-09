@@ -34,6 +34,7 @@ KernelStartup::HandlerRec KernelStartup::s_ArgumentHandlers[] = {
 	{"init", KernelStartup::arg_init},
 	{"debug", KernelStartup::arg_debug},
 	{"automount", KernelStartup::arg_automount},
+	{"log", KernelStartup::arg_log},
 	{NULL, NULL}
 };
 
@@ -274,5 +275,12 @@ void KernelStartup::arg_automount(const char *arg)
 	ms_pszAutoMount = arg;
 	ktrace("AutoMount: %s\n", ms_pszAutoMount);
 }
+
+void KernelStartup::arg_log(const char *arg)
+{
+	g_pKernelTable->m_hLogFile = CreateFile(arg, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, 0, 0);
+	ktrace("Log File: %s\n", arg);
+}
+
 
 

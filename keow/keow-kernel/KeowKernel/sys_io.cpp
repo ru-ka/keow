@@ -97,7 +97,9 @@ void SysCalls::sys_read(CONTEXT &ctx)
 {
 	int fd;
 	IOHandler * ioh;
-	
+
+	ktrace("read(fd %d, len %d into 0x%p)\n", ctx.Ebx, ctx.Edx, ctx.Ecx);
+
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
@@ -228,6 +230,7 @@ void SysCalls::sys_open(CONTEXT &ctx)
 	{
 		SysCallDll::SetFilePointer(ioh->GetRemoteWriteHandle(), 0,0, FILE_END);
 	}
+
 }
 
 

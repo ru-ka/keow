@@ -60,6 +60,9 @@ public:
 	DWORD StartNewImageRunning();
 	static Process* StartInit(PID pid, Path& path, char ** InitialArguments, char ** InitialEnvironment);
 
+	void DumpMemory(ADDR addr, DWORD len);
+	void DumpContext(CONTEXT &ctx);
+
 	void SetSingleStep(bool set);
 	DWORD InjectFunctionCall(void *func, void *pStackData, int nStackDataSize);
 
@@ -83,6 +86,7 @@ public:
 	DWORD m_dwExitCode;
 	FILETIME m_StartedTime;
 	HANDLE m_hWaitTerminatingEvent;
+	ADDR m_OriginalStackTop; //we oughtn't to go past here
 
 	DWORD m_KernelThreadId;
 
@@ -176,7 +180,6 @@ public:
 private:
 	Process(); //private - use methods to create
 protected:
-	void TraceContext(int LinesBefore, int LinesAfter, CONTEXT &ctx);
 	void ForkCopyOtherProcess(Process * pOther);
 	void CopyProcessHandles(Process* pParent);
 	void HandleException(DEBUG_EVENT &evt);
