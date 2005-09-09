@@ -33,7 +33,7 @@
 #endif // _MSC_VER > 1000
 
 #include "Process.h"
-#include "File.h"
+#include "IOHFile.h"
 #include "MountPoint.h"
 #include "Path.h"
 #include "DevConsole.h"

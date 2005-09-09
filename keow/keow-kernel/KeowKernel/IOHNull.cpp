@@ -21,53 +21,63 @@
  *
  */
 
-// FilesystemProc.cpp: implementation of the FilesystemProc class.
+// IOHNull.cpp: implementation of the 
 //
 //////////////////////////////////////////////////////////////////////
 
 #include "includes.h"
-#include "FilesystemProc.h"
+#include "IOHNull.h"
 
 //////////////////////////////////////////////////////////////////////
 
-FilesystemProc::FilesystemProc()
+IOHNull::IOHNull()
 {
+	HANDLE h = CreateFile("NUL:", GENERIC_READ|GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
 
+	DuplicateHandle(GetCurrentProcess(), h,
+		P->m_Win32PInfo.hProcess, &m_hRemoteHandle,
+		0, FALSE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
 }
 
-FilesystemProc::~FilesystemProc()
+IOHNull::~IOHNull()
 {
-
+	SysCallDll::CloseHandle(m_hRemoteHandle);
 }
 
 
-IOHandler * FilesystemProc::CreateIOHandler(Path& path)
+bool IOHNull::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags)
 {
-	//everything in this filesystem should be a proc object?
-
-	ktrace("implement /proc path: %s\n", path.GetPathInFilesystem());
-	return NULL;
+	return true;
 }
 
-string FilesystemProc::GetPathSeperator()
+HANDLE IOHNull::GetRemoteWriteHandle()
 {
-	return "/";
+	return m_hRemoteHandle;
 }
 
-bool FilesystemProc::IsSymbolicLink(string& strPath)
+HANDLE IOHNull::GetRemoteReadHandle()
 {
-	//no sym links is procfs?
-	return false;
+	return m_hRemoteHandle;
 }
 
-string FilesystemProc::GetLinkDestination(string& strPath)
+IOHandler* IOHNull::clone()
 {
-	//no sym links is procfs?
-	return "";
+	IOHNull * pC = new IOHNull();
+	return pC;
 }
 
-bool FilesystemProc::IsRelativePath(string& strPath)
+bool IOHNull::Stat64(linux::stat64 * s)
 {
-	return strPath[0]!='/';
+	if(!s)
+		return false;
+
+	IOHandler::BasicStat64(s, S_IFCHR);
+
+	return true;
 }
 
+
+DWORD IOHNull::ioctl(DWORD request, DWORD data)
+{
+	return 0;
+}

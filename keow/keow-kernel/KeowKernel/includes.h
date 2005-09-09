@@ -52,14 +52,12 @@
 #include "SysCallDll.h"
 
 
-//keow stuff
+//keow stuff - only the generic ones here (eg Filesystem, not FilesystemKeow)
+
 #include "ConstantMapping.h"
 #include "Path.h"
-#include "File.h"
-#include "Filesystem.h"
-#include "FilesystemKeow.h"
-#include "FilesystemProc.h"
 #include "IOHandler.h"
+#include "Filesystem.h"
 #include "Device.h"
 #include "Process.h"
 #include "MountPoint.h"

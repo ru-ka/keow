@@ -28,6 +28,10 @@
 #include "includes.h"
 #include "KernelStartup.h"
 
+#include "FilesystemKeow.h"
+#include "FilesystemProc.h"
+#include "FilesystemDev.h"
+
 
 KernelStartup::HandlerRec KernelStartup::s_ArgumentHandlers[] = {
 	{"root", KernelStartup::arg_root},
@@ -219,7 +223,6 @@ void KernelStartup::AutoMountDrives()
 	}
 
 	//also want /proc and /dev mounted
-#if(0)
 	p.SetUnixPath("/proc");
 	CreateDirectory(p.GetWin32Path(), NULL);
 	if(GetFileAttributes(p.GetWin32Path())&FILE_ATTRIBUTE_DIRECTORY)
@@ -242,7 +245,6 @@ void KernelStartup::AutoMountDrives()
 		if(fMtab)
 			fprintf(fMtab, "/dev /dev dev rw 0 0 \x0a");
 	}
-#endif
 
 	//close mtab
 	if(fMtab)

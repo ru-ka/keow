@@ -37,21 +37,9 @@ HANDLE IOHNtConsole::GetRemoteReadHandle()
 	return m_hRemoteConsoleRead;
 }
 
-HANDLE IOHNtConsole::GetKernelWriteHandle()
-{
-	return m_pConsole->m_hConsoleWrite;
-}
-HANDLE IOHNtConsole::GetKernelReadHandle()
-{
-	return m_pConsole->m_hConsoleRead;
-}
-
-
 IOHandler * IOHNtConsole::clone()
 {
 	IOHNtConsole * pC = new IOHNtConsole(m_pConsole);
-	pC->m_hRemoteConsoleRead = m_hRemoteConsoleRead;
-	pC->m_hRemoteConsoleWrite = m_hRemoteConsoleWrite;
 	return pC;
 }
 
@@ -66,23 +54,32 @@ bool IOHNtConsole::Stat64(linux::stat64 * s)
 	if(!s)
 		return false;
 
-	IOHandler::BasicStat64(s, S_IFCHR);
-
-	s->st_mode |= S_IFCHR; //console is a character device
-
-	/*
-	#define S_IFMT  00170000
-	#define S_IFSOCK 0140000
-	#define S_IFLNK	 0120000
-	#define S_IFREG  0100000
-	#define S_IFBLK  0060000
-	#define S_IFDIR  0040000
-	#define S_IFCHR  0020000
-	#define S_IFIFO  0010000
-	#define S_ISUID  0004000
-	#define S_ISGID  0002000
-	#define S_ISVTX  0001000
-	*/
+	IOHandler::BasicStat64(s, S_IFCHR); //console is a character device
 
 	return true;
+}
+
+DWORD IOHNtConsole::ioctl(DWORD request, DWORD data)
+{
+	switch(request)
+	{
+		/*
+	case TCGETS:
+		{
+			linux::termios * arg = (linux::termios*)pCtx->Edx;
+			arg->c_iflag = 0;		/* input mode flags *
+			arg->c_oflag = 0;		/* output mode flags *
+			arg->c_cflag = 0;		/* control mode flags *
+			arg->c_lflag = 0;		/* local mode flags *
+			arg->c_line = 0;			/* line discipline *
+			//arg->c_cc[NCCS];		/* control characters *
+			return 0;
+		}
+		break;
+		*/
+	case 0:
+	default:
+		ktrace("IMPLEMENT sys_ioctl 0x%lx for IOHNtConsole\n", request);
+		return -ENOSYS;
+	}
 }

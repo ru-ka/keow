@@ -32,6 +32,7 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+
 class IOHandler  
 {
 public:
@@ -42,6 +43,7 @@ public:
 	static IOHandler* CreateForPath(Path& path);
 
 	virtual bool Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags) = 0;
+	virtual DWORD ioctl(DWORD request, DWORD data) = 0;
 
 	virtual HANDLE GetRemoteWriteHandle() = 0;
 	virtual HANDLE GetRemoteReadHandle() = 0;

@@ -26,7 +26,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "includes.h"
-#include "File.h"
+#include "IOHFile.h"
 
 //////////////////////////////////////////////////////////////////////
 
@@ -34,12 +34,18 @@ IOHFile::IOHFile(Path &path)
 {
 	m_RemoteHandle = INVALID_HANDLE_VALUE;
 	m_Path = path;
+	m_bIsADirectory = false;
+	m_hFindData = INVALID_HANDLE_VALUE;
 
 	//don't open yet, use Open()
 }
 
 IOHFile::~IOHFile()
 {
+	if(m_hFindData != INVALID_HANDLE_VALUE)
+		FindClose(m_hFindData);
+	m_hFindData = INVALID_HANDLE_VALUE;
+
 	SysCallDll::CloseHandle(m_RemoteHandle);
 }
 
@@ -55,12 +61,43 @@ HANDLE IOHFile::GetRemoteReadHandle()
 IOHandler * IOHFile::clone()
 {
 	IOHFile * pF = new IOHFile(m_Path);
-	pF->m_RemoteHandle = m_RemoteHandle;
+
+	DuplicateHandle(P->m_Win32PInfo.hProcess, m_RemoteHandle,
+		P->m_Win32PInfo.hProcess, &pF->m_RemoteHandle,
+		0,0, DUPLICATE_SAME_ACCESS);
+
+	pF->m_bIsADirectory = m_bIsADirectory;
+
+	if(m_hFindData!=INVALID_HANDLE_VALUE)
+	{
+		//Can't dup a find handle, so recreate the find
+
+		linux::dirent64 tmp;
+		pF->GetDirEnts64(&tmp, sizeof(tmp));
+		pF->m_nFindCount = 0;
+		while(pF->m_nFindCount < m_nFindCount)
+			pF->GetDirEnts64(&tmp, sizeof(tmp));
+
+	}
+
 	return pF;
 }
 
 bool IOHFile::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags)
 {
+	if(m_hFindData != INVALID_HANDLE_VALUE)
+		FindClose(m_hFindData);
+	m_hFindData = INVALID_HANDLE_VALUE;
+
+
+	DWORD attr = GetFileAttributes(m_Path.GetWin32Path());
+	if((attr!=INVALID_FILE_ATTRIBUTES) && (attr & FILE_ATTRIBUTE_DIRECTORY))
+	{
+		m_bIsADirectory = true;
+		flags = FILE_FLAG_BACKUP_SEMANTICS;
+	}
+
+
 	//Open in the kernel, then move the handle to the user
 
 	HANDLE h = CreateFile(m_Path.GetWin32Path(), win32access, win32share, 0, disposition, flags, 0);
@@ -156,4 +193,107 @@ DWORD IOHFile::Seek(__int64 pos, DWORD from)
 	LARGE_INTEGER li;
 	li.QuadPart = pos;
 	return SysCallDll::SetFilePointer(m_RemoteHandle, li.LowPart, li.HighPart, from);
+}
+
+
+DWORD IOHFile::ioctl(DWORD request, DWORD data)
+{
+	switch(request)
+	{
+		/*
+	case TCGETS:
+		{
+			linux::termios * arg = (linux::termios*)pCtx->Edx;
+			arg->c_iflag = 0;		/* input mode flags *
+			arg->c_oflag = 0;		/* output mode flags *
+			arg->c_cflag = 0;		/* control mode flags *
+			arg->c_lflag = 0;		/* local mode flags *
+			arg->c_line = 0;			/* line discipline *
+			//arg->c_cc[NCCS];		/* control characters *
+			return 0;
+		}
+		break;
+		*/
+	case 0:
+	default:
+		ktrace("IMPLEMENT sys_ioctl 0x%lx for IOHFile\n", request);
+		return -ENOSYS;
+	}
+}
+
+
+int IOHFile::GetDirEnts64(linux::dirent64 *de, int maxbytes)
+{
+	DWORD err = 0;
+	WIN32_FIND_DATA wfd;
+	Path p(false);
+
+	int filled = 0;
+	while(filled+(int)sizeof(linux::dirent64) < maxbytes)
+	{
+		if(m_hFindData==INVALID_HANDLE_VALUE)
+		{
+			char DirPattern[MAX_PATH];
+			StringCbPrintf(DirPattern, sizeof(DirPattern), "%s/*.*", m_Path.GetWin32Path());
+
+			m_hFindData = FindFirstFile(DirPattern, &wfd);
+			//can't inherit handle, so set count of 'find' so child processes can recreate our state
+			m_nFindCount = 0;
+
+			if(m_hFindData==INVALID_HANDLE_VALUE)
+				return -1;
+		}
+		else
+		{
+			m_nFindCount++;
+			if(!FindNextFile(m_hFindData, &wfd))
+			{
+				err = GetLastError();
+				if(err==ERROR_NO_MORE_FILES)
+				{
+					//only close if returning no results - otherwise leave open
+					//for the next call to detect end of data.
+					if(filled==0)
+					{
+						FindClose(m_hFindData);
+						m_hFindData = INVALID_HANDLE_VALUE;
+					}
+					err = 0;
+				}
+				break;
+			}
+		}
+
+		de->d_ino = 1; //dummy value
+
+		de->d_off = filled+sizeof(linux::dirent64); //????
+
+		de->d_reclen = sizeof(linux::dirent64);
+
+
+		p = m_Path;
+		p.AppendUnixPath(wfd.cFileName);
+
+		de->d_type = 0; //not provided on linux x86 32bit?  (GetUnixFileType(p);
+
+		StringCbCopy(de->d_name, sizeof(de->d_name), wfd.cFileName);
+
+		if(p.IsSymbolicLink())
+		{
+			//ensure name we return does not end in .lnk
+			int e = strlen(de->d_name) - 4;
+			if(e>0 && stricmp(&de->d_name[e], ".lnk")==0)
+				de->d_name[e] = 0;
+		}
+
+		filled += de->d_reclen;
+
+	}
+
+	if(err!=0)
+	{
+		filled = -1;
+		SetLastError(err);
+	}
+	return filled;
 }

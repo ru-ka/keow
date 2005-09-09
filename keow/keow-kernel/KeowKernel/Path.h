@@ -61,6 +61,7 @@ public:
 
 	string GetUnixPath();
 	string GetWin32Path();
+	string GetPathInFilesystem();
 
 protected:
 	typedef list<const string> ElementList;

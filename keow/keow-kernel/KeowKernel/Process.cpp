@@ -378,7 +378,6 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	{
 	case EXCEPTION_SINGLE_STEP:
 		DumpContext(ctx);
-P->DumpMemory((ADDR)(0x009e4d48), 4);
 		ctx.EFlags |= SINGLE_STEP_BIT; //keep it up (DEbug only?)
 		break;
 
@@ -403,7 +402,6 @@ P->DumpMemory((ADDR)(0x009e4d48), 4);
 				ktrace("Access violation @ 0x%08lx\n", evt.u.Exception.ExceptionRecord.ExceptionAddress);
 
 				DumpContext(ctx);
-	DumpMemory((ADDR)ctx.Eax, 4);
 
 				//trace the stack back
 				//assumes frame pointers exist

@@ -59,14 +59,6 @@ void SysCalls::sys_uname(CONTEXT &ctx)
 void SysCalls::sys_getpid(CONTEXT &ctx)
 {
 	ctx.Eax = P->m_Pid;
-P->DumpMemory((ADDR)(0x009e4d48-16), 32);
-DWORD dw;
-P->ReadMemory(&dw,(ADDR)0x009e4d48,4);
-if(dw!=0)
-{
-dw=0;
-//P->WriteMemory((ADDR)0x009e4d48,4,&dw);
-}
 }
 
 /*****************************************************************************/

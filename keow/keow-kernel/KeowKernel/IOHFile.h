@@ -42,6 +42,7 @@ public:
 	virtual ~IOHFile();
 
 	virtual bool Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags);
+	virtual DWORD ioctl(DWORD request, DWORD data);
 
 	virtual HANDLE GetRemoteWriteHandle();
 	virtual HANDLE GetRemoteReadHandle();
@@ -52,9 +53,14 @@ public:
 	__int64 Length();
 	DWORD Seek(__int64 offset, DWORD from);
 
+	int GetDirEnts64(linux::dirent64 *de, int maxbytes);
+
 protected:
 	Path m_Path;
 	HANDLE m_RemoteHandle;
+	bool m_bIsADirectory;
+	HANDLE m_hFindData;
+	int m_nFindCount;
 };
 
 #endif // !defined(AFX_FILE_H__5FA578F4_1C37_466C_BED7_3CE1E76298CB__INCLUDED_)
