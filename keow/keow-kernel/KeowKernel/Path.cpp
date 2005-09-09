@@ -28,10 +28,6 @@
 #include "includes.h"
 #include "Path.h"
 
-#include <Shlobj.h>
-#include <shobjidl.h>
-#include <shlwapi.h>
-
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -179,11 +175,24 @@ string Path::GetUnixPath()
 //
 string Path::GetWin32Path()
 {
+	TranverseMountPoints();
+	return GetFinalPath();
+}
+
+string Path::GetFinalPath()
+{
+	return m_strMountRealPath
+		 + (m_pFinalMountPoint ? m_pFinalMountPoint->GetFilesystem()->GetPathSeperator() : "/" )
+		 + m_strPathInMountPoint;
+}
+
+// Follows the path across mount points
+void Path::TranverseMountPoints()
+{
 	//start at root
-	string w32path;
-	MountPoint * pMount = g_pKernelTable->m_pRootMountPoint;
-	if(pMount)
-		w32path = pMount->GetDestination();
+	m_pFinalMountPoint = g_pKernelTable->m_pRootMountPoint;
+	m_strPathInMountPoint = "";
+	m_strMountRealPath = m_pFinalMountPoint ? m_pFinalMountPoint->GetDestination() : "";
 
 	//follow path elements
 	ElementList::iterator it;
@@ -202,8 +211,9 @@ string Path::GetWin32Path()
 			if(pMP->GetUnixMountPoint().EqualsPartialPath(*this, cnt))
 			{
 				//a mount matches this current path
-				pMount = pMP;
-				w32path = pMP->GetDestination();
+				m_pFinalMountPoint = pMP;
+				m_strMountRealPath = pMP->GetDestination();
+				m_strPathInMountPoint = "";
 				bMountFound = true;
 			}
 		}
@@ -213,40 +223,37 @@ string Path::GetWin32Path()
 		//Check if this is a link to follow
 		if(m_FollowSymLinks)
 		{
-			string w2 = w32path;
-			w2 += '\\';
-			w2 += element;
-			w2 += ".lnk";
-			if(GetFileAttributes(w2) != INVALID_FILE_ATTRIBUTES)
+			//path as it currently has been calculated
+			string curpath = GetFinalPath()
+				           + m_pFinalMountPoint->GetFilesystem()->GetPathSeperator()
+						   + element;
+
+			string dest = m_pFinalMountPoint->GetFilesystem()->GetLinkDestination(curpath);
+
+			if(!dest.empty())
 			{
-				//possibly a link, check it fully
+				//TODO: handle links ACROSS filesystems - How?
 
-				string Dest = GetShortCutTarget(w2);
-
-				if(!Dest.empty())
+				if(m_pFinalMountPoint->GetFilesystem()->IsRelativePath(dest))
 				{
-					if(PathIsRelative(Dest.c_str()))
-					{
-						w32path += '\\';
-						w32path += Dest;
-					}
-					else
-					{
-						w32path = Dest;
-					}
-					continue;
+					m_strPathInMountPoint += m_pFinalMountPoint->GetFilesystem()->GetPathSeperator();
+					m_strPathInMountPoint += dest;
 				}
+				else
+				{
+					m_strMountRealPath = "";
+					m_strPathInMountPoint = dest;
+				}
+				continue;
 			}
 		}
 
 		//just a normal element
-		w32path += '\\';
-		w32path += element;
+		m_strPathInMountPoint += m_pFinalMountPoint->GetFilesystem()->GetPathSeperator();
+		m_strPathInMountPoint += element;
 	}
 
-	return w32path;
 }
-
 
 // tests to see if this path (in it's entirety) equals the portion of the other path
 //
@@ -274,163 +281,19 @@ bool Path::EqualsPartialPath(const Path& other, int otherLen) const
 }
 
 
-//
-// If lpszLinkFile is a shortcut then return the target it points to
-// otherwise return the original path
-//
-string Path::GetShortCutTarget(string& path) 
-{ 
-    HRESULT hres; 
-    IShellLinkA* psl = 0; 
-    IPersistFile* ppf = 0;
-    WIN32_FIND_DATA wfd; 
-	string Dest;
-    wchar_t * pWsz = new wchar_t[MAX_PATH+1];
-    char * pSz = new char[MAX_PATH+1];
-
-    // Get a pointer to the IShellLink interface. 
-    hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, 
-                            IID_IShellLinkA, (LPVOID*)&psl); 
-    if(FAILED(hres))  {
-		ktrace("cocreate failed hr 0x%08lx\n", hres);
-		goto cleanup;
-	}
-
- 
-    // Get a pointer to the IPersistFile interface. 
-    hres = psl->QueryInterface(IID_IPersistFile, (void**)&ppf); 
-    if(FAILED(hres))  {
-		ktrace("query interface failed hr 0x%08lx\n", hres);
-		goto cleanup;
-	}
-	
-    // Need a wide version of the filename
-	memset(pWsz,0,sizeof(pWsz[0])*MAX_PATH);
-    if(MultiByteToWideChar(CP_ACP, 0, path.c_str(), path.length(), pWsz, MAX_PATH) == 0) {
-		hres=E_FAIL;
-		ktrace("MultiByteToWideChar failed hr 0x%08lx\n", hres);
-		goto cleanup;
-	}
-
-
-    // Load the shortcut. 
-    hres = ppf->Load(pWsz, STGM_READ); 
-    if(FAILED(hres))  {
-		ktrace("load failed hr 0x%08lx\n", hres);
-		goto cleanup;
-	}
-
-
-	// Resolve the link
-	//lots of debug code when getting this to run on W2k
-    hres = psl->Resolve(NULL, SLR_NO_UI|SLR_NOLINKINFO|SLR_NOUPDATE|SLR_NOSEARCH|SLR_NOTRACK);
-    if(FAILED(hres)) {
-		ktrace("resolve failed hr 0x%08lx, retrying with different flags\n", hres);
-		//retry without some flags
-	    hres = psl->Resolve(NULL, SLR_NO_UI|SLR_ANY_MATCH);
-		if(FAILED(hres)) {
-			ktrace("resolve failed hr 0x%08lx\n", hres);
-			//ignore error, use whatever path was already there
-		}
-	}
-
-    // Get the path to the link target.
-	pSz[0] = 0;
-    hres = psl->GetPath(pSz, MAX_PATH,
-                        (WIN32_FIND_DATA*)&wfd, 
-                        SLGP_RAWPATH);
-	if(hres==NOERROR && path[0]!=0)
-    { 
-        //success! lpszPath populated
-    }
-	else
-	{
-		//cygwin sym-link use desc as well as target, so use desc if target not available
-		ktrace("read link path failed 0x%08lx, falling back to description\n");
-		psl->GetDescription(pSz, MAX_PATH);
-		if(FAILED(hres))  {
-			ktrace("get desc failed hr 0x%08lx\n", hres);
-			goto cleanup;
-		}
-	}
-	Dest = pSz;
-
-
-cleanup:
-	if(ppf)
-		ppf->Release();
-	if(psl)
-		psl->Release();
-    delete pWsz;
-    delete pSz;
-
-//    if(TempPath[0] == 0) {
-//		ktrace("GetShortCutTarget failed to get a path\n");
-//		hres=E_FAIL;
-//	}
-
-	if(FAILED(hres))
-		ktrace("GetShortCutTarget failed, hr=0x%08lx\n", hres);
-
-    return Dest; 
-}
-
-
-
-// CreateLink - uses the Shell's IShellLink and IPersistFile interfaces 
-//              to create and store a shortcut to the specified object. 
-//
-// Returns the result of calling the member functions of the interfaces. 
-//
-
-HRESULT Path::CreateLink(const string& LinkPath, const string& DestPath, const string& Description)
-{ 
-    HRESULT hres; 
-    IShellLink* psl; 
- 
-    // Get a pointer to the IShellLink interface. 
-    hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, 
-                            IID_IShellLink, (LPVOID*)&psl); 
-    if (SUCCEEDED(hres)) 
-    { 
-        IPersistFile* ppf; 
- 
-        // Set the path to the shortcut target and add the description. 
-        psl->SetPath(DestPath); 
-        psl->SetDescription(Description); 
- 
-        // Query IShellLink for the IPersistFile interface for saving the 
-        // shortcut in persistent storage. 
-        hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf); 
- 
-        if (SUCCEEDED(hres)) 
-        { 
-            string wsz;
- 
-            // Ensure that the string is Unicode. 
-            MultiByteToWideChar(CP_ACP, 0, LinkPath.c_str(), -1, (wchar_t*)wsz.GetBuffer(MAX_PATH), MAX_PATH); 
-
-            // TODO: Check return value from MultiByteWideChar to ensure success.
- 
-            // Save the link by calling IPersistFile::Save. 
-            hres = ppf->Save((wchar_t*)wsz.c_str(), TRUE); 
-
-			wsz.ReleaseBuffer();			
-
-            ppf->Release(); 
-        } 
-        psl->Release(); 
-    } 
-    return hres; 
-}
-
 
 bool Path::IsSymbolicLink()
 {
 	if(m_FollowSymLinks)
 		return false; //it's not because we'll always resolve them to a real location
 
-	string Dest = GetShortCutTarget(GetWin32Path());
-	return !Dest.empty();
+	TranverseMountPoints();
+	return m_pFinalMountPoint->GetFilesystem()->IsSymbolicLink( GetFinalPath() );
 }
 
+
+//Returns filesystem that the path unlimately resolves to
+Filesystem * Path::GetFinalFilesystem()
+{
+	return m_pFinalMountPoint->GetFilesystem();
+}

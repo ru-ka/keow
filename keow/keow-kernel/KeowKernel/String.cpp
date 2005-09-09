@@ -90,7 +90,7 @@ void string::reserve(int size)
 	m_pChars = p2;
 }
 
-string string::operator+(string str)
+string string::operator+(const string& str) const
 {
 	string s2(*this);
 	return s2+=str;

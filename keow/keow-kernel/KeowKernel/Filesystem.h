@@ -37,6 +37,12 @@ class Filesystem
 public:
 	virtual void SetAssociatedMount(MountPoint& mp);
 
+	virtual IOHandler * CreateIOHandler(Path& path) = 0;
+	virtual string GetPathSeperator() = 0;
+	virtual bool IsSymbolicLink(string& strPath) = 0;
+	virtual string GetLinkDestination(string& strPath) = 0;
+	virtual bool IsRelativePath(string& strPath) = 0;
+
 	Filesystem();
 	virtual ~Filesystem();
 

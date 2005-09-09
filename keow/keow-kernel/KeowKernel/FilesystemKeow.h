@@ -40,6 +40,16 @@ public:
 	FilesystemKeow();
 	virtual ~FilesystemKeow();
 
+	virtual IOHandler * CreateIOHandler(Path& path);
+	virtual string GetPathSeperator();
+	virtual bool IsSymbolicLink(string& strPath);
+	virtual string GetLinkDestination(string& strPath);
+	virtual bool IsRelativePath(string& strPath);
+
+protected:
+	static string GetShortCutTarget(string& path);
+	static HRESULT CreateLink(const string& LinkPath, const string& DestPath, const string& Description);
+
 };
 
 #endif // !defined(AFX_FILESYSTEMKEOW_H__FDD8E9F3_7B43_48B7_9750_F2A546BBE93F__INCLUDED_)

@@ -40,6 +40,11 @@ public:
 	FilesystemProc();
 	virtual ~FilesystemProc();
 
+	virtual IOHandler * CreateIOHandler(Path& path);
+	virtual string GetPathSeperator();
+	virtual bool IsSymbolicLink(string& strPath);
+	virtual string GetLinkDestination(string& strPath);
+	virtual bool IsRelativePath(string& strPath);
 };
 
 #endif // !defined(AFX_FILESYSTEMPROC_H__04DF9EB5_9771_4497_B1FF_89F772093E50__INCLUDED_)

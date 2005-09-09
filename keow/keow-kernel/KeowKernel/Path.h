@@ -34,6 +34,7 @@
 
 
 class MountPoint;
+class Filesystem;
 
 class Path  
 {
@@ -56,20 +57,23 @@ public:
 	int GetUnixFileType();
 	DWORD GetWin32FileAttributes();
 
+	Filesystem * GetFinalFilesystem();
+
 	string GetUnixPath();
 	string GetWin32Path();
-
-	static string GetShortCutTarget(string& path);
-	static HRESULT CreateLink(const string& LinkPath, const string& DestPath, const string& Description);
 
 protected:
 	typedef list<const string> ElementList;
 
 	static string JoinList(Path::ElementList& list, char delimiter);
 
+	void TranverseMountPoints();
+	string GetFinalPath();
+
 protected:
 	ElementList m_PathStack;
-
+	MountPoint * m_pFinalMountPoint;
+	string m_strMountRealPath, m_strPathInMountPoint;
 	bool m_FollowSymLinks;
 };
 
