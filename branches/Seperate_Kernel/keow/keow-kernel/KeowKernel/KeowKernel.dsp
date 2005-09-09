@@ -105,10 +105,6 @@ SOURCE=.\Device.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\File.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\Filesystem.cpp
 # End Source File
 # Begin Source File
@@ -126,6 +122,10 @@ SOURCE=.\FilesystemProc.cpp
 # Begin Source File
 
 SOURCE=.\IOHandler.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\IOHFile.cpp
 # End Source File
 # Begin Source File
 
@@ -229,10 +229,6 @@ SOURCE=.\Device.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\File.h
-# End Source File
-# Begin Source File
-
 SOURCE=.\Filesystem.h
 # End Source File
 # Begin Source File
@@ -254,6 +250,10 @@ SOURCE=.\includes.h
 # Begin Source File
 
 SOURCE=.\IOHandler.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\IOHFile.h
 # End Source File
 # Begin Source File
 

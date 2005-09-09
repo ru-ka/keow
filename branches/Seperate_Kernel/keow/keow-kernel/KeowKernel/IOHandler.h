@@ -54,6 +54,29 @@ public:
 	void IOHandler::BasicStat64(linux::stat64 * s, int file_type);
 	virtual bool IOHandler::Stat64(linux::stat64 * s) = 0;
 
+	virtual int GetDirEnts64(linux::dirent64 *de, int maxbytes);
+
+	bool GetInheritable()
+	{
+		return m_bInheritable;
+	}
+	void SetInheritable(bool inherit)
+	{
+		m_bInheritable = inherit;
+	}
+
+	DWORD GetFlags()
+	{
+		return m_dwFlags;
+	}
+	void SetFlags(DWORD flags)
+	{
+		m_dwFlags = flags;
+	}
+
+protected:
+	bool m_bInheritable;
+	DWORD m_dwFlags;
 };
 
 #endif // !defined(AFX_IOHANDLER_H__BDA9DB15_5F09_45C4_9607_507D02C38ACD__INCLUDED_)
