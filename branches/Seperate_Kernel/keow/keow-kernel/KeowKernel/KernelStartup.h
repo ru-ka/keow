@@ -58,6 +58,7 @@ protected:
 	static void arg_init(const char *);
 	static void arg_debug(const char *);
 	static void arg_automount(const char *);
+	static void arg_log(const char *);
 };
 
 #endif // !defined(AFX_KERNELSTARTUP_H__B2AA20E4_FD73_4EA4_8C87_E3F083105A7D__INCLUDED_)

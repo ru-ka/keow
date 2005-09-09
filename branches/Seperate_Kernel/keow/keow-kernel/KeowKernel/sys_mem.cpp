@@ -70,7 +70,7 @@ void SysCalls::sys_brk(CONTEXT &ctx)
 			ktrace("out of memory in sys_brk?\n");
 			return;
 		}
-		//dont do this or else things fail!!
+		//dont do this or else things fail?
 		//ZeroMemory(old_brk, new_brk-old_brk);
 	}
 
@@ -202,7 +202,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 //		VirtualProtect(p, args.len, ProtMap, &ProtOpen);
 		if(args.flags & MAP_GROWSDOWN)
 			p = (LPBYTE)p + args.len;
-		ktrace("mmap'ed to 0x%p\n", p);
+		ktrace("mmap'ed to 0x%p - 0x%p\n", p, (DWORD)p+len4k-1);
 		ctx.Eax = (DWORD)p;
 		return;
 	}
@@ -262,7 +262,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	//opened - return actual addr
 	if(args.flags & MAP_GROWSDOWN)
 		p = (LPBYTE)p + args.len;
-	ktrace("mmap'ed to 0x%p\n", p);
+	ktrace("mmap'ed to 0x%p - 0x%p\n", p, (DWORD)p+args.len-1);
 	ctx.Eax = (DWORD)p;
 	return;
 }

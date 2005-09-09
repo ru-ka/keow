@@ -51,6 +51,7 @@ public:
 	DWORD m_BogoMips;
 
 	int m_DebugLevel;
+	HANDLE m_hLogFile;
 
 	string m_FilesystemRoot;
 	MountPoint * m_pRootMountPoint;

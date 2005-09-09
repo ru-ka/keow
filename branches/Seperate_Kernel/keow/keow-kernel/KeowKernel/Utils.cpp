@@ -52,8 +52,10 @@ void ktrace(const char *format, ...)
 
 	StringCbVPrintfEx(pNext, size, &pNext, &size, 0, format, va);
 
+	DWORD dwWrite = KTRACE_BUFFER_SIZE-size; //what to write
 	OutputDebugString(g_pTraceBuffer);
-	//Sleep(1); //yield to let vc++ debug view catch up
+	if(g_pKernelTable && g_pKernelTable->m_hLogFile!=NULL)
+		WriteFile(g_pKernelTable->m_hLogFile, g_pTraceBuffer, dwWrite, &dwWrite, NULL);
 }
 
 void halt()

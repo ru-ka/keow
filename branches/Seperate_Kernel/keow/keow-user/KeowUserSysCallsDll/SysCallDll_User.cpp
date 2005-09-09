@@ -64,13 +64,7 @@ DWORD _stdcall SysCallDll::SetEndOfFile(HANDLE h)
 
 DWORD _stdcall SysCallDll::ZeroMem(void *p, DWORD len)
 {
-//	RET( (DWORD)::ZeroMemory(p, len) );
-	DWORD i;
-	for(i=0; i<len; ++i)
-	{
-		((LPBYTE)p)[i] = 0;
-	}
-	RET(0);
+	RET( (DWORD)::ZeroMemory(p, len) );
 }
 
 DWORD _stdcall SysCallDll::CreateFileMapping(HANDLE hFile, DWORD Prot, DWORD sizeHi, DWORD sizeLo)

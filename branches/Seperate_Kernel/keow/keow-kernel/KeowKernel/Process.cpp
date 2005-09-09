@@ -106,49 +106,49 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 	set stack/cpu contexts
 	let process run
 	*/
-	P = new Process();
-	P->m_Pid = pid;
-	P->m_ParentPid = 0;
-	P->m_ProcessFileImage = path;
-	P->m_UnixPwd = Path("/");
+	Process * NewP = new Process();
+	NewP->m_Pid = pid;
+	NewP->m_ParentPid = 0;
+	NewP->m_ProcessFileImage = path;
+	NewP->m_UnixPwd = Path("/");
 
 	//add to the kernel
-	g_pKernelTable->m_Processes.push_back(P);
+	g_pKernelTable->m_Processes.push_back(NewP);
 
 
 	//env and args
-	P->m_Arguments = (ADDR)InitialArguments;
-	P->m_Environment = (ADDR)InitialEnvironment;
+	NewP->m_Arguments = (ADDR)InitialArguments;
+	NewP->m_Environment = (ADDR)InitialEnvironment;
 
-	P->m_bDoExec = P->m_bDoFork = false;
+	NewP->m_bDoExec = NewP->m_bDoFork = false;
 
 	//event to co-ordinate starting
-	P->m_hProcessStartEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	NewP->m_hProcessStartEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
 	//need to start the process and debug it (to trap kernel calls etc)
 	//the debugger thread
-	HANDLE hThread = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerMain, P, 0, &P->m_KernelThreadId);
+	HANDLE hThread = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerMain, NewP, 0, &NewP->m_KernelThreadId);
 	if(hThread==NULL)
 	{
 		ktrace("failed to start debug thread for process\n");
-		delete P;
+		delete NewP;
 		return NULL;
 	}
 	CloseHandle(hThread); //don't need it, just the id
 
 	//Wait for the thread to start the process, or die
-	DWORD dwRet = WaitForSingleObject(P->m_hProcessStartEvent, INFINITE);
-	CloseHandle(P->m_hProcessStartEvent);
+	DWORD dwRet = WaitForSingleObject(NewP->m_hProcessStartEvent, INFINITE);
+	CloseHandle(NewP->m_hProcessStartEvent);
 	//check it's ok
-	if(P->m_Win32PInfo.hProcess==NULL)
+	if(NewP->m_Win32PInfo.hProcess==NULL)
 	{
 		ktrace("failed to start the process\n");
-		delete P;
+		delete NewP;
 		return NULL;
 	}
 
 	//running, this is it
-	return P;
+	return NewP;
 }
 
 
@@ -276,6 +276,7 @@ void Process::DebuggerLoop()
 
 
 		//continue running
+		FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for out process modifications?
 		ContinueDebugEvent(evt.dwProcessId, evt.dwThreadId, DBG_CONTINUE);
 
 	}//for(;;)
@@ -295,6 +296,10 @@ void Process::ConvertProcessToKeow()
 	CONTEXT ctx;
 	ctx.ContextFlags = CONTEXT_FULL;
 	GetThreadContext(m_Win32PInfo.hThread, &ctx);
+
+	m_OriginalStackTop = (ADDR)ctx.Esp;
+
+	//read syscall data from dll (pointer in eax)
 	ReadMemory(&SysCallAddr, (ADDR)ctx.Eax, sizeof(SysCallAddr));
 
 #ifdef _DEBUG
@@ -329,6 +334,13 @@ void Process::ConvertProcessToKeow()
 		return;
 	}
 
+	//want a new stack for the process - at the TOP of the address space
+	//todo: alloc dynamically
+	DWORD size=1024*1024L;  //1MB
+	ADDR stack_bottom = (ADDR)0x6FF00000; //just after syscall dll addr?
+	m_OriginalStackTop = size-4 + MemoryHelper::AllocateMemAndProtect(stack_bottom, size, PAGE_EXECUTE_READWRITE);
+	ctx.Esp = (DWORD)m_OriginalStackTop;
+	SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
 	//not fork or exec, must be 'init', the very first process
 	LoadImage(m_ProcessFileImage, false);
@@ -365,7 +377,8 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	switch(evt.u.Exception.ExceptionRecord.ExceptionCode)
 	{
 	case EXCEPTION_SINGLE_STEP:
-		TraceContext(0,0,ctx);
+		DumpContext(ctx);
+P->DumpMemory((ADDR)(0x009e4d48), 4);
 		ctx.EFlags |= SINGLE_STEP_BIT; //keep it up (DEbug only?)
 		break;
 
@@ -389,7 +402,32 @@ void Process::HandleException(DEBUG_EVENT &evt)
 			{
 				ktrace("Access violation @ 0x%08lx\n", evt.u.Exception.ExceptionRecord.ExceptionAddress);
 
-				TraceContext(0,0,ctx);
+				DumpContext(ctx);
+	DumpMemory((ADDR)ctx.Eax, 4);
+
+				//trace the stack back
+				//assumes frame pointers exist
+				ADDR esp = (ADDR)ctx.Esp;
+				ADDR ebp = (ADDR)ctx.Ebp;
+				ADDR retAddr = 0;
+				while(esp>=(ADDR)ctx.Esp && esp<=m_OriginalStackTop) //while data seems sensible
+				{
+					//edp is old stack pos
+					esp=ebp;
+					if(ebp==0)
+						break;
+
+					//stack is now ret addr
+					esp+=4;
+					ReadMemory(&retAddr, esp, sizeof(ADDR));
+
+					//first pushed item was old ebp
+					esp-=sizeof(ADDR);
+					ReadMemory(&ebp, esp, sizeof(ADDR));
+
+
+					ktrace(": from 0x%p\n", retAddr);
+				}
 
 				SendSignal(SIGSEGV); //access violation
 			}
@@ -564,7 +602,8 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 	//
 	int i;
 	linux::Elf32_Phdr * phdr; //Program header
-	ADDR pMem, pWantMem;
+	ADDR pMem, pWantMem, pAlignedMem;
+	DWORD AlignedSize;
 	DWORD protection;//, oldprot;
 	DWORD loadok;
 	ADDR pMemTemp = NULL;
@@ -604,20 +643,38 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 		SetFilePointer(hImg, pElfHdr->e_phoff + (i*pElfHdr->e_phentsize), 0, FILE_BEGIN);
 		ReadFile(hImg, phdr, pElfHdr->e_phentsize, &dwRead, 0);
 
-		if(phdr->p_type == PT_LOAD
-		|| phdr->p_type == PT_PHDR)
+		if(phdr->p_type == PT_LOAD)
 		{
 			//load segment into memory
-			pWantMem = phdr->p_vaddr + pBaseAddr;
 			protection = ElfProtectionToWin32Protection(phdr->p_flags);
-			//phdr->p_memsz = (phdr->p_memsz + (phdr->p_align-1)) & (~(phdr->p_align-1)); //round up to alignment boundary
-			pMem = MemoryHelper::AllocateMemAndProtect(pWantMem, phdr->p_memsz, PAGE_EXECUTE_READWRITE);
-			if(pMem!=pWantMem)
+			pWantMem = phdr->p_vaddr + pBaseAddr;
+			pAlignedMem = pWantMem;
+			AlignedSize = phdr->p_memsz;
+			if(phdr->p_align > 1)
+			{
+				//need to handle alignment
+				//start addr rounds down
+				//length rounds up
+
+				pAlignedMem = (ADDR)( (DWORD)pAlignedMem & ~(phdr->p_align-1) );
+				AlignedSize = (phdr->p_memsz + (pWantMem-pAlignedMem) + (phdr->p_align-1)) & ~(phdr->p_align-1);
+			}
+
+			ktrace("load segment file offset %d, file len %d, mem len %d (%d), to 0x%p (%p)\n", phdr->p_offset, phdr->p_filesz, phdr->p_memsz, AlignedSize, phdr->p_vaddr, pAlignedMem);
+
+			pMem = MemoryHelper::AllocateMemAndProtect(pAlignedMem, AlignedSize, PAGE_EXECUTE_READWRITE);
+			if(pMem!=pAlignedMem)
 			{
 				DWORD err = GetLastError();
-				ktrace("error 0x%lx in load program segment @ 0x%lx (got 0x%lx)\n", err,pWantMem, pMem);
+				ktrace("error 0x%lx in load program segment @ 0x%lx (got 0x%lx)\n", err, pAlignedMem, pMem);
 				loadok = 0;
 				break;
+			}
+			//need to zero first?
+			if(1){//todo: needed? make efficient
+				BYTE zero=0;
+				for(DWORD sz=0; sz<AlignedSize; ++sz)
+					WriteMemory(pAlignedMem+sz, 1, &zero);
 			}
 			//need to load into our memory, then copy to process
 			if(phdr->p_filesz != 0)
@@ -626,23 +683,21 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 				SetFilePointer(hImg, phdr->p_offset, 0, FILE_BEGIN);
 				ReadFile(hImg, pMemTemp, phdr->p_filesz, &dwRead, 0);
 
-				if(!WriteMemory(pMem, phdr->p_filesz, pMemTemp))
+				if(dwRead != phdr->p_filesz)
+				{
+					DWORD err = GetLastError();
+					ktrace("error 0x%lx in load program segment, read %d (got %d)\n", err, dwRead, phdr->p_filesz);
+					loadok = 0;
+					break;
+				}
+
+				//load into ask addr, not the aligned one
+				if(!WriteMemory(pWantMem, phdr->p_filesz, pMemTemp))
 				{
 					DWORD err = GetLastError();
 					ktrace("error 0x%lx in write program segment\n", err);
 					loadok = 0;
 					break;
-				}
-
-				//zero any remaining space?
-				BYTE zero = 0;
-				DWORD sz = phdr->p_filesz;
-				pMem += phdr->p_filesz;
-				while(sz < phdr->p_memsz)
-				{
-					++pMem;
-					WriteMemory(pMem, 1, &zero);
-					++sz;
 				}
 			}
 
@@ -668,14 +723,15 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 					pElfLoadData->last_lib_addr = pMem + phdr->p_memsz;
 			}
 
-			//need program header location for possible interpreter
-			if(phdr->p_type == PT_PHDR)
-			{
-				pElfLoadData->phdr_addr = pMem;
+		}
+		else
+		if(phdr->p_type == PT_PHDR)
+		{
+			//will be loaded later in a PT_LOAD
+			pElfLoadData->phdr_addr = phdr->p_vaddr + pBaseAddr;
 
-				pElfLoadData->phdr_phnum = pElfHdr->e_phnum;
-				pElfLoadData->phdr_phent = pElfHdr->e_phentsize;
-			}
+			pElfLoadData->phdr_phnum = pElfHdr->e_phnum;
+			pElfLoadData->phdr_phent = pElfHdr->e_phentsize;
 		}
 		else
 		if(phdr->p_type == PT_INTERP)
@@ -1245,6 +1301,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	for(;;) {
 		//SetSingleStep(true); //debug
 
+		FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for out process modifications?
 		ContinueDebugEvent(m_Win32PInfo.dwProcessId, m_Win32PInfo.dwThreadId, DBG_CONTINUE);
 
 		WaitForDebugEvent(&evt, INFINITE);
@@ -1259,7 +1316,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 				CONTEXT ctx;
 				ctx.ContextFlags = CONTEXT_FULL;
 				GetThreadContext(m_Win32PInfo.hThread, &ctx);
-				TraceContext(0,0, ctx);
+				DumpContext(ctx);
 			}
 			else
 			{
@@ -1269,7 +1326,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 				CONTEXT ctx;
 				ctx.ContextFlags = CONTEXT_FULL;
 				GetThreadContext(m_Win32PInfo.hThread, &ctx);
-				TraceContext(0,0, ctx);
+				DumpContext(ctx);
 				HandleException(evt);
 #endif
 			}
@@ -1318,7 +1375,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 // Output current process context
 // and disassemble instructions
-void Process::TraceContext(int LinesBefore, int LinesAfter, CONTEXT &ctx)
+void Process::DumpContext(CONTEXT &ctx)
 {
 	BYTE buf[4];
 	ReadMemory(buf, (ADDR)ctx.Eip, sizeof(buf));
@@ -1327,13 +1384,34 @@ void Process::TraceContext(int LinesBefore, int LinesAfter, CONTEXT &ctx)
 		    ctx.Eip,buf[0],buf[1],buf[2],buf[3],
 			                             "instr",
 												 ctx.Eax,  ctx.Ebx,  ctx.Ecx,  ctx.Edx,  ctx.Esi,  ctx.Edi,  ctx.Eip,  ctx.Esp,  ctx.Ebp,  ctx.EFlags);
+	//todo: disassemble
+}
 
-	/*
-	ktrace("0x%08lX %02X %02X %02X %02X  %-12s\n", ctx.Eip, buf[0],buf[1],buf[2],buf[3], "instr");
+// Display a memory dump
+void Process::DumpMemory(ADDR addr, DWORD len)
+{
+	const int BYTES_PER_LINE = 8;
+	char buf[5 * BYTES_PER_LINE + 100];
+	int x;
+	BYTE b;
 
-	ktrace("eax=%08lx ebx=%08lx ecx=%08lx edx=%08lx esi=%08lx edi=%08lx eip=%08lx esp=%08lx ebp=%08lx flags=%08lx \n",
-			ctx.Eax,  ctx.Ebx,  ctx.Ecx,  ctx.Edx,  ctx.Esi,  ctx.Edi,  ctx.Eip,  ctx.Esp,  ctx.Ebp,  ctx.EFlags);
-			*/
+	ktrace("memory dump @ 0x%p, len %d\n", addr,len);
+	x=0;
+	for(DWORD i=0; i<len; ++i)
+	{
+		ReadMemory(&b, addr+x, 1); //byte-by-byte is slow but this is just a debug thing anyway
+		StringCbPrintf(&buf[x*5], sizeof(buf)-(x*5), "0x%02x ", b);
+
+		++x;
+		if(x>=BYTES_PER_LINE)
+		{
+			ktrace("  %p: %s\n", addr, buf);
+			addr+=BYTES_PER_LINE;
+			x=0;
+		}
+	}
+	if(x>0)
+		ktrace("  %p: %s\n", addr, buf);
 }
 
 

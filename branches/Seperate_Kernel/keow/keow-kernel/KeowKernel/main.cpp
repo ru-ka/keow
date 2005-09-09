@@ -117,7 +117,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	}
 
 
-	ktrace("'init' started\n");
+	ktrace("'init' launched\n");
 
 	//wait for it to exit
 	MsgWaitForMultipleObjects(1, &proc->m_Win32PInfo.hProcess, FALSE, INFINITE, NULL);
