@@ -63,7 +63,7 @@ public:
 	void DumpMemory(ADDR addr, DWORD len);
 	void DumpContext(CONTEXT &ctx);
 
-	void SetSingleStep(bool set);
+	void SetSingleStep(bool set, CONTEXT * pCtx);
 	DWORD InjectFunctionCall(void *func, void *pStackData, int nStackDataSize);
 
 	virtual ~Process();
@@ -86,7 +86,9 @@ public:
 	DWORD m_dwExitCode;
 	FILETIME m_StartedTime;
 	HANDLE m_hWaitTerminatingEvent;
-	ADDR m_OriginalStackTop; //we oughtn't to go past here
+	CONTEXT m_BaseWin32Ctx; //used for injection etc
+	ADDR m_KeowUserStackBase;
+	ADDR m_KeowUserStackTop;
 
 	DWORD m_KernelThreadId;
 

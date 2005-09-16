@@ -594,8 +594,6 @@ void SysCalls::sys_getdents64(CONTEXT &ctx)
 
 	//read locally, copy to process
 	LPBYTE buf = new BYTE[maxbytes];
-	memset(buf,0,maxbytes);
-	//P->ReadMemory(buf, (ADDR)s, maxbytes);
 
 	filled = ioh->GetDirEnts64((linux::dirent64 *)buf, maxbytes);
 	if(filled >= 0)

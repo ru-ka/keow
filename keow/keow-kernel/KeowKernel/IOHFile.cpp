@@ -233,6 +233,8 @@ int IOHFile::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 	{
 		if(m_hFindData==INVALID_HANDLE_VALUE)
 		{
+			//need to start the search
+
 			char DirPattern[MAX_PATH];
 			StringCbPrintf(DirPattern, sizeof(DirPattern), "%s/*.*", m_Path.GetWin32Path());
 
@@ -267,7 +269,7 @@ int IOHFile::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 		p = m_Path;
 		p.AppendUnixPath(wfd.cFileName);
 
-		de->d_ino = p.GetUnixPath().hash(); //dummy value
+		de->d_ino = 1; //p.GetUnixPath().hash(); //dummy value
 
 		de->d_type = 0; //not provided on linux x86 32bit?  (GetUnixFileType(p);
 
@@ -275,20 +277,20 @@ int IOHFile::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 
 		if(p.IsSymbolicLink())
 		{
-			//ensure name we return does not end in .lnk
-			int e = strlen(de->d_name) - 4;
+			//ensure name we return does not end in .lnk (we use windows shortcuts as symbolic links)
+ 			int e = strlen(de->d_name) - 4;
 			if(e>0 && stricmp(&de->d_name[e], ".lnk")==0)
 				de->d_name[e] = 0;
 		}
 
 
+		//de->d_reclen = sizeof(linux::dirent64);
 		de->d_reclen = sizeof(linux::dirent64)-sizeof(de->d_name)+strlen(de->d_name)+1;
 
-		//de->d_off = filled+sizeof(linux::dirent64); //next one will be here
-		de->d_off = filled+de->d_reclen; //next one will be here
-
+		de->d_off = (m_nFindCount-1); //offset in dir, not memory
 
 		filled += de->d_reclen;
+
 		de = (linux::dirent64*)(((LPBYTE)de) + de->d_reclen); //move pointer along
 	}
 
