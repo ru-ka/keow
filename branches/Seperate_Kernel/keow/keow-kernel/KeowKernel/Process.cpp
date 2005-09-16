@@ -37,8 +37,6 @@ const int Process::KERNEL_PROCESS_THREAD_STACK_SIZE = 32*1024;
 
 const char * Process::KEOW_PROCESS_STUB = "Keow.exe";
 
-static const int SINGLE_STEP_BIT = 0x100L; //8th bit is trap flag
-
 
 //////////////////////////////////////////////////////////////////////
 
@@ -235,7 +233,7 @@ void Process::DebuggerLoop()
 				{
 				case EXCEPTION_SINGLE_STEP:
 					ConvertProcessToKeow();
-					SetSingleStep(false); //DEBUG - keep it up
+					SetSingleStep(false,NULL); //DEBUG - keep it up
 					break;
 				case EXCEPTION_BREAKPOINT:
 					//seems to get generated when kernel32 loads.
@@ -276,7 +274,7 @@ void Process::DebuggerLoop()
 
 
 		//continue running
-		FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for out process modifications?
+		FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for our process modifications?
 		ContinueDebugEvent(evt.dwProcessId, evt.dwThreadId, DBG_CONTINUE);
 
 	}//for(;;)
@@ -297,7 +295,10 @@ void Process::ConvertProcessToKeow()
 	ctx.ContextFlags = CONTEXT_FULL;
 	GetThreadContext(m_Win32PInfo.hThread, &ctx);
 
-	m_OriginalStackTop = (ADDR)ctx.Esp;
+	//This is the details we use as win32 state for code injection etc
+	//keep this seperate from the keow stuff that happens later (eg FS reg changes)
+	m_BaseWin32Ctx = ctx;
+
 
 	//read syscall data from dll (pointer in eax)
 	ReadMemory(&SysCallAddr, (ADDR)ctx.Eax, sizeof(SysCallAddr));
@@ -316,7 +317,7 @@ void Process::ConvertProcessToKeow()
 #endif
 
 	//disable single-step that the stub started (to alert us)
-	ctx.EFlags &= ~(0x100L); //8th bit is trap flag
+	SetSingleStep(false, &ctx);
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
 
@@ -334,12 +335,17 @@ void Process::ConvertProcessToKeow()
 		return;
 	}
 
-	//want a new stack for the process - at the TOP of the address space
-	//todo: alloc dynamically
-	DWORD size=1024*1024L;  //1MB
-	ADDR stack_bottom = (ADDR)0x6FF00000; //just after syscall dll addr?
-	m_OriginalStackTop = size-4 + MemoryHelper::AllocateMemAndProtect(stack_bottom, size, PAGE_EXECUTE_READWRITE);
-	ctx.Esp = (DWORD)m_OriginalStackTop;
+	//want a new stack for the process
+	// - at the TOP of the address space and top being like 0xbfffffff
+	//[I got this value from gdb of /bin/ls on debian i36 linux]
+	//also seems that some libpthread code relies on (esp|0x1ffff) being the top of the stack.
+	//TODO: alloc dynamically within the contraints
+	DWORD size=1024*1024L;  //1MB will do?
+	ADDR stack_bottom = (ADDR)0x70000000 - size; //ok location?
+	m_KeowUserStackBase = MemoryHelper::AllocateMemAndProtect(stack_bottom, size, PAGE_EXECUTE_READWRITE);
+	m_KeowUserStackTop = m_KeowUserStackBase + size;
+	//linux process start with a little bit of stack in use but overwritable?
+	ctx.Esp = (DWORD)m_KeowUserStackTop - 0x200;
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
 	//not fork or exec, must be 'init', the very first process
@@ -378,7 +384,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	{
 	case EXCEPTION_SINGLE_STEP:
 		DumpContext(ctx);
-		ctx.EFlags |= SINGLE_STEP_BIT; //keep it up (DEbug only?)
+		SetSingleStep(true, &ctx); //keep it up (DEbug only?)
 		break;
 
 	case EXCEPTION_ACCESS_VIOLATION:
@@ -408,7 +414,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 				ADDR esp = (ADDR)ctx.Esp;
 				ADDR ebp = (ADDR)ctx.Ebp;
 				ADDR retAddr = 0;
-				while(esp>=(ADDR)ctx.Esp && esp<=m_OriginalStackTop) //while data seems sensible
+				while(esp>=(ADDR)ctx.Esp && esp<=m_KeowUserStackTop) //while data seems sensible
 				{
 					//edp is old stack pos
 					esp=ebp;
@@ -426,7 +432,6 @@ void Process::HandleException(DEBUG_EVENT &evt)
 
 					ktrace(": from 0x%p\n", retAddr);
 				}
-
 				SendSignal(SIGSEGV); //access violation
 			}
 		}
@@ -706,8 +711,8 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 				//between start_bss and last_bss is the bs section.
 				if(pMem+phdr->p_filesz  > pElfLoadData->bss_start)
 					pElfLoadData->bss_start = pMem + phdr->p_filesz;
-				if(pMem+phdr->p_memsz  > pElfLoadData->brk)
-					pElfLoadData->brk = pMem + phdr->p_memsz;
+				if(pAlignedMem+AlignedSize > pElfLoadData->brk)
+					pElfLoadData->brk = pAlignedMem+AlignedSize;
 
 				//keep track in min/max addresses
 				if(pMem<pElfLoadData->program_base || pElfLoadData->program_base==0)
@@ -825,6 +830,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 
 
 // Transfers control to the image to run it
+// This is only for 'new' images (exec() etc)
 //
 DWORD Process::StartNewImageRunning()
 {
@@ -990,30 +996,37 @@ DWORD Process::StartNewImageRunning()
 	//set
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
-	SetSingleStep(true); //DEBUG - keep it up
-
 	return 0;
 }
 
-void Process::SetSingleStep(bool set)
+void Process::SetSingleStep(bool set, CONTEXT * pCtx)
 {
-	CONTEXT ctx;
+	const int SINGLE_STEP_BIT = 0x100L; //8th bit is trap flag
+	CONTEXT TmpCtx;
+	bool bDoSet = false;
 
-	ctx.ContextFlags = CONTEXT_CONTROL;
-	GetThreadContext(m_Win32PInfo.hThread, &ctx);
+	if(pCtx==NULL)
+	{
+		TmpCtx.ContextFlags = CONTEXT_CONTROL;
+		GetThreadContext(m_Win32PInfo.hThread, &TmpCtx);
+
+		pCtx = &TmpCtx;
+	}
 
 	if(set)
 	{
 		//enable single-step 
-		ctx.EFlags |= SINGLE_STEP_BIT; 
+		pCtx->EFlags |= SINGLE_STEP_BIT; 
 	}
 	else
 	{
 		//disable single-step 
-		ctx.EFlags &= ~SINGLE_STEP_BIT;
+		pCtx->EFlags &= ~SINGLE_STEP_BIT;
 	}
 
-	SetThreadContext(m_Win32PInfo.hThread, &ctx);
+	if(bDoSet)
+		SetThreadContext(m_Win32PInfo.hThread, &TmpCtx);
+
 }
 
 
@@ -1041,7 +1054,7 @@ void Process::SendSignal(int sig)
 
 	//make single-step
 	//this forces the debugger to intervene and then it can see the pending signals
-	SetSingleStep(true);
+	SetSingleStep(true, NULL);
 
 	ResumeThread(m_Win32PInfo.hThread);
 }
@@ -1262,25 +1275,25 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	//This means we place args on the stack so that param1 pops first
 	//Stack&register cleanup is irrelavent because HandleException() restores the correct state
 
+	//Injection uses the original Win32 context (& stack etc) from when
+	//the stub process started.
+
 	ktrace("Injecting call to SysCallDll func @ 0x%08lx\n", func);
 
-	CONTEXT OrigCtx;
-	OrigCtx.ContextFlags = CONTEXT_FULL; //just eip and int registers needed
-	GetThreadContext(m_Win32PInfo.hThread, &OrigCtx);
+	CONTEXT InjectCtx = m_BaseWin32Ctx;
 
-	CONTEXT TempCtx = OrigCtx;
+	InjectCtx.Eip = (DWORD)func;		//call this in the stub
+	InjectCtx.Esp -= sizeof(ADDR);	//the return address
+	InjectCtx.Esp -= nStackDataSize;	//the params
 
-	TempCtx.Eip = (DWORD)func;		//call this in the stub
-	TempCtx.Esp -= sizeof(ADDR);	//the return address
-	TempCtx.Esp -= nStackDataSize;	//the params
-
-	SetThreadContext(m_Win32PInfo.hThread, &TempCtx);
+	SetThreadContext(m_Win32PInfo.hThread, &InjectCtx);
 
 
-	ADDR addr = (ADDR)TempCtx.Esp;
+	ADDR addr = (ADDR)InjectCtx.Esp;
 
-	//return address
-	WriteMemory(addr, sizeof(DWORD), &OrigCtx.Eip);
+	//return address - we don't actually need it (exit trapped below) 
+	DWORD dummy = 0;
+	WriteMemory(addr, sizeof(DWORD), &dummy);
 	addr += sizeof(DWORD);
 
 	//parameters
@@ -1299,7 +1312,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	for(;;) {
 		//SetSingleStep(true); //debug
 
-		FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for out process modifications?
+		FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for our process modifications?
 		ContinueDebugEvent(m_Win32PInfo.dwProcessId, m_Win32PInfo.dwThreadId, DBG_CONTINUE);
 
 		WaitForDebugEvent(&evt, INFINITE);
@@ -1307,9 +1320,9 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 		if(evt.dwDebugEventCode==EXCEPTION_DEBUG_EVENT)
 		{
 			if(evt.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_BREAKPOINT)
-				break; //the for()
+				break; //exit loop - injected function finished
 
-			if(evt.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_SINGLE_STEP)
+			if(evt.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_SINGLE_STEP) //for debug
 			{
 				CONTEXT ctx;
 				ctx.ContextFlags = CONTEXT_FULL;
@@ -1336,7 +1349,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 			ExitThread(0); //no longer debugging
 		}
 
-		if(evt.dwDebugEventCode==OUTPUT_DEBUG_STRING_EVENT)
+		if(evt.dwDebugEventCode==OUTPUT_DEBUG_STRING_EVENT) //for debug info
 		{
 			int bufLen = evt.u.DebugString.nDebugStringLength*2;
 			char * buf = new char[bufLen];
@@ -1361,12 +1374,14 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 	ReadMemory(pStackData, addr, nStackDataSize);
 
-	GetThreadContext(m_Win32PInfo.hThread, &TempCtx);
-	DWORD dwRet = TempCtx.Eax;
-	ktrace("Injection exit @ 0x%08lx\n", TempCtx.Eip);
 
-	//No need to set context back. We'll be resetting the context in the HandleException()
+	//only for debug - show exit point
+	GetThreadContext(m_Win32PInfo.hThread, &InjectCtx);
+	DWORD dwRet = InjectCtx.Eax;
+	ktrace("Injection exit @ 0x%08lx\n", InjectCtx.Eip);
 
+
+	//No need to set keow context back. We'll be resetting the context when we return back to HandleException()
 	return dwRet;
 }
 
@@ -1375,13 +1390,15 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 // and disassemble instructions
 void Process::DumpContext(CONTEXT &ctx)
 {
-	BYTE buf[4];
+	BYTE buf[8];
 	ReadMemory(buf, (ADDR)ctx.Eip, sizeof(buf));
 
-	ktrace("0x%08lX %02X %02X %02X %02X  %-12s   eax=%08lx ebx=%08lx ecx=%08lx edx=%08lx esi=%08lx edi=%08lx eip=%08lx esp=%08lx ebp=%08lx flags=%08lx \n",
+	ktrace("0x%08lX %02X %02X %02X %02X  %02X %02X %02X %02X  %-12s   eax=%08lx ebx=%08lx ecx=%08lx edx=%08lx esi=%08lx edi=%08lx eip=%08lx esp=%08lx ebp=%08lx flags=%08lx cs=%x ds=%x es=%x fs=%x gs=%x ss=%x\n",
 		    ctx.Eip,buf[0],buf[1],buf[2],buf[3],
-			                             "instr",
-												 ctx.Eax,  ctx.Ebx,  ctx.Ecx,  ctx.Edx,  ctx.Esi,  ctx.Edi,  ctx.Eip,  ctx.Esp,  ctx.Ebp,  ctx.EFlags);
+										 buf[4],buf[5],buf[6],buf[7],
+															  "instr",
+																	  ctx.Eax,  ctx.Ebx,  ctx.Ecx,  ctx.Edx,  ctx.Esi,  ctx.Edi,  ctx.Eip,  ctx.Esp,  ctx.Ebp,  ctx.EFlags, 
+																																											ctx.SegCs,ctx.SegDs,ctx.SegEs,ctx.SegFs,ctx.SegGs,ctx.SegSs );
 	//todo: disassemble
 }
 

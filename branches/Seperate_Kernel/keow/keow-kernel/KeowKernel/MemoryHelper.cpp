@@ -140,7 +140,7 @@ bool MemoryHelper::DeallocateMemory(ADDR addr, DWORD size)
 bool MemoryHelper::ProcessReadWriteMemory(HANDLE hProcess, LPVOID pRemoteAddr, LPVOID pLocalAddr, DWORD len, DWORD * pDone, ReadWrite rw )
 {
 	/* It's not documented (anywhere I could find) but Read/Write ProcessMemory() calls
-	   appear to fail if either te local or remote addresses cross a 4k boundary.
+	   appear to fail if either the local or remote addresses cross a 4k boundary.
 	   Therefore this routine has to transfer memory in chunks to ensure
 	   that neither end does.
 

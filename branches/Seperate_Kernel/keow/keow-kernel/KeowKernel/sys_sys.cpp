@@ -41,7 +41,7 @@ void SysCalls::sys_uname(CONTEXT &ctx)
 	DWORD siz = sizeof(U.sysname);
 	GetComputerName(U.sysname, &siz);
 	StringCbCopy(U.nodename, sizeof(U.nodename), U.sysname);
-	StringCbCopy(U.release, sizeof(U.release), "2.0.0"); //"2.4.20");
+	StringCbCopy(U.release, sizeof(U.release), "2.4.20"); //specs we are using are this (Sep 2005)
 	StringCbCopy(U.version, sizeof(U.version), "keow");
 	StringCbCopy(U.machine, sizeof(U.machine), "i386");  //we need this value?
 	U.domainname[0] = 0;
