@@ -165,6 +165,7 @@ bool IOHFile::Stat64(linux::stat64 * s)
 	//use hash of filename as inode
 	s->st_ino = s->__st_ino = w32.hash();
 
+
 	i.LowPart = fi.nFileSizeLow;
 	i.HighPart = fi.nFileSizeHigh;
 	s->st_size = i.QuadPart;
@@ -269,7 +270,7 @@ int IOHFile::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 		p = m_Path;
 		p.AppendUnixPath(wfd.cFileName);
 
-		de->d_ino = 1; //p.GetUnixPath().hash(); //dummy value
+		de->d_ino = p.GetUnixPath().hash(); //dummy value
 
 		de->d_type = 0; //not provided on linux x86 32bit?  (GetUnixFileType(p);
 

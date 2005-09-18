@@ -61,6 +61,7 @@ public:
 	SC ZeroMem(void *p, DWORD len);
 	SC CreateFileMapping(HANDLE hFile, DWORD Prot, DWORD sizeHi, DWORD sizeLo);
 	SC MapViewOfFileEx(HANDLE hMap, DWORD Prot, DWORD offsetHi, DWORD offsetLo, DWORD len, void* BaseAddr);
+	SC UnmapViewOfFile(void* BaseAddr);
 
 
 	SC exit(UINT exitcode);
@@ -81,6 +82,7 @@ public:
 		LPVOID ZeroMem;
 		LPVOID CreateFileMapping;
 		LPVOID MapViewOfFileEx;
+		LPVOID UnmapViewOfFile;
 
 		LPVOID exit;
 		LPVOID write;

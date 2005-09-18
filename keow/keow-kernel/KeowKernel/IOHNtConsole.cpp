@@ -61,25 +61,97 @@ bool IOHNtConsole::Stat64(linux::stat64 * s)
 
 DWORD IOHNtConsole::ioctl(DWORD request, DWORD data)
 {
+	DWORD dwRet = 0;
+	DWORD dwDone;
+	EnterCriticalSection(&m_pConsole->m_csIoctl); //only one ioctl at a time
+
+	//the actual work needs to happen in the console handler process
+	//sent request there and read rely if needed
+
 	switch(request)
 	{
-		/*
-	case TCGETS:
+	case TCGETS: //get stty stuff
 		{
-			linux::termios * arg = (linux::termios*)pCtx->Edx;
-			arg->c_iflag = 0;		/* input mode flags *
-			arg->c_oflag = 0;		/* output mode flags *
-			arg->c_cflag = 0;		/* control mode flags *
-			arg->c_lflag = 0;		/* local mode flags *
-			arg->c_line = 0;			/* line discipline *
-			//arg->c_cc[NCCS];		/* control characters *
-			return 0;
+			linux::termios rec;
+			WriteFile(m_pConsole->m_hIoctlWrite, &request, sizeof(DWORD), &dwDone,0);
+			ReadFile(m_pConsole->m_hIoctlRead, &rec, sizeof(rec), &dwDone,0);
+
+			//send to process
+			P->WriteMemory((ADDR)data, sizeof(rec), &rec);
 		}
 		break;
-		*/
-	case 0:
+
+	case TCSETSW:
+		//flush output
+		//console io never buffered, so not required
+		//...fall through...
+	case TCSETSF:
+		//flush input & output
+		//(done in console process)
+		//...fall through...
+	case TCSETS: //set stty stuff
+		{
+			linux::termios rec;
+
+			P->ReadMemory(&rec, (ADDR)data, sizeof(rec));
+
+			WriteFile(m_pConsole->m_hIoctlWrite, &request, sizeof(DWORD), &dwDone,0);
+			WriteFile(m_pConsole->m_hIoctlWrite, &rec, sizeof(rec), &dwDone,0);
+		}
+		break;
+
+	case TIOCGPGRP: //get process group
+		{
+			if(!data)
+			{
+				dwRet = -EFAULT;
+				break;
+			}
+			P->WriteMemory((ADDR)data, sizeof(linux::pid_t), &m_pConsole->m_ProcessGroup);
+		}
+		break;
+	case TIOCSPGRP: //set process group
+		{
+			if(!data)
+			{
+				dwRet = -EFAULT;
+				break;
+			}
+			P->ReadMemory(&m_pConsole->m_ProcessGroup, (ADDR)data, sizeof(linux::pid_t));
+		}
+		break;
+
+	case TIOCGWINSZ: //get window size
+		{
+			linux::winsize rec;
+			WriteFile(m_pConsole->m_hIoctlWrite, &request, sizeof(DWORD), &dwDone,0);
+			ReadFile(m_pConsole->m_hIoctlRead, &rec, sizeof(rec), &dwDone,0);
+
+			//send to process
+			P->WriteMemory((ADDR)data, sizeof(rec), &rec);
+		}
+		break;
+	case TIOCSWINSZ: //set window size
+		{
+			linux::winsize rec;
+
+			P->ReadMemory(&rec, (ADDR)data, sizeof(rec));
+
+			WriteFile(m_pConsole->m_hIoctlWrite, &request, sizeof(DWORD), &dwDone,0);
+			WriteFile(m_pConsole->m_hIoctlWrite, &rec, sizeof(rec), &dwDone,0);
+		}
+		break;
+
+	case TCXONC: //TODO:
+		dwRet = 0;
+		break;
+
 	default:
 		ktrace("IMPLEMENT sys_ioctl 0x%lx for IOHNtConsole\n", request);
-		return -ENOSYS;
+		dwRet = -ENOSYS;
+		break;
 	}
+
+	LeaveCriticalSection(&m_pConsole->m_csIoctl);
+	return dwRet;
 }

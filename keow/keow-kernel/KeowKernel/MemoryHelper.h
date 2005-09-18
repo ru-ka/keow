@@ -40,6 +40,7 @@ public:
 	static bool WriteMemory(HANDLE hToProcess, ADDR toAddr, int len, ADDR fromAddr);
 	static bool ReadMemory(ADDR toAddr, HANDLE hFromProcess, ADDR fromAddr, int len);
 	static bool TransferMemory(HANDLE hFromProcess, ADDR fromAddr, HANDLE hToProcess, ADDR toAddr, int len);
+	static bool FillMem(HANDLE hToProcess, ADDR toAddr, int len, BYTE fill);
 	static ADDR CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFromList, HANDLE hToProcess, DWORD * pdwCount);
 	static string ReadString(HANDLE hFromProcess, ADDR fromAddr);
 

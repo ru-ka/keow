@@ -77,6 +77,8 @@ public:
 	char * GetBuffer(int size);
 	void ReleaseBuffer();
 
+	static string format(const char * fmt, ...);
+
 protected:
 	char * m_pChars;
 	int m_nLen, m_nCapacity;

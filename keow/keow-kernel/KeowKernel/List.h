@@ -204,6 +204,11 @@ void list<T>::erase(list<T>::iterator it)
 	if(n->next)
 		n->next->prev = n->prev;
 
+	if(head==n)
+		head=n->next;
+	if(tail==n)
+		tail=n->prev;
+
 	delete n;
 }
 

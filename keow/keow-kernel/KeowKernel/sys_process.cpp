@@ -49,38 +49,42 @@ void SysCalls::sys_exit(CONTEXT &ctx)
  */
 void SysCalls::sys_sigaction(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	DWORD signum = pCtx->Ebx;
-	linux::old_sigaction *act = (linux::old_sigaction*)pCtx->Ecx;
-	linux::old_sigaction *oldact = (linux::old_sigaction*)pCtx->Edx;
+	DWORD signum = ctx.Ebx;
+	linux::old_sigaction *pAct = (linux::old_sigaction*)ctx.Ecx;
+	linux::old_sigaction *pOldact = (linux::old_sigaction*)ctx.Edx;
 
 	if(signum > MAX_SIGNALS)
 	{
-		pCtx->Eax = -EINVAL;
+		ctx.Eax = -EINVAL;
 		return;
 	}
 
-	if(oldact)
+	if(pOldact)
 	{
-		oldact->sa_handler  = pProcessData->signal_action[signum].sa_handler;
-		oldact->sa_flags    = pProcessData->signal_action[signum].sa_flags;
-		oldact->sa_restorer = pProcessData->signal_action[signum].sa_restorer;
-		oldact->sa_mask     = pProcessData->signal_action[signum].sa_mask.sig[0];
+		linux::old_sigaction sa;
+
+		sa.sa_handler  = P->m_SignalAction[signum].sa_handler;
+		sa.sa_flags    = P->m_SignalAction[signum].sa_flags;
+		sa.sa_restorer = P->m_SignalAction[signum].sa_restorer;
+		sa.sa_mask     = P->m_SignalAction[signum].sa_mask.sig[0];
+
+		P->WriteMemory((ADDR)pOldact, sizeof(sa), &sa);
 	}
 
-	if(act)
+	if(pAct)
 	{
-		pProcessData->signal_action[signum].sa_handler     = act->sa_handler;
-		pProcessData->signal_action[signum].sa_flags       = act->sa_flags;
-		pProcessData->signal_action[signum].sa_restorer    = act->sa_restorer;
-		pProcessData->signal_action[signum].sa_mask.sig[0] = act->sa_mask;
+		linux::old_sigaction sa;
+		P->ReadMemory(&sa, (ADDR)pAct, sizeof(sa));
 
-		ktrace("set old_sigaction handler for signal %d : 0x%08lx\n", signum, act->sa_handler);
+		P->m_SignalAction[signum].sa_handler     = sa.sa_handler;
+		P->m_SignalAction[signum].sa_flags       = sa.sa_flags;
+		P->m_SignalAction[signum].sa_restorer    = sa.sa_restorer;
+		P->m_SignalAction[signum].sa_mask.sig[0] = sa.sa_mask;
+
+		ktrace("set old_sigaction handler for signal %d : 0x%08lx\n", signum, sa.sa_handler);
 	}
 
-	pCtx->Eax = 0;
-#endif
+	ctx.Eax = 0;
 }
 
 /*****************************************************************************/
@@ -90,46 +94,46 @@ void SysCalls::sys_sigaction(CONTEXT &ctx)
  */
 void SysCalls::sys_sigprocmask(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	linux::sigset_t *set = (linux::sigset_t*)pCtx->Ecx;
-	linux::sigset_t *oldset = (linux::sigset_t*)pCtx->Edx;
+	linux::sigset_t *pSet = (linux::sigset_t*)ctx.Ecx;
+	linux::sigset_t *pOldset = (linux::sigset_t*)ctx.Edx;
 
-	linux::sigset_t *currsigset = &pProcessData->sigmask[pProcessData->signal_depth];
+	linux::sigset_t *pCurrSigset = &P->m_SignalMask[P->m_SignalDepth];
 
-	if(oldset)
+	if(pOldset)
 	{
-		*oldset = *currsigset;
-		pCtx->Eax = 0;
+		P->WriteMemory((ADDR)pOldset, sizeof(linux::sigset_t), pCurrSigset);
+		ctx.Eax = 0;
 		return;
 	}
 
-	if(set)
+	if(pSet)
 	{
+		linux::sigset_t set;
+		P->ReadMemory(&set, (ADDR)pSet, sizeof(set));
+
 		for(int i=0; i<_NSIG_WORDS; ++i)
 		{
-			switch(pCtx->Ebx)
+			switch(ctx.Ebx)
 			{
 			case SIG_BLOCK:
-				currsigset->sig[i] |= set->sig[i];
-				pCtx->Eax = 0;
+				pCurrSigset->sig[i] |= set.sig[i];
+				ctx.Eax = 0;
 				break;
 			case SIG_UNBLOCK:
-				currsigset->sig[i] &= ~(set->sig[i]);
-				pCtx->Eax = 0;
+				pCurrSigset->sig[i] &= ~(set.sig[i]);
+				ctx.Eax = 0;
 				break;
 			case SIG_SETMASK:
-				currsigset->sig[i] = set->sig[i];
-				pCtx->Eax = 0;
+				pCurrSigset->sig[i] = set.sig[i];
+				ctx.Eax = 0;
 				break;
 
 			default:
-				pCtx->Eax = -EINVAL;
+				ctx.Eax = -EINVAL;
 				return;
 			}
 		}
 	}
-#endif
 }
 
 

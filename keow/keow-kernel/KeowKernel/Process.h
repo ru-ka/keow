@@ -41,9 +41,9 @@ typedef BYTE* ADDR;
 
 
 //some process limits
-#define MAX_PENDING_SIGNALS  128
-#define MAX_OPEN_FILES 1024
-
+#define MAX_OPEN_FILES		1024
+#define MAX_PENDING_SIGNALS	128
+#define MAX_SIGNALS			_NSIG
 
 class Process  
 {
@@ -62,6 +62,7 @@ public:
 
 	void DumpMemory(ADDR addr, DWORD len);
 	void DumpContext(CONTEXT &ctx);
+	void DumpStackTrace(CONTEXT &ctx);
 
 	void SetSingleStep(bool set, CONTEXT * pCtx);
 	DWORD InjectFunctionCall(void *func, void *pStackData, int nStackDataSize);
