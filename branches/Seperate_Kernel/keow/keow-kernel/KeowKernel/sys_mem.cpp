@@ -75,7 +75,7 @@ void SysCalls::sys_brk(CONTEXT &ctx)
 	}
 
 	P->m_ElfLoadData.brk = new_brk;
-	ktrace("brk(x) = 0x%08lx\n", new_brk);
+	ktrace("brk(0x%p) = 0x%p\n", ctx.Ebx, new_brk);
 	ctx.Eax = (DWORD)new_brk;
 	return;
 }
@@ -274,26 +274,32 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
  */
 void SysCalls::sys_munmap(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	ADDR addr = (ADDR)pCtx->Ebx;
-	DWORD len = pCtx->Ecx;
+	ADDR addr = (ADDR)ctx.Ebx;
+	DWORD len = ctx.Ecx;
 
 	//try Unmap first (may not actually be a map - see sys_old_mmap)
-	if(UnmapViewOfFile(addr))
+	Process::MmapList::iterator it;
+	for(it=P->m_MmapList.begin(); it!=P->m_MmapList.end(); ++it)
 	{
-		RecordMMapFree(addr,len);
-	}
-	else
-	{
-		if(!DeallocateMemory(addr, len))
+		Process::MMapRecord * pRec = *it;
+		if(pRec->Address == addr)
 		{
-			pCtx->Eax = -Win32ErrToUnixError(GetLastError());
+			if(SysCallDll::UnmapViewOfFile(addr))
+				ctx.Eax = 0;
+			else
+				ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
+			P->m_MmapList.erase(it);
 			return;
 		}
 	}
-	pCtx->Eax = 0;
-#endif
+
+	//was done via just plain memory (& file read)
+	if(!MemoryHelper::DeallocateMemory(addr, len))
+	{
+		ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
+		return;
+	}
+	ctx.Eax = 0;
 }
 
 

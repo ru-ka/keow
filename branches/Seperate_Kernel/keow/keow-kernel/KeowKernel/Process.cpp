@@ -162,6 +162,11 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 	//Need COM
 	CoInitialize(NULL);//Ex(NULL, COINIT_MULTITHREADED);
 
+	//We run the debug loop at higher priority to hopefully receive and handle
+	//child system calls faster. The child is doing all the normal processing
+	//so this should not end up elevating it's priority and system impact
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+
 	//Start the stub
 	STARTUPINFO si;
 	GetStartupInfo(&si);
@@ -408,30 +413,8 @@ void Process::HandleException(DEBUG_EVENT &evt)
 				ktrace("Access violation @ 0x%08lx\n", evt.u.Exception.ExceptionRecord.ExceptionAddress);
 
 				DumpContext(ctx);
+				DumpStackTrace(ctx);
 
-				//trace the stack back
-				//assumes frame pointers exist
-				ADDR esp = (ADDR)ctx.Esp;
-				ADDR ebp = (ADDR)ctx.Ebp;
-				ADDR retAddr = 0;
-				while(esp>=(ADDR)ctx.Esp && esp<=m_KeowUserStackTop) //while data seems sensible
-				{
-					//edp is old stack pos
-					esp=ebp;
-					if(ebp==0)
-						break;
-
-					//stack is now ret addr
-					esp+=4;
-					ReadMemory(&retAddr, esp, sizeof(ADDR));
-
-					//first pushed item was old ebp
-					esp-=sizeof(ADDR);
-					ReadMemory(&ebp, esp, sizeof(ADDR));
-
-
-					ktrace(": from 0x%p\n", retAddr);
-				}
 				SendSignal(SIGSEGV); //access violation
 			}
 		}
@@ -673,13 +656,12 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 				loadok = 0;
 				break;
 			}
+
 			//need to zero first?
-			if(1){//todo: needed? make efficient
-				BYTE zero=0;
-				for(DWORD sz=0; sz<AlignedSize; ++sz)
-					WriteMemory(pAlignedMem+sz, 1, &zero);
-			}
-			//need to load into our memory, then copy to process
+			//what about if partially aligned over other previously read data?
+//			MemoryHelper::FillMem(P->m_Win32PInfo.hProcess, pAlignedMem, AlignedSize, 0);
+
+			//need to load file into our memory, then copy to process
 			if(phdr->p_filesz != 0)
 			{
 				pMemTemp = (ADDR)realloc(pMemTemp, phdr->p_filesz);
@@ -1427,6 +1409,34 @@ void Process::DumpMemory(ADDR addr, DWORD len)
 	}
 	if(x>0)
 		ktrace("  %p: %s\n", addr, buf);
+}
+
+//trace stack frames
+void Process::DumpStackTrace(CONTEXT &ctx)
+{
+	//trace the stack back
+	//assumes frame pointers exist
+	ADDR esp = (ADDR)ctx.Esp;
+	ADDR ebp = (ADDR)ctx.Ebp;
+	ADDR retAddr = 0;
+	while(esp>=(ADDR)ctx.Esp && esp<=m_KeowUserStackTop) //while data seems sensible
+	{
+		//edp is old stack pos
+		esp=ebp;
+		if(ebp==0)
+			break;
+
+		//stack is now ret addr
+		esp+=4;
+		ReadMemory(&retAddr, esp, sizeof(ADDR));
+
+		//first pushed item was old ebp
+		esp-=sizeof(ADDR);
+		ReadMemory(&ebp, esp, sizeof(ADDR));
+
+
+		ktrace(": from 0x%p\n", retAddr);
+	}
 }
 
 

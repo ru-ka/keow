@@ -114,9 +114,6 @@ ADDR MemoryHelper::AllocateMemAndProtect(ADDR addr, DWORD size, DWORD prot)
 
 bool MemoryHelper::DeallocateMemory(ADDR addr, DWORD size)
 {
-	if(!VirtualFree(addr, size, MEM_DECOMMIT))
-		return false;
-
 	Process::MemoryAllocationsList::iterator it;
 	for(it=P->m_MemoryAllocations.begin();
 	    it!=P->m_MemoryAllocations.end();
@@ -126,12 +123,15 @@ bool MemoryHelper::DeallocateMemory(ADDR addr, DWORD size)
 		if(pAlloc->addr == addr
 		&& pAlloc->len == size)
 		{
+			if(!VirtualFreeEx(P->m_Win32PInfo.hProcess, addr, size, MEM_DECOMMIT))
+				return false;
+
 			P->m_MemoryAllocations.erase(it);
-			break;
+			return true;
 		}
 	}
 
-	return true;
+	return false;
 }
 
 
@@ -269,6 +269,35 @@ bool MemoryHelper::TransferMemory(HANDLE hFromProcess, ADDR fromAddr, HANDLE hTo
 
 		ReadMemory(buf, hFromProcess, fromAddr+i, copy);
 		WriteMemory(hToProcess, toAddr+i, copy, buf);
+	}
+	return true;
+}
+
+/*
+ * blank out a section of memory
+ * this routine is used when the SysCallDll is not yet available
+ * in the remote process (so we can't use SysCallDll::ZeroMemory)
+ */
+bool MemoryHelper::FillMem(HANDLE hToProcess, ADDR toAddr, int len, BYTE fill)
+{
+	//want a block of memory to be more efficient
+	//todo: do full 4k alignment etc as per TransferMemory
+	BYTE buf[1024];
+	memset(buf, fill, sizeof(buf));
+
+	while(len>0)
+	{
+		if(len>sizeof(buf))
+		{
+			WriteMemory(hToProcess, toAddr, sizeof(buf), (ADDR)buf);
+			len -= sizeof(buf);
+			toAddr += sizeof(buf);
+		}
+		else
+		{
+			WriteMemory(hToProcess, toAddr, len, (ADDR)buf);
+			break; //was the last block
+		}
 	}
 	return true;
 }

@@ -31,8 +31,14 @@
 
 HANDLE g_hKernelTextOutput;
 HANDLE g_hKernelTextInput;
+
+HANDLE g_hKernelIoctlOutput;
+HANDLE g_hKernelIoctlInput;
+
 HANDLE g_hConsoleOutput;
 HANDLE g_hConsoleInput;
+
+DWORD g_dwKernelProcessId;
 
 cons25 g_Terminal;
 
@@ -66,6 +72,110 @@ void ktrace(const char *format, ...)
 }
 
 
+void ProcessIoctlRequest()
+{
+	DWORD dwRequestType;
+	DWORD dwDone;
+
+	ReadFile(g_hKernelIoctlOutput, &dwRequestType, sizeof(dwRequestType), &dwDone,0);
+
+	switch(dwRequestType)
+	{
+	case TCGETS: //get stty stuff
+		{
+			linux::termios rec;
+
+			rec.c_iflag = g_Terminal.m_TermIOs.c_iflag;
+			rec.c_oflag = g_Terminal.m_TermIOs.c_oflag;
+			rec.c_cflag = g_Terminal.m_TermIOs.c_cflag;
+			rec.c_lflag = g_Terminal.m_TermIOs.c_lflag;
+			rec.c_line = g_Terminal.m_TermIOs.c_line;
+			memcpy(rec.c_cc, g_Terminal.m_TermIOs.c_cc, NCCS);
+
+			WriteFile(g_hKernelIoctlInput, &rec, sizeof(rec), &dwDone,0);
+		}
+		break;
+
+	case TCSETSW:
+		//flush output
+		//console io never buffered, so not required
+		//...fall through...
+	case TCSETSF:
+		//flush input & output
+		FlushConsoleInputBuffer(g_hConsoleInput);
+		//...fall through...
+	case TCSETS: //set stty stuff
+		{
+			linux::termios rec;
+
+			ReadFile(g_hKernelIoctlOutput, &rec, sizeof(rec), &dwDone,0);
+
+			g_Terminal.m_TermIOs.c_iflag = rec.c_iflag;
+			g_Terminal.m_TermIOs.c_oflag = rec.c_oflag;
+			g_Terminal.m_TermIOs.c_cflag = rec.c_cflag;
+			g_Terminal.m_TermIOs.c_lflag = rec.c_lflag;
+			g_Terminal.m_TermIOs.c_line = rec.c_line;
+			memcpy(g_Terminal.m_TermIOs.c_cc, rec.c_cc, NCCS);
+		}
+		break;
+
+	case TIOCGWINSZ: //get window size
+		{
+			linux::winsize rec;
+
+			CONSOLE_SCREEN_BUFFER_INFO Info;
+			if(!GetConsoleScreenBufferInfo(g_hConsoleOutput, &Info))
+			{
+				ktrace("Cannot get screen buffer info, err %ld\n", GetLastError());
+				break;
+			}
+			rec.ws_col = Info.dwSize.X; //always full width
+			rec.ws_row = Info.srWindow.Bottom - Info.srWindow.Top + 1; //window height
+			rec.ws_xpixel = 0;//Info.srWindow.Right - Info.srWindow.Left;
+			rec.ws_ypixel = 0;//Info.srWindow.Bottom - Info.srWindow.Top;
+			ktrace("console get size %d,%d\n", rec.ws_col, rec.ws_row);
+
+			WriteFile(g_hKernelIoctlInput, &rec, sizeof(rec), &dwDone,0);
+		}
+		break;
+
+	case TIOCSWINSZ: //set window size
+		{
+			linux::winsize rec;
+
+			ReadFile(g_hKernelIoctlOutput, &rec, sizeof(rec), &dwDone,0);
+
+			ktrace("console set size %d,%d\n", rec.ws_col, rec.ws_row);
+			CONSOLE_SCREEN_BUFFER_INFO Info;
+			if(!GetConsoleScreenBufferInfo(g_hConsoleOutput, &Info))
+			{
+				ktrace("Cannot get screen buffer info, err %ld\n", GetLastError());
+				break;
+			}
+			COORD sz;
+			sz.X = rec.ws_col;
+			sz.Y = Info.dwSize.Y - 1; //keep our history
+			if(!SetConsoleScreenBufferSize(g_hConsoleOutput, sz))
+			{
+				ktrace("Cannot set screen buffer size, err %ld\n", GetLastError());
+				break;
+			}
+			SMALL_RECT sr;
+			sr.Left = 0;
+			sr.Right = sz.X - 1;
+			sr.Bottom = sz.Y - 1;
+			sr.Top = sr.Bottom - (rec.ws_row - 1);
+			if(!SetConsoleWindowInfo(g_hConsoleOutput, true, &sr))
+			{
+				ktrace("Cannot set screen window size, err %ld\n", GetLastError());
+				break;
+			}
+		}
+		break;
+	}
+}
+
+
 
 int main(int argc, char* argv[])
 {
@@ -76,17 +186,29 @@ int main(int argc, char* argv[])
 	//handle values are passed in at startup
 
 
-	//Set up the handles we want
-	g_hKernelTextOutput = GetStdHandle(STD_INPUT_HANDLE);
-	g_hKernelTextInput  = GetStdHandle(STD_OUTPUT_HANDLE);
+	//validate we are started by the kernel - simple tests
+	if(argc<5
+	|| atol(argv[2]) != (long)GetStdHandle(STD_INPUT_HANDLE)
+	|| atol(argv[3]) != (long)GetStdHandle(STD_OUTPUT_HANDLE))
+	{
+		//not a console?
+		printf("This is part of keow. It is run by the kernel when a console is needed\n");
+		return 0;
+	}
+
+	//kernel is who?
+	g_dwKernelProcessId = atol(argv[1]);
+	//get handles from command line
+	g_hKernelTextOutput  = (HANDLE)atol(argv[2]);
+	g_hKernelTextInput   = (HANDLE)atol(argv[3]);
+	g_hKernelIoctlOutput = (HANDLE)atol(argv[4]);
+	g_hKernelIoctlInput  = (HANDLE)atol(argv[5]);
+	//set title as given
+	SetConsoleTitle(argv[6]);
 
 	//now use the console window for io
 	g_hConsoleInput  = CreateFile("CONIN$",  GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
 	g_hConsoleOutput = CreateFile("CONOUT$", GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
-
-
-	//set title as given
-	SetConsoleTitle(GetCommandLine());
 
 
 	//80 columns, lots of history
@@ -127,12 +249,13 @@ int main(int argc, char* argv[])
 		}
 
 		//see if the kernel has sent any data
-		DWORD dwAvail;
+		DWORD dwAvail=0;
+
 		if(PeekNamedPipe(g_hKernelTextOutput, NULL, 0, NULL, &dwAvail, NULL) == 0)
 		{
 			//kernel disappeared and left us behind?
 			//if(GetLastError()==ERROR_BROKEN_PIPE)
-				ExitProcess(0);
+			//	ExitProcess(0);
 		}
 		else
 		if(dwAvail!=0)
@@ -140,6 +263,19 @@ int main(int argc, char* argv[])
 			ReadFile(g_hKernelTextOutput, KernelTextBuffer, dwAvail, &dwAvail, NULL);
 			for(DWORD i=0; i<dwAvail; ++i)
 				g_Terminal.OutputChar(KernelTextBuffer[i]);
+		}
+
+
+		if(PeekNamedPipe(g_hKernelIoctlOutput, NULL, 0, NULL, &dwAvail, NULL) == 0)
+		{
+			//kernel disappeared and left us behind?
+			//if(GetLastError()==ERROR_BROKEN_PIPE)
+			//	ExitProcess(0);
+		}
+		else
+		if(dwAvail!=0)
+		{
+			ProcessIoctlRequest();
 		}
 	}
 

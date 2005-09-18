@@ -100,6 +100,14 @@ DWORD _stdcall SysCallDll::MapViewOfFileEx(HANDLE hMap, DWORD Prot, DWORD offset
 	return P->InjectFunctionCall(P->SysCallAddr.MapViewOfFileEx, &stack, sizeof(stack));
 }
 
+DWORD _stdcall SysCallDll::UnmapViewOfFile(void* BaseAddr)
+{
+	DWORD stack[] = {
+		(DWORD)BaseAddr
+	};
+	return P->InjectFunctionCall(P->SysCallAddr.UnmapViewOfFile, &stack, sizeof(stack));
+}
+
 
 /*******************************************************************/
 

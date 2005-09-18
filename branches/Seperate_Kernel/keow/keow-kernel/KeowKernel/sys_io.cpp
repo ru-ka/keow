@@ -55,7 +55,7 @@ void SysCalls::sys_write(CONTEXT &ctx)
 
 	ctx.Eax = SysCallDll::write(ioh->GetRemoteWriteHandle(), (void*)ctx.Ecx, ctx.Edx);
 	if(ctx.Eax==0)
-		ctx.Eax = Win32ErrToUnixError(SysCallDll::GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 }
 
 /*
@@ -85,7 +85,7 @@ void SysCalls::sys_writev(CONTEXT &ctx)
 
 	ctx.Eax = SysCallDll::writev(ioh->GetRemoteWriteHandle(), pV, count);
 	if(ctx.Eax==0)
-		ctx.Eax = Win32ErrToUnixError(SysCallDll::GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 }
 
 /*****************************************************************************/
@@ -116,7 +116,7 @@ void SysCalls::sys_read(CONTEXT &ctx)
 
 	ctx.Eax = SysCallDll::read(ioh->GetRemoteReadHandle(), (void*)ctx.Ecx, ctx.Edx);
 	if(ctx.Eax==0)
-		ctx.Eax = Win32ErrToUnixError(SysCallDll::GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 }
 
 /*****************************************************************************/
@@ -287,8 +287,6 @@ void SysCalls::sys_select(CONTEXT &ctx)
  */
 void SysCalls::sys_ioctl(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	int fd;
 	IOHandler * ioh;
 	
@@ -299,7 +297,7 @@ void SysCalls::sys_ioctl(CONTEXT &ctx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
 		ctx.Eax = -EBADF;
@@ -307,7 +305,6 @@ void SysCalls::sys_ioctl(CONTEXT &ctx)
 	}
 
 	ctx.Eax = ioh->ioctl( ctx.Ecx, ctx.Edx );
-#endif
 }
 
 
@@ -553,7 +550,7 @@ void SysCalls::sys_dup2(CONTEXT &ctx)
 	IOHandler *ioh_new = ioh_old->Duplicate(GetCurrentProcess(), GetCurrentProcess());
 	if(ioh_new==NULL)
 	{
-		ctx.Eax = Win32ErrToUnixError(GetLastError());
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 		return;
 	}
 	pProcessData->FileHandlers[fdnew] = ioh_new;
@@ -977,12 +974,10 @@ void SysCalls::sys_unlink(CONTEXT &ctx)
  */
 void SysCalls::sys__llseek(CONTEXT &ctx)	
 {
-	Unhandled(ctx);
-#if 0
 	int fd = ctx.Ebx;
 	LONG offset_high = ctx.Ecx;
 	LONG offset_low = ctx.Edx;
-	linux::loff_t* result = (linux::loff_t*)ctx.Esi;
+	linux::loff_t * pResult = (linux::loff_t*)ctx.Esi;
 	DWORD whence = ctx.Edi;
 
 	IOHandler * ioh;
@@ -994,7 +989,7 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
+	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
 		ctx.Eax = -EBADF;
@@ -1017,18 +1012,9 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
 	}
 
 
-	SetLastError(0);
-
-	ULARGE_INTEGER li;
-	li.LowPart = offset_low;
-	li.HighPart = offset_high;
-	*result = ioh->Seek(li.QuadPart, method);
-
-	if(GetLastError()==0)
-		ctx.Eax = 0;
-	else
-		ctx.Eax = -Win32ErrToUnixError(GetLastError());
-#endif
+	linux::loff_t result = SysCallDll::SetFilePointer(ioh->GetRemoteReadHandle(), offset_low, offset_high, method);
+	result |= ((__int64)offset_high << 32);
+	ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 }
 
 

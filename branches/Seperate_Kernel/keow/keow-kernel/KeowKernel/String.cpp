@@ -240,3 +240,31 @@ DWORD string::hash() const
 		h += m_pChars[i];
 	return h;
 }
+
+
+/*static*/ string string::format(const char * fmt, ...)
+{
+	va_list va;
+	va_start(va, fmt);
+
+	int len = 1024;
+	char * buf = new char[len];
+	HRESULT hr = 0;
+
+	for(;;)
+	{
+		hr = StringCbVPrintf(buf, len, fmt, va);
+		if(hr==STRSAFE_E_INSUFFICIENT_BUFFER)
+		{
+			len+=1024;
+			delete buf;
+			buf = new char[len];
+		}
+		else
+			break;
+	}
+
+	string s2(buf);
+	delete buf;
+	return s2;
+}

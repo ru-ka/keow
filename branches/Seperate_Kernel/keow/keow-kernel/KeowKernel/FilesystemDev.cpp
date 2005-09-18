@@ -29,6 +29,7 @@
 #include "FilesystemDev.h"
 
 #include "IOHNull.h"
+#include "IOHNtConsole.h"
 
 //////////////////////////////////////////////////////////////////////
 
@@ -51,6 +52,12 @@ IOHandler * FilesystemDev::CreateIOHandler(Path& path)
 	if(what == "/null")
 	{
 		return new IOHNull();
+	}
+	else
+	if(what == "/tty")
+	{
+		//for now everyone uses the console
+		return new IOHNtConsole(g_pKernelTable->m_pMainConsole);
 	}
 	else
 	{

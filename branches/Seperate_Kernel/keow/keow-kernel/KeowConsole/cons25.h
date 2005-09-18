@@ -45,8 +45,9 @@ public:
 	void OutputChar(char c);
 	void InputChar();
 
-protected:
 	linux::termios m_TermIOs;
+
+protected:
 
 	int m_InputState;
 	int m_OutputState;
