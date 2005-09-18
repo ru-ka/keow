@@ -42,6 +42,7 @@ static void LoadAddressInfo()
 	SET_ADDR(ZeroMem);
 	SET_ADDR(CreateFileMapping);
 	SET_ADDR(MapViewOfFileEx);
+	SET_ADDR(UnmapViewOfFile);
 
 	SET_ADDR(write);
 	SET_ADDR(writev);

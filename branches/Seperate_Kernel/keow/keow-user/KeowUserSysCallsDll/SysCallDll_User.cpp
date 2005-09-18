@@ -54,6 +54,7 @@ DWORD _stdcall SysCallDll::CloseHandle(HANDLE h)
 
 DWORD _stdcall SysCallDll::SetFilePointer(HANDLE h, DWORD PosLo, DWORD PosHi, DWORD from)
 {
+	SetLastError(0); //because we need to check it always and the call will not update it on success
 	RET( ::SetFilePointer(h, PosLo, (LONG*)&PosHi, from) );
 }
 
@@ -77,6 +78,12 @@ DWORD _stdcall SysCallDll::MapViewOfFileEx(HANDLE hMap, DWORD Prot, DWORD offset
 {
 	ktrace("mapview.. %d %d:%d, %d, %p\n", hMap, offsetHi, offsetLo, len, BaseAddr);
 	RET( (DWORD)::MapViewOfFileEx(hMap, Prot, offsetHi, offsetLo, len, BaseAddr) );
+}
+
+DWORD _stdcall SysCallDll::UnmapViewOfFile(void* BaseAddr)
+{
+	ktrace("unmapview.. %p\n", BaseAddr);
+	RET( (DWORD)::UnmapViewOfFile(BaseAddr) );
 }
 
 
