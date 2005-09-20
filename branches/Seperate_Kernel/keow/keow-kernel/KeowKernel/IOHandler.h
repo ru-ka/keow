@@ -43,12 +43,13 @@ public:
 	static IOHandler* CreateForPath(Path& path);
 
 	virtual bool Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags) = 0;
+	virtual bool Close() = 0;
 	virtual DWORD ioctl(DWORD request, DWORD data) = 0;
 
 	virtual HANDLE GetRemoteWriteHandle() = 0;
 	virtual HANDLE GetRemoteReadHandle() = 0;
 
-	virtual IOHandler* clone() = 0;
+	virtual IOHandler* Duplicate() = 0;
 
 	bool IOHandler::Stat(linux::stat* s);
 	void IOHandler::BasicStat64(linux::stat64 * s, int file_type);
@@ -77,6 +78,7 @@ public:
 protected:
 	bool m_bInheritable;
 	DWORD m_dwFlags;
+	Process * m_pInProcess;
 };
 
 #endif // !defined(AFX_IOHANDLER_H__BDA9DB15_5F09_45C4_9607_507D02C38ACD__INCLUDED_)

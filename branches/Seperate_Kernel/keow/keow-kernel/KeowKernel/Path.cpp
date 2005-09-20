@@ -32,18 +32,27 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
+Path::Path(const Path& other)
+{
+	m_pFinalMountPoint=NULL;
+	m_FollowSymLinks = FollowSymLinks;
+	*this = other;
+}
 Path::Path(bool FollowSymLinks)
 {
+	m_pFinalMountPoint=NULL;
 	m_FollowSymLinks = FollowSymLinks;
 }
 Path::Path(string UnixPath, bool FollowSymLinks)
 {
 	m_FollowSymLinks = FollowSymLinks;
+	m_pFinalMountPoint=NULL;
 	SetUnixPath(UnixPath);
 }
 Path::Path(LPCSTR UnixPath, bool FollowSymLinks)
 {
 	m_FollowSymLinks = FollowSymLinks;
+	m_pFinalMountPoint=NULL;
 	SetUnixPath(UnixPath);
 }
 
@@ -56,6 +65,9 @@ Path& Path::operator=(const Path& other)
 {
 	m_FollowSymLinks = other.m_FollowSymLinks;
 	m_PathStack = other.m_PathStack;
+	m_pFinalMountPoint = other.m_pFinalMountPoint;
+	m_strMountRealPath = other.m_strMountRealPath;
+	m_strPathInMountPoint = other.m_strPathInMountPoint;
 	return *this;
 }
 

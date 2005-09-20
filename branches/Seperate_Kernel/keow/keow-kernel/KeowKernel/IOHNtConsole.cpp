@@ -12,19 +12,14 @@ IOHNtConsole::IOHNtConsole(DevConsole* pConsole)
 {
 	m_pConsole = pConsole;
 
-	DuplicateHandle(GetCurrentProcess(), pConsole->m_hConsoleRead,
-		P->m_Win32PInfo.hProcess, &m_hRemoteConsoleRead,
-		0, FALSE, DUPLICATE_SAME_ACCESS);
+	m_hRemoteConsoleRead = m_hRemoteConsoleWrite = INVALID_HANDLE_VALUE;
 
-	DuplicateHandle(GetCurrentProcess(), pConsole->m_hConsoleWrite,
-		P->m_Win32PInfo.hProcess, &m_hRemoteConsoleWrite,
-		0, FALSE, DUPLICATE_SAME_ACCESS);
+	Open(GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, 0);
 }
 
 IOHNtConsole::~IOHNtConsole()
 {
-	SysCallDll::CloseHandle(m_hRemoteConsoleRead);
-	SysCallDll::CloseHandle(m_hRemoteConsoleWrite);
+	Close();
 }
 
 
@@ -37,7 +32,7 @@ HANDLE IOHNtConsole::GetRemoteReadHandle()
 	return m_hRemoteConsoleRead;
 }
 
-IOHandler * IOHNtConsole::clone()
+IOHandler * IOHNtConsole::Duplicate()
 {
 	IOHNtConsole * pC = new IOHNtConsole(m_pConsole);
 	return pC;
@@ -45,9 +40,31 @@ IOHandler * IOHNtConsole::clone()
 
 bool IOHNtConsole::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags)
 {
-	//always open anyway
+	Close();
+
+	DuplicateHandle(GetCurrentProcess(), m_pConsole->m_hConsoleRead,
+		P->m_Win32PInfo.hProcess, &m_hRemoteConsoleRead,
+		0, FALSE, DUPLICATE_SAME_ACCESS);
+
+	DuplicateHandle(GetCurrentProcess(), m_pConsole->m_hConsoleWrite,
+		P->m_Win32PInfo.hProcess, &m_hRemoteConsoleWrite,
+		0, FALSE, DUPLICATE_SAME_ACCESS);
+
 	return true;
 }
+
+bool IOHNtConsole::Close()
+{
+	if(m_hRemoteConsoleRead != INVALID_HANDLE_VALUE)
+		SysCallDll::CloseHandle(m_hRemoteConsoleRead);
+	if(m_hRemoteConsoleWrite != INVALID_HANDLE_VALUE)
+		SysCallDll::CloseHandle(m_hRemoteConsoleWrite);
+
+	m_hRemoteConsoleRead = m_hRemoteConsoleWrite = INVALID_HANDLE_VALUE;
+
+	return true;
+}
+
 
 bool IOHNtConsole::Stat64(linux::stat64 * s)
 {

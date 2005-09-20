@@ -36,6 +36,7 @@ KernelTable * g_pKernelTable;
 _declspec(thread) char * g_pTraceBuffer;
 _declspec(thread) Process * P;
 
+Process * g_pInit;
 
 static char * InitialEnv[] = {
 	"OLDPWD=/",
@@ -115,7 +116,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		ktrace("Failed to load 'init'\n");
 		halt();
 	}
-
+	g_pInit=proc;
 
 	ktrace("'init' launched\n");
 

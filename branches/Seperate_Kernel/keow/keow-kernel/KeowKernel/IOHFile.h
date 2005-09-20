@@ -42,12 +42,13 @@ public:
 	virtual ~IOHFile();
 
 	virtual bool Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags);
+	virtual bool Close();
 	virtual DWORD ioctl(DWORD request, DWORD data);
 
 	virtual HANDLE GetRemoteWriteHandle();
 	virtual HANDLE GetRemoteReadHandle();
 
-	virtual IOHandler* clone();
+	virtual IOHandler* Duplicate();
 
 	virtual bool Stat64(linux::stat64 * s);
 	__int64 Length();

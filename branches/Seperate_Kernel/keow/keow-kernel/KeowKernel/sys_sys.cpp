@@ -133,7 +133,7 @@ void SysCalls::sys_ugetrlimit(CONTEXT &ctx)
 		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
 		break;
 	case RLIMIT_STACK:		/* max stack size */
-		RLim.rlim_cur = RLim.rlim_max = 0x100000;
+		RLim.rlim_cur = RLim.rlim_max = P->m_KeowUserStackTop - P->m_KeowUserStackBase;
 		break;
 	case RLIMIT_CORE:		/* max core file size */
 		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
@@ -191,7 +191,7 @@ void SysCalls::sys_getrlimit(CONTEXT &ctx)
 		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
 		break;
 	case RLIMIT_STACK:		/* max stack size */
-		RLim.rlim_cur = RLim.rlim_max = 0x100000;
+		RLim.rlim_cur = RLim.rlim_max = P->m_KeowUserStackTop - P->m_KeowUserStackBase;
 		break;
 	case RLIMIT_CORE:		/* max core file size */
 		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
