@@ -151,45 +151,41 @@ void SysCalls::sys_getpgrp(CONTEXT &ctx)
 /*****************************************************************************/
 
 /*
- * pid_t getpgid()
+ * pid_t getpgid(int pid, int pgid)
  */
 void SysCalls::sys_getpgid(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	ctx.Eax = P->m_ProcessGroupGID;
-#endif
+	DWORD pid = ctx.Ebx;
+	DWORD pgid = ctx.Ecx;
+
+	if(pid==0)
+		pid = P->m_Pid;
+
+	//validate pid
+	Process * p2 = g_pKernelTable->FindProcess(pid);
+	if(p2==NULL)
+	{
+		ctx.Eax = -ESRCH;
+		return;
+	}
+
+	if(pgid==0)
+		pgid = p2->m_ProcessGroupPID;
+	
+	p2->m_ProcessGroupPID = pgid;
+	ctx.Eax = 0;
 }
 
 /*****************************************************************************/
 
 
 /*
- * pid_t setpgrp(int pid, int pgid)
+ * pid_t setpgrp()
  */
 void SysCalls::sys_setpgid(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	DWORD pid = pCtx->Ebx;
-	DWORD pgid = pCtx->Ecx;
-
-	if(pid==0)
-		pid = pProcessData->PID;
-	if(pgid==0)
-		pgid = pProcessData->ProcessGroupPID;
-
-	//validate pid
-	if(pid<1 || pid>MAX_PROCESSES
-	|| pKernelSharedData->ProcessTable[pid].in_use==false)
-	{
-		pCtx->Eax = -ESRCH;
-		return;
-	}
-	
-	pKernelSharedData->ProcessTable[pid].ProcessGroupPID = pgid;
-	pCtx->Eax = 0;
-#endif
+	P->m_ProcessGroupPID = P->m_Pid;
+	ctx.Eax = 0;
 }
 
 /*****************************************************************************/
@@ -199,10 +195,16 @@ void SysCalls::sys_setpgid(CONTEXT &ctx)
  */
 void SysCalls::sys_fork(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	pCtx->Eax = DoFork(pCtx);
-#endif
+	/*
+	launch win32 process stub
+	get it to copy this process
+	*/
+	Process * NewP = Process::StartFork(P);
+
+	if(NewP==NULL)
+		ctx.Eax = -EAGAIN;
+	else
+		ctx.Eax = NewP->m_Pid; //the new process (our fork processing has only the parent reaching this stage)
 }
 
 /*
@@ -210,10 +212,31 @@ void SysCalls::sys_fork(CONTEXT &ctx)
  */
 void SysCalls::sys_execve(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	pCtx->Eax = DoExecve((const char*)pCtx->Ebx, (char**)pCtx->Ecx, (char**)pCtx->Edx);
-#endif
+	string filename = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	DWORD dwCnt, dwMemSize;
+	ADDR argv = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx, GetCurrentProcess(), &dwCnt, &dwMemSize);
+	ADDR envp = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Edx, GetCurrentProcess(), &dwCnt, &dwMemSize);
+
+	ktrace("execve(%s,...,...)\n", filename.c_str());
+
+	//close files and dealloc mem
+	P->FreeResourcesBeforeExec();
+
+	//new argv, and env (in the kernel - they are copied over later)
+	P->m_Arguments = argv;
+	P->m_Environment = envp;
+
+	//reset the keow stack (AFTER resource free - it may have injected code and new stack)
+	//linux process start with a little bit of stack in use but overwritable?
+	ctx.Esp = (DWORD)P->m_KeowUserStackTop - 0x200;
+	SetThreadContext(P->m_Win32PInfo.hThread, &ctx);
+
+	//load new image
+	P->m_ProcessFileImage.SetUnixPath(filename);
+	P->LoadImage(P->m_ProcessFileImage, false); //this runs it too
+
+	//when we get here the execution point has changed, update ctx to reflect this
+	GetThreadContext(P->m_Win32PInfo.hThread, &ctx);
 }
 
 /*****************************************************************************/
@@ -223,57 +246,59 @@ void SysCalls::sys_execve(CONTEXT &ctx)
  */
 void SysCalls::sys_wait4(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	int wait_pid = (int)pCtx->Ebx;
-	int* status = (int*)pCtx->Ecx;
-	DWORD options = pCtx->Edx;
-	linux::rusage* ru = (linux::rusage*)pCtx->Esi;
+	int wait_pid = (int)ctx.Ebx;
+	int* pStatus = (int*)ctx.Ecx;
+	DWORD options = ctx.Edx;
+	linux::rusage* pRU = (linux::rusage*)ctx.Esi;
 	int result = -ECHILD;
 	bool one_stopped = false;
 
 	//there can be multiple handles to wait on 
-	DWORD * pProcessWin32Pids = new DWORD[MAX_PROCESSES+1];
-	HANDLE * pProcessHandles = new HANDLE[MAX_PROCESSES+1];
-	HANDLE * pMainThreadHandles = new HANDLE[MAX_PROCESSES+1];
-	DWORD * pPids = new DWORD[MAX_PROCESSES+1];
+	int MaxProcs = g_pKernelTable->m_Processes.size();
+	DWORD * pProcessWin32Pids = new DWORD[MaxProcs];
+	HANDLE * pProcessHandles = new HANDLE[MaxProcs+1];
+	HANDLE * pMainThreadHandles = new HANDLE[MaxProcs+1];
+	DWORD * pPids = new DWORD[MaxProcs+1];
 	int NumHandles = 0;
 
 
 	//select children to wait on
-	for(int i=0; i<MAX_PROCESSES; i++)
+	KernelTable::ProcessList::iterator it;
+	for(it=g_pKernelTable->m_Processes.begin();
+	    it!=g_pKernelTable->m_Processes.end();
+		++it)
 	{
-		if(pKernelSharedData->ProcessTable[i].ParentPID == pProcessData->PID)
+		Process * pChild = *it;
+		if(pChild->m_ParentPid != P->m_Pid)
+			continue;
+
+		bool wait_this = false;
+
+		if(wait_pid < -1  &&  pChild->m_ProcessGroupPID == wait_pid)
+			wait_this=true;
+		else
+		if(wait_pid == -1)
+			wait_this=true;
+		else
+		if(wait_pid == 0  &&  pChild->m_ProcessGroupPID == P->m_ProcessGroupPID)
+			wait_this=true;
+		else
+		if(wait_pid > 0  &&  pChild->m_Pid == wait_pid)
+			wait_this=true;
+		
+		
+		if(wait_this)
 		{
-			bool wait_this = false;
+			pProcessWin32Pids[NumHandles] = pChild->m_Win32PInfo.dwProcessId;
+			pProcessHandles[NumHandles] = pChild->m_Win32PInfo.hProcess;
+			pPids[NumHandles] = pChild->m_Pid;
+			NumHandles++; 
 
-			if(wait_pid < -1  &&  pKernelSharedData->ProcessTable[i].ProcessGroupPID == wait_pid)
-				wait_this=true;
-			else
-			if(wait_pid == -1)
-				wait_this=true;
-			else
-			if(wait_pid == 0  &&  pKernelSharedData->ProcessTable[i].ProcessGroupPID == pProcessData->ProcessGroupPID)
-				wait_this=true;
-			else
-			if(wait_pid > 0  &&  pKernelSharedData->ProcessTable[i].PID == wait_pid)
-				wait_this=true;
-			
-			
-			if(wait_this)
+			//a child already exited, no need to wait?
+			if(pChild->m_bStillRunning==false)
 			{
-				pProcessWin32Pids[NumHandles] = pKernelSharedData->ProcessTable[i].Win32PID;
-				pProcessHandles[NumHandles] = OpenProcess(SYNCHRONIZE, FALSE, pKernelSharedData->ProcessTable[i].Win32PID);
-				pMainThreadHandles[NumHandles] = NULL; //only open if required
-				pPids[NumHandles] = pKernelSharedData->ProcessTable[i].PID;
-				NumHandles++; 
-
-				//process already exited, no need to wait?
-				if(pKernelSharedData->ProcessTable[i].in_use==false)
-				{
-					result = i;
-					break;
-				}
+				result = pChild->m_Pid;
+				break;
 			}
 		}
 	}
@@ -285,7 +310,8 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 	}
 	else
 	{
-		pProcessHandles[NumHandles] = WaitTerminatingEvent;
+		//also want to be able to be woken up (wait aborted)
+		pProcessHandles[NumHandles] = P->m_hWaitTerminatingEvent;
 		//not increment NumHandles+
 
 		//wait until interrupted or child terminates
@@ -303,32 +329,12 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 
 				int pid = pPids[dwRet-WAIT_OBJECT_0];
 				//did the process die? or was there something else to test
-				if(pKernelSharedData->ProcessTable[pid].in_use==false)
+				if(g_pKernelTable->FindProcess(pid)->m_bStillRunning==false)
 				{
 					result = pid;
 					break;
 				}
-				//maybe died without updating table?
-				HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pKernelSharedData->ProcessTable[pid].Win32PID);
-				if(hProc==NULL)
-				{
-					pKernelSharedData->ProcessTable[pid].in_use=false;
-					result = pid;
-					break;
-				}
-				else
-				{
-					DWORD dwCode;
-					if(GetExitCodeProcess(hProc, &dwCode)==0
-					|| dwCode != STILL_ACTIVE)
-					{
-						CloseHandle(hProc);
-						pKernelSharedData->ProcessTable[pid].in_use=false;
-						result = pid;
-						break;
-					}
-					CloseHandle(hProc);
-				}
+
 				//else try again
 			}
 			/*
@@ -355,50 +361,28 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 				break;
 
 			//check for stopped children
-			//also handle fork/exec process usage
-			for(i=0; i<NumHandles; ++i)
+			for(int i=0; i<NumHandles; ++i)
 			{
 				int pid = pPids[i];
-				if(pKernelSharedData->ProcessTable[pid].in_use)
-				{
-					//does caller want stopped children?
-					if((options & WUNTRACED)
-					|| pKernelSharedData->ProcessTable[pid].ptrace_owner_pid==pProcessData->PID)
-					{
-						if(pKernelSharedData->ProcessTable[pid].in_setup)
-						{
-							ktrace("skipping wait for pid %d - in setup flag set\n", pid);
-						}
-						else
-						{
-							//open threads on demand only
-							if(pMainThreadHandles[i]==NULL)
-								pMainThreadHandles[i] = OpenThread(THREAD_ALL_ACCESS, FALSE, pKernelSharedData->ProcessTable[pid].MainThreadID);
+				Process * pChild = g_pKernelTable->FindProcess(pid);
 
-							if(IsThreadSuspended(pMainThreadHandles[i]))
-							{
-								result = pid;
-								one_stopped = true;
-								break;
-							}
+				//does caller want stopped children?
+				if((options & WUNTRACED)
+				|| pChild->m_ptrace.OwnerPid == P->m_Pid)
+				{
+					if(pChild->m_bInWin32Setup)
+					{
+						ktrace("skipping wait for pid %d - in setup flag set\n", pid);
+					}
+					else
+					{
+						if(pChild->IsSuspended())
+						{
+							result = pid;
+							one_stopped = true;
+							break;
 						}
 					}
-				}
-				else
-				{
-					//not in use - seems to have died since we started waiting
-					result = pid;
-					break;
-				}
-
-				if(pProcessWin32Pids[i] != pKernelSharedData->ProcessTable[pid].Win32PID)
-				{
-					CloseHandle(pProcessHandles[i]);
-					pProcessWin32Pids[i] = pKernelSharedData->ProcessTable[pid].Win32PID;
-					pProcessHandles[i] = OpenProcess(SYNCHRONIZE, FALSE, pKernelSharedData->ProcessTable[pid].Win32PID);
-					if(pMainThreadHandles[i])
-						CloseHandle(pMainThreadHandles[i]);
-					pMainThreadHandles[i] = NULL;
 				}
 			}
 
@@ -412,66 +396,64 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 	if(result>0)
 	{
 		//a process was found
-		ProcessDataStruct *p = &pKernelSharedData->ProcessTable[result];
+		Process *pChild = g_pKernelTable->FindProcess(result);
 
-		if(status)
+		if(pStatus)
 		{
-			*status = 0;
+			int TmpStatus = 0;
 
 			if(one_stopped)
 			{
 				//stopped
-				*status = 0x7f; 
+				TmpStatus = 0x7f; 
 
 				//signal that stopped it
-				if(p->ptrace_owner_pid==pProcessData->PID && p->ptrace_request!=0)
-					*status |= SIGTRAP << 8; //man ptrace says parent thinks child is in this state
+				if(pChild->m_ptrace.OwnerPid==P->m_Pid && pChild->m_ptrace.Request!=0)
+					TmpStatus |= SIGTRAP << 8; //man ptrace says parent thinks child is in this state
 				else
-				//	*status |= SIGSTOP << 8;
-					*status |= (p->current_signal&0xFF) << 8;
+					TmpStatus |= (pChild->m_CurrentSignal&0xFF) << 8;
 			}
 			else
 			{
 				//exit status
-				*status |= (p->exitcode & 0xFF) << 8;
+				TmpStatus |= (pChild->m_dwExitCode & 0xFF) << 8;
 			
 				//terminating signal
-				*status |= p->killed_by_sig & 0x7f;
+				TmpStatus |= pChild->m_KilledBySig & 0x7f;
 				
 				//core flag
-				*status |= p->core_dumped?0x80:0x00;
+				TmpStatus |= pChild->m_bCoreDumped?0x80:0x00;
 			}
+
+			P->WriteMemory((ADDR)pStatus, sizeof(int), &TmpStatus);
 		}
 
-		if(ru)
+		if(pRU)
 		{
-			memset(ru, 0, sizeof(linux::rusage));
+			linux::rusage ru;
+			memset(&ru, 0, sizeof(ru));
+
 			ktrace("IMPLEMENT wait4 rusage\n");
+
+			P->WriteMemory((ADDR)pRU, sizeof(ru), &ru);
 		}
 
 		//now forget about that child (unless it was a stopped one we returned)
 		if(!one_stopped)
 		{
-			p->ParentPID = 0;
+			g_pKernelTable->m_Processes.erase(pChild);
 		}
 	}
 
 	//free
-	for(i=0; i<NumHandles; i++)
-	{
-		CloseHandle(pProcessHandles[i]);
-		if(pMainThreadHandles[i])
-			CloseHandle(pMainThreadHandles[i]);
-	}
 	delete [] pProcessWin32Pids;
 	delete [] pProcessHandles;
 	delete [] pMainThreadHandles;
 	delete [] pPids;
-	ResetEvent(WaitTerminatingEvent);
+	ResetEvent(P->m_hWaitTerminatingEvent);
 
-	pCtx->Eax = result;
+	ctx.Eax = result;
 
 
 	ktrace("wait4(%d) returned %d [%s]\n", wait_pid, result, one_stopped?"stopped":"exited" );
-#endif
 }

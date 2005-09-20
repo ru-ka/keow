@@ -42,38 +42,38 @@ const char * Process::KEOW_PROCESS_STUB = "Keow.exe";
 
 Process::Process()
 {
-	int i;
+	m_gid = 0;
+	m_uid = 0;
+	m_egid = 0;
+	m_euid = 0;
 
-	m_gid = m_uid = 0;
-	m_egid = m_euid = 0;
-	m_saved_uid = m_saved_gid = 0;
+	m_saved_uid = 0;
+	m_saved_gid = 0;
 
-	m_Pid = m_ParentPid = 0;
+	m_Pid = 0;
+	m_ParentPid = 0;
+	m_Environment = NULL;
+	m_Arguments = NULL;
+	m_ArgCnt = 0;
+	m_EnvCnt = 0;
+
 	m_ProcessGroupPID = 0;
 
-	m_Environment = m_Arguments = NULL;
-
 	memset(&m_Win32PInfo, 0, sizeof(m_Win32PInfo));
-	memset(&m_ElfLoadData, 0, sizeof(m_ElfLoadData));
 
+	memset(&m_ElfLoadData, 0, sizeof(m_ElfLoadData));
 	memset(&m_ptrace, 0, sizeof(m_ptrace));
 
 	memset(&m_OpenFiles, 0, sizeof(m_OpenFiles));
 
-	memset(&m_PendingSignals, 0, sizeof(m_PendingSignals));
-	memset(&m_SignalMask, 0, sizeof(m_SignalMask));
-	m_SignalDepth = 0;
-	//default signal handling
-	for(i=0; i<_NSIG; ++i) {
-		m_SignalAction[i].sa_handler = SIG_DFL;
-		m_SignalAction[i].sa_flags = NULL;
-		m_SignalAction[i].sa_restorer = NULL;
-		ZeroMemory(&m_SignalAction[i].sa_mask, sizeof(m_SignalAction[i].sa_mask));
-	}
+	InitSignalHandling();
 
+	m_bStillRunning = true;
 	m_dwExitCode = -SIGABRT; //in case not set later
+	m_bCoreDumped = false;
 
 	m_hWaitTerminatingEvent = CreateEvent(NULL,FALSE,FALSE,NULL);
+	m_hProcessStartEvent = m_hForkDoneEvent = NULL;
 
 	memset(&SysCallAddr, 0, sizeof(SysCallAddr));
 }
@@ -98,6 +98,8 @@ Process::~Process()
 //
 Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char ** InitialEnvironment)
 {
+	ktrace("StartInit()\n");
+
 	/*
 	launch win32 process stub
 	load elf code into the process
@@ -117,11 +119,12 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 	//env and args
 	NewP->m_Arguments = (ADDR)InitialArguments;
 	NewP->m_Environment = (ADDR)InitialEnvironment;
+	NewP->m_ArgCnt = 0;
+	NewP->m_EnvCnt = 0;
 
-	NewP->m_bDoExec = NewP->m_bDoFork = false;
-
-	//event to co-ordinate starting
+	//events to co-ordinate starting
 	NewP->m_hProcessStartEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	NewP->m_hForkDoneEvent = NULL; //not forking
 
 	//need to start the process and debug it (to trap kernel calls etc)
 	//the debugger thread
@@ -137,6 +140,8 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 	//Wait for the thread to start the process, or die
 	DWORD dwRet = WaitForSingleObject(NewP->m_hProcessStartEvent, INFINITE);
 	CloseHandle(NewP->m_hProcessStartEvent);
+	NewP->m_hProcessStartEvent=NULL;
+
 	//check it's ok
 	if(NewP->m_Win32PInfo.hProcess==NULL)
 	{
@@ -144,6 +149,92 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 		delete NewP;
 		return NULL;
 	}
+
+	//running, this is it
+	return NewP;
+}
+
+//Create a new process by forking an existing one
+//The pid is allocated as next available pid
+//Parent becomes the parent process
+//Otherwise the new process is a clone
+//
+Process* Process::StartFork(Process * pParent)
+{
+	ktrace("StartFork()\n");
+
+	/*
+	launch win32 process stub
+	copy over memory
+	set stack/cpu contexts
+	let process run
+	*/
+	Process * NewP = new Process();
+
+	//allocate a new pid
+	int cnt=0;
+	while(++g_pKernelTable->m_LastPID)
+	{
+		if(++cnt > 10000)
+		{
+			ktrace("not pid's available for fork\n");
+			delete NewP;
+			return NULL;
+		}
+
+		//loop around pid's?
+		if(g_pKernelTable->m_LastPID > 0xFFFF)
+			g_pKernelTable->m_LastPID = 2; //MUST skip '1' which is only ever for init
+
+		//free?
+		if(g_pKernelTable->FindProcess(g_pKernelTable->m_LastPID) == NULL)
+			break;
+	}
+	NewP->m_Pid = g_pKernelTable->m_LastPID;
+
+	//parent is who?
+	NewP->m_ParentPid = P->m_Pid;
+
+
+	//add to the kernel
+	g_pKernelTable->m_Processes.push_back(NewP);
+
+
+	//events to co-ordinate starting
+	NewP->m_hProcessStartEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	NewP->m_hForkDoneEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+	//need to start the process and debug it (to trap kernel calls etc)
+	//the debugger thread
+	HANDLE hThread = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerMain, NewP, 0, &NewP->m_KernelThreadId);
+	if(hThread==NULL)
+	{
+		ktrace("failed to start debug thread for process\n");
+		delete NewP;
+		return NULL;
+	}
+	CloseHandle(hThread); //don't need it, just the id
+
+	//Wait for the thread to start the process, or die
+	DWORD dwRet = WaitForSingleObject(NewP->m_hProcessStartEvent, INFINITE);
+	CloseHandle(NewP->m_hProcessStartEvent);
+	NewP->m_hProcessStartEvent=NULL;
+
+	//check it's ok
+	if(NewP->m_Win32PInfo.hProcess==NULL)
+	{
+		ktrace("failed to start the process\n");
+		delete NewP;
+		return NULL;
+	}
+
+
+	//Wait for the new process to finish forking our state
+	ktrace("Waiting for child to finish copying our state\n");
+	dwRet = WaitForSingleObject(NewP->m_hForkDoneEvent, INFINITE);
+	CloseHandle(NewP->m_hForkDoneEvent);
+	NewP->m_hForkDoneEvent=NULL;
+
 
 	//running, this is it
 	return NewP;
@@ -188,6 +279,7 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 
 
 	//cleanup
+	//leave the process in the kernel table - it's parent will clean it up
 
 	//clean up thread local stuff
 	delete g_pTraceBuffer;
@@ -210,7 +302,11 @@ void Process::DebuggerLoop()
 		for(int sig=0; sig<_NSIG; ++sig)
 		{
 			if(m_PendingSignals[sig])
+			{
+				m_CurrentSignal = sig;
 				HandleSignal(sig);
+				m_CurrentSignal = 0;
+			}
 		}
 
 		//handle the real reason we are in the debugger
@@ -223,6 +319,7 @@ void Process::DebuggerLoop()
 
 		case EXIT_PROCESS_DEBUG_EVENT:
 			m_dwExitCode = evt.u.ExitProcess.dwExitCode;
+			m_bStillRunning = false; //parent will clean up the process table entry
 			return; //no longer debugging
 
 
@@ -326,23 +423,24 @@ void Process::ConvertProcessToKeow()
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
 
-	if(m_bDoExec)
+	//are we forking or starting init?
+
+	if(m_hForkDoneEvent!=NULL)
 	{
+		//forking
+
 		Process * pParent = g_pKernelTable->FindProcess(m_ParentPid);
-		CopyProcessHandles(pParent);
-		LoadImage(m_ProcessFileImage, false);
+		ForkCopyOtherProcess(*pParent);
+
+		SetEvent(m_hForkDoneEvent);
 		return;
 	}
-	if(m_bDoFork)
-	{
-		Process * pParent = g_pKernelTable->FindProcess(m_ParentPid);
-		ForkCopyOtherProcess(pParent);
-		return;
-	}
+	//starting init
+
 
 	//want a new stack for the process
-	// - at the TOP of the address space and top being like 0xbfffffff
-	//[I got this value from gdb of /bin/ls on debian i36 linux]
+	// - at the TOP of the address space and top being like 0xbfffffff ???
+	//[I got this value from gdb of /bin/ls on debian i386 linux]
 	//also seems that some libpthread code relies on (esp|0x1ffff) being the top of the stack.
 	//TODO: alloc dynamically within the contraints
 	DWORD size=1024*1024L;  //1MB will do?
@@ -360,7 +458,9 @@ void Process::ConvertProcessToKeow()
 	m_OpenFiles[0] = new IOHNtConsole(g_pKernelTable->m_pMainConsole);
 	m_OpenFiles[1] = new IOHNtConsole(g_pKernelTable->m_pMainConsole);
 	m_OpenFiles[2] = new IOHNtConsole(g_pKernelTable->m_pMainConsole);
-
+	m_OpenFiles[0]->SetInheritable(true);
+	m_OpenFiles[1]->SetInheritable(true);
+	m_OpenFiles[2]->SetInheritable(true);
 }
 
 
@@ -465,21 +565,104 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
 }
 
-void Process::CopyProcessHandles(Process *pParent)
-{
-	DebugBreak();
-}
 
-void Process::ForkCopyOtherProcess(Process *pOther)
+// Clone an existing process into this one,
+// except for a few things (eg ptrace, pid, ppid)
+void Process::ForkCopyOtherProcess(Process &other)
 {
-	DebugBreak();
+	int i;
+	ktrace("fork : Copying state from parent process\n");
+
+	m_ProcessGroupPID = other.m_ProcessGroupPID;
+
+	m_gid = other.m_gid;
+	m_uid = other.m_uid;
+	m_egid = other.m_egid;
+	m_euid = other.m_euid;
+
+	m_saved_uid = other.m_saved_uid;
+	m_saved_gid = other.m_saved_gid;
+
+	m_umask = other.m_umask;
+
+	//use same thread (it'll be valid after we copy the other processes memory allocations)
+	m_KeowUserStackBase = other.m_KeowUserStackBase;
+	m_KeowUserStackTop = other.m_KeowUserStackTop;
+
+	m_ProcessFileImage = other.m_ProcessFileImage;
+	m_UnixPwd = other.m_UnixPwd;
+
+	m_CommandLine = other.m_CommandLine;
+
+	m_ElfLoadData = other.m_ElfLoadData;
+
+	//DO NOT copy the ptrace state
+	//m_ptrace;
+
+	//these are valid after memory copy
+	m_Environment = other.m_Environment;
+	m_Arguments = other.m_Arguments;
+	m_ArgCnt = other.m_ArgCnt;
+	m_EnvCnt = other.m_EnvCnt;
+
+	//signal handling
+	memcpy(&m_PendingSignals, &other.m_PendingSignals, sizeof(m_PendingSignals));
+	memcpy(&m_SignalMask, &other.m_SignalMask, sizeof(m_SignalMask));
+	memcpy(&m_SignalAction, &other.m_SignalAction, sizeof(m_SignalAction));
+	m_SignalDepth = other.m_SignalDepth;
+
+	//copy memory allocations (except mmap)
+	MemoryAllocationsList::iterator mem_it;
+	for(mem_it = other.m_MemoryAllocations.begin();
+	    mem_it != other.m_MemoryAllocations.end();
+		++mem_it)
+	{
+		MemoryAlloc * pMemAlloc = *mem_it;
+
+		ADDR p = MemoryHelper::AllocateMemAndProtect(pMemAlloc->addr, pMemAlloc->len, pMemAlloc->protection);
+		MemoryHelper::TransferMemory(other.m_Win32PInfo.hProcess, pMemAlloc->addr, m_Win32PInfo.hProcess, p, pMemAlloc->len);
+	}
+
+	//clone files
+	for(i=0; i<MAX_OPEN_FILES; ++i)
+	{
+		if(other.m_OpenFiles[i]==NULL)
+			continue;
+
+		m_OpenFiles[i] = other.m_OpenFiles[i]->Duplicate();
+	}
+
+	//copy mmap'd memory
+	MmapList::iterator mmap_it;
+	for(mmap_it = other.m_MmapList.begin();
+	    mmap_it != other.m_MmapList.end();
+		++mmap_it)
+	{
+		MMapRecord * pMmap = *mmap_it;
+
+		DebugBreak(); //TODO: handle cloning mmaps 
+	}
+
+		
+	//Clone the context
+	CONTEXT ctx;
+	ctx.ContextFlags = CONTEXT_FULL | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
+	GetThreadContext(other.m_Win32PInfo.hThread, &ctx);
+
+	//we are the child - need zero return from the fork
+	ctx.Eip += 2; //skip the Int 80
+	ctx.Eax = 0; //we are the child
+
+	SetThreadContext(m_Win32PInfo.hThread, &ctx);
+
+	ktrace("fork : copy done\n");
 }
 
 
 //Load the process executable images
 //and then set the process to run
 //
-DWORD Process::LoadImage(Path img, bool LoadAsLibrary)
+DWORD Process::LoadImage(Path &img, bool LoadAsLibrary)
 {
 	DWORD rc;
 
@@ -535,7 +718,7 @@ DWORD Process::LoadImage(Path img, bool LoadAsLibrary)
 			while(*interp == ' ')
 				interp++;
 
-			rc = LoadImage(interp, LoadAsLibrary);
+			rc = LoadImage(Path(interp), LoadAsLibrary);
 
 			if(args)
 				m_CommandLine = args;
@@ -657,9 +840,8 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 				break;
 			}
 
-			//need to zero first?
-			//what about if partially aligned over other previously read data?
-//			MemoryHelper::FillMem(P->m_Win32PInfo.hProcess, pAlignedMem, AlignedSize, 0);
+			//need to zero first? (alignment creates gaps needing filled with zeros)
+			MemoryHelper::FillMem(P->m_Win32PInfo.hProcess, pAlignedMem, AlignedSize, 0);
 
 			//need to load file into our memory, then copy to process
 			if(phdr->p_filesz != 0)
@@ -887,24 +1069,24 @@ DWORD Process::StartNewImageRunning()
 		ktrace("elf, no interpreter: entry @ 0x%08lx\n", m_ElfLoadData.interpreter_start);
 	}
 
-	ADDR pEnv, pArgs;
-	DWORD EnvCnt, ArgCnt;
-	if(m_ParentPid==0)
-	{
-		pEnv = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Environment, m_Win32PInfo.hProcess, &EnvCnt);
-		pArgs = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Arguments, m_Win32PInfo.hProcess, &ArgCnt);
-	}
-	else
-	{
-		Process * pParent = g_pKernelTable->FindProcess(m_ParentPid);
-		pEnv = MemoryHelper::CopyStringListBetweenProcesses(pParent->m_Win32PInfo.hProcess, m_Environment, m_Win32PInfo.hProcess, &EnvCnt);
-		pArgs = MemoryHelper::CopyStringListBetweenProcesses(pParent->m_Win32PInfo.hProcess, m_Arguments, m_Win32PInfo.hProcess, &ArgCnt);
-	}
-
+	//when a new process first starts, it's args etc are in the kernel
+	//transfer them to the process
+	DWORD dwEnvSize, dwArgsSize;
+	ADDR pEnv = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Environment, m_Win32PInfo.hProcess, &m_EnvCnt, &dwEnvSize);
+	ADDR pArgs = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Arguments, m_Win32PInfo.hProcess, &m_ArgCnt, &dwArgsSize);
+	//strings are now in the other process
+	//free kernel copy
+	VirtualFree(m_Arguments, dwArgsSize, MEM_DECOMMIT);
+	VirtualFree(m_Environment, dwEnvSize, MEM_DECOMMIT);
+	//point to the process
+	m_Environment = pEnv;
+	m_Arguments = pArgs;
+	ktrace("args @ %p\n", m_Arguments);
+	ktrace("env @ %p\n", m_Environment);
 
 	//stack data needed
 	const int AUX_RESERVE = 2*sizeof(DWORD)*20; //heaps for what is below
-	int stack_needed = sizeof(ADDR)*(EnvCnt+1+ArgCnt+1) + AUX_RESERVE + sizeof(ADDR)/*end marker*/;
+	int stack_needed = sizeof(ADDR)*(m_EnvCnt+1+m_ArgCnt+1) + AUX_RESERVE + sizeof(ADDR)/*end marker*/;
 
 	CONTEXT ctx;
 	ctx.ContextFlags = CONTEXT_FULL;
@@ -920,17 +1102,17 @@ DWORD Process::StartNewImageRunning()
 	ADDR addr = (ADDR)ctx.Esp;
 
 	//argc
-	WriteMemory(addr, sizeof(DWORD), &ArgCnt);
+	WriteMemory(addr, sizeof(DWORD), &m_ArgCnt);
 	addr += sizeof(DWORD);
 	//argv[]: clone the array of pointers that are already in the target process
 	//include the null end entry
-	MemoryHelper::TransferMemory(m_Win32PInfo.hProcess, pArgs, m_Win32PInfo.hProcess, addr, (ArgCnt+1)*sizeof(ADDR));
-	addr += (ArgCnt+1)*sizeof(ADDR);
+	MemoryHelper::TransferMemory(m_Win32PInfo.hProcess, m_Arguments, m_Win32PInfo.hProcess, addr, (m_ArgCnt+1)*sizeof(ADDR));
+	addr += (m_ArgCnt+1)*sizeof(ADDR);
 
 	//envp[]: clone the array of pointers that are already in the target process
 	//include the null end entry
-	MemoryHelper::TransferMemory(m_Win32PInfo.hProcess, pEnv, m_Win32PInfo.hProcess, addr, (EnvCnt+1)*sizeof(ADDR));
-	addr += (EnvCnt+1)*sizeof(ADDR);
+	MemoryHelper::TransferMemory(m_Win32PInfo.hProcess, m_Environment, m_Win32PInfo.hProcess, addr, (m_EnvCnt+1)*sizeof(ADDR));
+	addr += (m_EnvCnt+1)*sizeof(ADDR);
 
 	//aux
 	struct Elf32_auxv_t {
@@ -957,8 +1139,8 @@ DWORD Process::StartNewImageRunning()
 #undef PUSH_AUX_VAL
 
 	//end marker (NULL)
-	ArgCnt=0;
-	WriteMemory(addr, sizeof(DWORD), &ArgCnt);
+	DWORD zero=0;
+	WriteMemory(addr, sizeof(DWORD), &zero);
 	addr += sizeof(DWORD);
 
 
@@ -1071,6 +1253,7 @@ void Process::HandleSignal(int sig)
 	{
 	case SIGKILL:
 		ktrace("killed - sigkill\n");
+		m_KilledBySig=sig;
 		SysCallDll::exit(-sig);
 		return;
 	case SIGSTOP:
@@ -1147,6 +1330,7 @@ void Process::HandleSignal(int sig)
 		case SIGPOLL:
 		case SIGPROF:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
+			m_KilledBySig=sig;
 			SysCallDll::exit(-sig);
 			break;
 
@@ -1166,12 +1350,14 @@ void Process::HandleSignal(int sig)
 		case SIGSYS:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			GenerateCoreDump();
+			m_KilledBySig=sig;
 			SysCallDll::exit(-sig);
 			break;
 
 		default:
 			ktrace("IMPLEMENT default action for signal %d\n", sig);
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
+			m_KilledBySig=sig;
 			SysCallDll::exit(-sig);
 			break;
 		}
@@ -1196,6 +1382,11 @@ void Process::HandleSignal(int sig)
 			m_SignalAction[sig].sa_handler = SIG_DFL;
 
 
+		//need to update user process
+		CONTEXT ctx;
+		ctx.ContextFlags = CONTEXT_CONTROL;
+		GetThreadContext(P->m_Win32PInfo.hThread, &ctx);
+
 		//dispatch to custom handler
 		if(m_SignalAction[sig].sa_flags & SA_SIGINFO)
 		{
@@ -1215,13 +1406,52 @@ void Process::HandleSignal(int sig)
 			ktrace("IMPLEMENT correct signal sa_action ucontext stuff\n");
 			//copy the context to the process and pass as param
 
-			DebugBreak();//TODO: inject into process
-			((void (_cdecl *)(int, linux::siginfo *, void *))handler)(sig, &si, /*&ct*/0);
+
+			//invoke: void _cdecl handler(int, linux::siginfo *, void *)
+
+			//add new items to write onto the stack
+			struct {
+				struct {
+					DWORD ReturnAddress;
+					int signal;
+					void * pSiginfo;
+					void * pData;
+				} call_data;
+				linux::siginfo si;
+			} stack;
+
+			ctx.Esp -= sizeof(stack);
+
+			stack.call_data.ReturnAddress = ctx.Eip;
+			stack.call_data.signal = sig;
+			stack.call_data.pSiginfo = (void*)(ctx.Esp - sizeof(stack) + sizeof(stack.call_data));
+			stack.call_data.pData = 0;
+			stack.si = si; //place a copy on the stack
+
+			//update stack and then run the handler
+			P->WriteMemory((ADDR)ctx.Esp, sizeof(stack), &stack);
+			ctx.Eip = (DWORD)handler;
+			SetThreadContext(P->m_Win32PInfo.hThread, &ctx);
 		}
 		else
 		{
-			DebugBreak();//TODO: inject into process
-			((void (_cdecl *)(int))handler)(sig);
+			//invoke: void _cdecl handler(int)
+
+			//add new items to write onto the stack
+			struct {
+				DWORD ReturnAddress;
+				int signal;
+			} stack;
+
+			ctx.Esp -= sizeof(stack);
+
+			stack.ReturnAddress = ctx.Eip;
+			stack.signal = sig;
+
+			//update stack and then run the handler
+			P->WriteMemory((ADDR)ctx.Esp, sizeof(stack), &stack);
+			ctx.Eip = (DWORD)handler;
+			SetThreadContext(P->m_Win32PInfo.hThread, &ctx);
 		}
 
 		//use restorer
@@ -1247,6 +1477,7 @@ void Process::HandleSignal(int sig)
 
 void Process::GenerateCoreDump()
 {
+	m_bCoreDumped = true;
 	ktrace("Core Dump\n");
 }
 
@@ -1328,6 +1559,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 		if(evt.dwDebugEventCode==EXIT_PROCESS_DEBUG_EVENT)
 		{
 			m_dwExitCode = evt.u.ExitProcess.dwExitCode;
+			m_bStillRunning = false;
 			ExitThread(0); //no longer debugging
 		}
 
@@ -1449,4 +1681,91 @@ int Process::FindFreeFD()
 			return fd;
 
 	return -1; //none
+}
+
+void Process::FreeResourcesBeforeExec()
+{
+	//unmap memory?
+	MmapList::iterator mmap_it;
+	for(mmap_it = m_MmapList.begin();
+	    mmap_it != m_MmapList.end();
+		++mmap_it)
+	{
+		MMapRecord * pMmap = *mmap_it;
+
+		DebugBreak(); //TODO: handle cloning mmaps 
+	}
+
+	//close all files that we need to
+	for(int i=0; i<MAX_OPEN_FILES; ++i)
+	{
+		if(m_OpenFiles[i]==NULL)
+			continue;
+		if(!m_OpenFiles[i]->GetInheritable())
+		{
+			m_OpenFiles[i]->Close();
+			delete m_OpenFiles[i];
+			m_OpenFiles[i] = NULL;
+		}
+	}
+
+	//free other memory
+	MemoryAllocationsList::iterator mem_it;
+	for(mem_it = m_MemoryAllocations.begin();
+	    mem_it != m_MemoryAllocations.end();
+		++mem_it)
+	{
+		MemoryAlloc * pMemAlloc = *mem_it;
+
+		//NOT the stack
+		if(pMemAlloc->addr == m_KeowUserStackBase)
+		{
+			continue;
+		}
+
+		if(!VirtualFreeEx(m_Win32PInfo.hProcess, pMemAlloc->addr, pMemAlloc->len, MEM_DECOMMIT))
+			ktrace("failed to free %p, len %d\n", pMemAlloc->addr, pMemAlloc->len);
+
+		m_MemoryAllocations.erase(mem_it);
+		//iterator is invalid now? reset?
+		mem_it = m_MemoryAllocations.begin();
+	}
+
+
+	//signals are reset on exec
+	InitSignalHandling();
+
+	//Also reset the elf memory stuff
+	memset(&m_ElfLoadData, 0, sizeof(m_ElfLoadData));
+}
+
+void Process::InitSignalHandling()
+{
+	int i;
+
+	m_CurrentSignal = 0;
+	m_KilledBySig = 0;
+
+	memset(&m_PendingSignals, 0, sizeof(m_PendingSignals));
+
+	memset(&m_SignalMask, 0, sizeof(m_SignalMask));
+
+	m_SignalDepth = 0;
+
+	//default signal handling
+	for(i=0; i<_NSIG; ++i) {
+		m_SignalAction[i].sa_handler = SIG_DFL;
+		m_SignalAction[i].sa_flags = NULL;
+		m_SignalAction[i].sa_restorer = NULL;
+		ZeroMemory(&m_SignalAction[i].sa_mask, sizeof(m_SignalAction[i].sa_mask));
+	}
+}
+
+bool Process::IsSuspended()
+{
+	DWORD cnt = SuspendThread(m_Win32PInfo.hThread);
+	if(cnt==-1)
+		return false;
+	ResumeThread(m_Win32PInfo.hThread);
+	return cnt>0;	
 }

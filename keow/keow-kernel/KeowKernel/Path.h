@@ -39,6 +39,7 @@ class Filesystem;
 class Path  
 {
 public:
+	Path(const Path& other);
 	Path(bool FollowSymLinks = true);
 	Path(string UnixPath, bool FollowSymLinks = true);
 	Path(LPCSTR UnixPath, bool FollowSymLinks = true);
@@ -54,8 +55,6 @@ public:
 	void FollowSymLinks(bool follow);
 
 	bool IsSymbolicLink();
-	int GetUnixFileType();
-	DWORD GetWin32FileAttributes();
 
 	Filesystem * GetFinalFilesystem();
 

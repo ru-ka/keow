@@ -126,16 +126,14 @@ void SysCalls::sys_read(CONTEXT &ctx)
  */
 void SysCalls::sys_access(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	Path p;
 	DWORD attr;
 	char ok = 1;
 	DWORD check = ctx.Ecx;
 
-	p.SetUnixPath((const char*)ctx.Ebx);
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
 
-	attr = p.GetFileAttributes();
+	attr = GetFileAttributes(p.GetWin32Path());
 	if(attr==INVALID_FILE_ATTRIBUTES)
 	{
 		ctx.Eax = -Win32ErrToUnixError(GetLastError());
@@ -151,7 +149,6 @@ void SysCalls::sys_access(CONTEXT &ctx)
 		ctx.Eax = 0;
 	else
 		ctx.Eax = -EACCES;
-#endif
 }
 
 /*****************************************************************************/
@@ -337,22 +334,29 @@ void SysCalls::sys_getcwd(CONTEXT &ctx)
  */
 void SysCalls::sys_chdir(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	Path p;
-	p.SetUnixPath((const char*)ctx.Ebx);
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
 
-	if(!SetCurrentDirectory(p.Win32Path()))
+	//it is a directory, right?
+	DWORD attr;
+	attr = GetFileAttributes(p.GetWin32Path());
+	if(attr==INVALID_FILE_ATTRIBUTES)
 	{
 		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 		return;
 	}
+	if((attr&FILE_ATTRIBUTE_DIRECTORY) == 0)
+	{
+		ctx.Eax = -ENOTDIR;
+		return;
+	}
 
-	ktrace("chdir %s\n", p.UnixPath());
 
-	StringCbCopy(pProcessData->unix_pwd, sizeof(pProcessData->unix_pwd), p.UnixPath());
+	//seems to be a directory - use it
+	ktrace("chdir %s\n", p.GetUnixPath());
+	P->m_UnixPwd = p;
+
 	ctx.Eax = 0;
-#endif
 }
 
 /*
@@ -481,13 +485,11 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
  */
 void SysCalls::sys_dup(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	int fdnew;
 	DWORD OldEcx;
 
 	//find free handle entry
-	fdnew = FindFreeFD();
+	fdnew = P->FindFreeFD();
 	if(fdnew==-1)
 	{
 		ctx.Eax = -EMFILE; //too many open files
@@ -495,11 +497,10 @@ void SysCalls::sys_dup(CONTEXT &ctx)
 	}
 
 	//use dup2 for actual work
-	OldEcx = ctx.Ecx;
+	OldEcx = ctx.Ecx; //save
 	ctx.Ecx = fdnew;
-	sys_dup2(pCtx);
-	ctx.Ecx = OldEcx;
-#endif
+	sys_dup2(ctx);
+	ctx.Ecx = OldEcx; //restore
 }
 
 
@@ -511,8 +512,6 @@ void SysCalls::sys_dup(CONTEXT &ctx)
  */
 void SysCalls::sys_dup2(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	int fdold, fdnew;
 	IOHandler *ioh_old;
 
@@ -524,7 +523,7 @@ void SysCalls::sys_dup2(CONTEXT &ctx)
 		return;
 	}
 
-	ioh_old = pProcessData->FileHandlers[fdold];
+	ioh_old = P->m_OpenFiles[fdold];
 	if(ioh_old == NULL)
 	{
 		ctx.Eax = -EBADF;
@@ -540,22 +539,21 @@ void SysCalls::sys_dup2(CONTEXT &ctx)
 	}
 
 	//close any existing
-	if(pProcessData->FileHandlers[fdnew] != NULL)
+	if(P->m_OpenFiles[fdnew] != NULL)
 	{
-		pProcessData->FileHandlers[fdnew]->Close();
-		delete pProcessData->FileHandlers[fdnew];
-		pProcessData->FileHandlers[fdnew] = NULL;
+		P->m_OpenFiles[fdnew]->Close();
+		delete P->m_OpenFiles[fdnew];
+		P->m_OpenFiles[fdnew] = NULL;
 	}
 	//make duplicate
-	IOHandler *ioh_new = ioh_old->Duplicate(GetCurrentProcess(), GetCurrentProcess());
+	IOHandler *ioh_new = ioh_old->Duplicate();
 	if(ioh_new==NULL)
 	{
 		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 		return;
 	}
-	pProcessData->FileHandlers[fdnew] = ioh_new;
+	P->m_OpenFiles[fdnew] = ioh_new;
 	ctx.Eax = fdnew;
-#endif
 }
 
 

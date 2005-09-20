@@ -198,6 +198,9 @@ int main(int argc, char* argv[])
 
 	//kernel is who?
 	g_dwKernelProcessId = atol(argv[1]);
+	HANDLE hProcKernel = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, g_dwKernelProcessId);
+	ktrace("kernel id %d, handle %p\n", g_dwKernelProcessId, hProcKernel);
+
 	//get handles from command line
 	g_hKernelTextOutput  = (HANDLE)atol(argv[2]);
 	g_hKernelTextInput   = (HANDLE)atol(argv[3]);
@@ -276,6 +279,18 @@ int main(int argc, char* argv[])
 		if(dwAvail!=0)
 		{
 			ProcessIoctlRequest();
+		}
+
+
+		//has the kernel stopped?
+		DWORD dwExitCode=STILL_ACTIVE;
+		GetExitCodeProcess(hProcKernel, &dwExitCode);
+		if(dwExitCode != STILL_ACTIVE)
+		{
+			char msg[] = "\nThe kernel has stopped.";
+			DWORD dwWritten;
+			WriteConsole(g_hConsoleOutput, &msg, sizeof(msg), &dwWritten, NULL);
+			Sleep(INFINITE);
 		}
 	}
 

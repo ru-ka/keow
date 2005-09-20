@@ -57,8 +57,12 @@ public:
 	bool WriteMemory(ADDR addr, DWORD len, const void * pBuf);
 	bool ReadMemory(LPVOID pBuf, ADDR addr, DWORD len);
 
+	void FreeResourcesBeforeExec();
 	DWORD StartNewImageRunning();
 	static Process* StartInit(PID pid, Path& path, char ** InitialArguments, char ** InitialEnvironment);
+	static Process* StartFork(Process * pParent);
+	static Process* StartExec(Process * pParent);
+	DWORD LoadImage(Path &img, bool LoadAsLibrary);
 
 	void DumpMemory(ADDR addr, DWORD len);
 	void DumpContext(CONTEXT &ctx);
@@ -74,6 +78,8 @@ public:
 	static const int KERNEL_PROCESS_THREAD_STACK_SIZE;
 	static const char * KEOW_PROCESS_STUB;
 
+public:
+	bool IsSuspended();
 	PID m_Pid;
 	PID m_ParentPid;
 	PID m_ProcessGroupPID;
@@ -84,10 +90,16 @@ public:
 	int m_umask;
 
 	PROCESS_INFORMATION m_Win32PInfo;
+
+	bool m_bStillRunning;
+	bool m_bCoreDumped;
 	DWORD m_dwExitCode;
+
 	FILETIME m_StartedTime;
 	HANDLE m_hWaitTerminatingEvent;
+
 	CONTEXT m_BaseWin32Ctx; //used for injection etc
+
 	ADDR m_KeowUserStackBase;
 	ADDR m_KeowUserStackTop;
 
@@ -163,15 +175,18 @@ public:
 	//info about what resources the stub can provide
 	SysCallDll::RemoteAddrInfo SysCallAddr;
 
+	DWORD m_ArgCnt, m_EnvCnt;
 	ADDR m_Environment;
 	ADDR m_Arguments;
 
 	//Data that the debugger thread uses to initialise this process
-	bool m_bDoExec, m_bDoFork;
 	HANDLE m_hProcessStartEvent;
+	HANDLE m_hForkDoneEvent;
 	bool m_bInWin32Setup;
 
 	//signal handling
+	int m_CurrentSignal;
+	int m_KilledBySig;
 	bool m_PendingSignals[_NSIG];
 	linux::sigset_t m_SignalMask[MAX_PENDING_SIGNALS];
 	linux::sigaction m_SignalAction[_NSIG];
@@ -183,14 +198,13 @@ public:
 private:
 	Process(); //private - use methods to create
 protected:
-	void ForkCopyOtherProcess(Process * pOther);
-	void CopyProcessHandles(Process* pParent);
+	void InitSignalHandling();
+	void ForkCopyOtherProcess(Process &other);
 	void HandleException(DEBUG_EVENT &evt);
 	void ConvertProcessToKeow();
 	void DebuggerLoop();
 
 	DWORD LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElf, ElfLoadData * pElfLoadData, bool LoadAsLibrary);
-	DWORD LoadImage(Path img, bool LoadAsLibrary);
 };
 
 #endif // !defined(AFX_PROCESS_H__065A3BC3_71C3_4302_8E39_297E193A46AF__INCLUDED_)

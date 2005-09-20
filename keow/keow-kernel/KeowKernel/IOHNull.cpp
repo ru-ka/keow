@@ -32,23 +32,36 @@
 
 IOHNull::IOHNull()
 {
-	HANDLE h = CreateFile("NUL:", GENERIC_READ|GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
-
-	DuplicateHandle(GetCurrentProcess(), h,
-		P->m_Win32PInfo.hProcess, &m_hRemoteHandle,
-		0, FALSE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
+	m_hRemoteHandle = INVALID_HANDLE_VALUE;
+	Open(GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, 0);
 }
 
 IOHNull::~IOHNull()
 {
-	SysCallDll::CloseHandle(m_hRemoteHandle);
+	Close();
 }
 
 
 bool IOHNull::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags)
 {
+	Close();
+
+	HANDLE h = CreateFile("NUL:", GENERIC_READ|GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
+
+	DuplicateHandle(GetCurrentProcess(), h,
+		P->m_Win32PInfo.hProcess, &m_hRemoteHandle,
+		0, FALSE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
 	return true;
 }
+
+bool IOHNull::Close()
+{
+	if(m_hRemoteHandle != INVALID_HANDLE_VALUE)
+		SysCallDll::CloseHandle(m_hRemoteHandle);
+	m_hRemoteHandle = INVALID_HANDLE_VALUE;
+	return true;
+}
+
 
 HANDLE IOHNull::GetRemoteWriteHandle()
 {
@@ -60,7 +73,7 @@ HANDLE IOHNull::GetRemoteReadHandle()
 	return m_hRemoteHandle;
 }
 
-IOHandler* IOHNull::clone()
+IOHandler* IOHNull::Duplicate()
 {
 	IOHNull * pC = new IOHNull();
 	return pC;

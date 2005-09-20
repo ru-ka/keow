@@ -42,11 +42,7 @@ IOHFile::IOHFile(Path &path)
 
 IOHFile::~IOHFile()
 {
-	if(m_hFindData != INVALID_HANDLE_VALUE)
-		FindClose(m_hFindData);
-	m_hFindData = INVALID_HANDLE_VALUE;
-
-	SysCallDll::CloseHandle(m_RemoteHandle);
+	Close();
 }
 
 HANDLE IOHFile::GetRemoteWriteHandle()
@@ -58,11 +54,11 @@ HANDLE IOHFile::GetRemoteReadHandle()
 	return m_RemoteHandle;
 }
 
-IOHandler * IOHFile::clone()
+IOHandler * IOHFile::Duplicate()
 {
 	IOHFile * pF = new IOHFile(m_Path);
 
-	DuplicateHandle(P->m_Win32PInfo.hProcess, m_RemoteHandle,
+	DuplicateHandle(m_pInProcess->m_Win32PInfo.hProcess, m_RemoteHandle,
 		P->m_Win32PInfo.hProcess, &pF->m_RemoteHandle,
 		0,0, DUPLICATE_SAME_ACCESS);
 
@@ -85,9 +81,7 @@ IOHandler * IOHFile::clone()
 
 bool IOHFile::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags)
 {
-	if(m_hFindData != INVALID_HANDLE_VALUE)
-		FindClose(m_hFindData);
-	m_hFindData = INVALID_HANDLE_VALUE;
+	Close();
 
 
 	DWORD attr = GetFileAttributes(m_Path.GetWin32Path());
@@ -109,6 +103,20 @@ bool IOHFile::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD
 
 	return true;
 }
+
+bool IOHFile::Close()
+{
+	if(m_hFindData != INVALID_HANDLE_VALUE)
+		FindClose(m_hFindData);
+	m_hFindData = INVALID_HANDLE_VALUE;
+
+	if(m_RemoteHandle != INVALID_HANDLE_VALUE)
+		SysCallDll::CloseHandle(m_RemoteHandle);
+	m_RemoteHandle = INVALID_HANDLE_VALUE;
+
+	return true;
+}
+
 
 bool IOHFile::Stat64(linux::stat64 * s)
 {

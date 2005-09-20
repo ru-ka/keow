@@ -52,6 +52,8 @@ ADDR MemoryHelper::AllocateMemAndProtectProcess(HANDLE hProcess, ADDR addr, DWOR
 		return (ADDR)-1;
 	}
 
+	ktrace("allocating %p, len %d in proc %p\n", addr, size, hProcess);
+
 	//if no addr, then we can assign one
 	if(addr==0)
 	{
@@ -123,6 +125,8 @@ bool MemoryHelper::DeallocateMemory(ADDR addr, DWORD size)
 		if(pAlloc->addr == addr
 		&& pAlloc->len == size)
 		{
+			ktrace("freeing %p, len %d in proc %p\n", addr, size, P->m_Win32PInfo.hProcess);
+
 			if(!VirtualFreeEx(P->m_Win32PInfo.hProcess, addr, size, MEM_DECOMMIT))
 				return false;
 
@@ -308,7 +312,7 @@ bool MemoryHelper::FillMem(HANDLE hToProcess, ADDR toAddr, int len, BYTE fill)
  * Copy a string list (eg argv[]) between two processes
  * Return addr to use in the 'to' process (eg as argv)
  */
-ADDR MemoryHelper::CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFromList, HANDLE hToProcess, DWORD * pdwCount)
+ADDR MemoryHelper::CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFromList, HANDLE hToProcess, DWORD * pdwCount, DWORD * pdwMemSize)
 {
 	//calculate how large the data is
 	DWORD count, datasize;
@@ -353,6 +357,8 @@ ADDR MemoryHelper::CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFro
 	ADDR pTo;
 
 	pTo = AllocateMemAndProtectProcess(hToProcess, 0, total, PAGE_EXECUTE_READWRITE);
+	if(pdwMemSize)
+		*pdwMemSize = total;
 
 	//copy the data, keeping track of pointers used
 	ADDR pToArray = pTo;
