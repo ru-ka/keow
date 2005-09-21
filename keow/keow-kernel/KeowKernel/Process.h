@@ -61,7 +61,6 @@ public:
 	DWORD StartNewImageRunning();
 	static Process* StartInit(PID pid, Path& path, char ** InitialArguments, char ** InitialEnvironment);
 	static Process* StartFork(Process * pParent);
-	static Process* StartExec(Process * pParent);
 	DWORD LoadImage(Path &img, bool LoadAsLibrary);
 
 	void DumpMemory(ADDR addr, DWORD len);
@@ -104,6 +103,7 @@ public:
 	ADDR m_KeowUserStackTop;
 
 	DWORD m_KernelThreadId;
+	HANDLE m_KernelThreadHandle;
 
 	Path m_ProcessFileImage;
 	Path m_UnixPwd;

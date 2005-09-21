@@ -79,7 +79,7 @@ void string::reserve(int size)
 		return;
 
 	while(m_nCapacity < size)
-		m_nCapacity += 128; //what to do here? try something!
+		m_nCapacity += 1024; //incrememnt capacity in blocks to prevent needed to extend too often
 
 	char * p2 = new char[m_nCapacity];
 	if(m_pChars)

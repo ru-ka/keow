@@ -137,6 +137,10 @@ SOURCE=.\IOHNull.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\IOHPipe.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\KernelStartup.cpp
 # End Source File
 # Begin Source File
@@ -262,6 +266,10 @@ SOURCE=.\IOHNtConsole.h
 # Begin Source File
 
 SOURCE=.\IOHNull.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\IOHPipe.h
 # End Source File
 # Begin Source File
 

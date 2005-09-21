@@ -387,7 +387,7 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 			if((int)data!=0 && (int)data!=SIGSTOP)
 				pTraced->m_ptrace.new_signal = (int)data;
 			ktrace("ptrace_syscall resuming pid %d\n",pid);
-			ResumeThread(pTraced->m_Win32PInfo.hThread);
+			ResumeThread(pTraced->m_KernelThreadHandle); //kernel handler thread is paused when using ptrace
 			ctx.Eax = 0;
 		}
 		break;
@@ -399,7 +399,7 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 			if((int)data!=0 && (int)data!=SIGSTOP)
 				pTraced->m_ptrace.new_signal = (int)data;
 			ktrace("ptrace_cont resuming pid %d\n",pid);
-			ResumeThread(pTraced->m_Win32PInfo.hThread);
+			ResumeThread(pTraced->m_KernelThreadHandle); //kernel handler thread is paused when using ptrace
 			ctx.Eax = 0;
 		}
 		break;
@@ -423,7 +423,7 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 			else
 			{
 				ktrace("peekusr get Traced context\n");
-				//already suspended for ptrace, no need for SuspendThread(hThread);
+				//already suspended for ptrace, no need for SuspendThread
 				TempCtx.ContextFlags = CONTEXT_FULL;
 				GetThreadContext(pTraced->m_Win32PInfo.hThread, &TempCtx);
 				//dont ResumeThread;
@@ -457,10 +457,11 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 			usr.regs.esp  = pTracedCtx->Esp;
 			//usr.signal = SIGTRAP; //man ptrace says parent thinks Traced is in this state
 
-			char * wanted = ((char*)&usr) + (DWORD)addr;
-			P->WriteMemory((ADDR)data, sizeof(DWORD), wanted);
+			char * pWanted = ((char*)&usr) + (DWORD)addr;
+			DWORD retdata = *((DWORD*)pWanted);
+			P->WriteMemory((ADDR)data, sizeof(retdata), &retdata);
 
-			ktrace("ptrace [0x%x]=0x%x eax=0x%x orig_eax=0x%x\n", addr, *((DWORD*)wanted), usr.regs.eax, usr.regs.orig_eax);
+			ktrace("ptrace [0x%x]=0x%x eax=0x%x orig_eax=0x%x\n", addr, retdata, usr.regs.eax, usr.regs.orig_eax);
 
 			ctx.Eax = 0;
 		}
@@ -471,16 +472,23 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 		{
 			ktrace("ptrace PTRACE_PEEKDATA pid %d addr 0x%lx data 0x%08lx\n", pid, addr, data);
 			DWORD tmp;
-			if(pTraced->ReadMemory(&tmp, (ADDR)addr, sizeof(tmp)))
+			if(!pTraced->ReadMemory(&tmp, (ADDR)addr, sizeof(tmp)))
+			{
 				ctx.Eax = -EFAULT;
+			}
 			else
+			{
+				P->WriteMemory((ADDR)data, sizeof(tmp), &tmp);
 				ctx.Eax = tmp;
+				ktrace("ptrace [0x%x]=0x%x\n", addr, tmp);
+			}
 		}
 		break;
 
 	case PTRACE_KILL:
 		ktrace("ptrace PTRACE_KILL pid %d \n", pid);
 		pTraced->SendSignal(SIGKILL);
+		ResumeThread(pTraced->m_KernelThreadHandle); //need to wake kernel handler thread so it can die
 		ctx.Eax = 0;
 		break;
 
