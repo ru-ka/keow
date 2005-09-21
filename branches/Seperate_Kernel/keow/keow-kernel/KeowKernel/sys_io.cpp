@@ -938,12 +938,12 @@ void SysCalls::sys_link(CONTEXT &ctx)
  */
 void SysCalls::sys_unlink(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	Path p(false);
-	p.SetUnixPath((const char *)ctx.Ebx);
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
 
-	if(DeleteFile(p.Win32Path()))
+	ktrace("unlink(%s)\n", p.GetWin32Path().c_str() );
+
+	if(DeleteFile(p.GetWin32Path()))
 	{
 		ctx.Eax = 0;
 		return;
@@ -968,7 +968,6 @@ void SysCalls::sys_unlink(CONTEXT &ctx)
 	}
 	*/
 	return; //return the original error
-#endif
 }
 
 
