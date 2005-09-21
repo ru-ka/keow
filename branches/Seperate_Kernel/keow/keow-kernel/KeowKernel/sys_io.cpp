@@ -24,6 +24,9 @@
 #include "includes.h"
 #include "SysCalls.h"
 
+#include "IOHPipe.h"
+
+
 // eax is the syscall number
 // ebx,ecx,edx,esi,edi,ebp are up to 6(max) parameters
 // any more parameters and the caller just puts a struct pointer in one of these
@@ -168,7 +171,7 @@ void SysCalls::sys_open(CONTEXT &ctx)
 	IOHandler * ioh;
 
 	string s = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
-	ktrace("open(%s, 0x%lx, 0%lo)\n", s.c_str(), access, perms);
+	ktrace("open([%p]%s, 0x%lx, 0%lo)\n", ctx.Ebx,s.c_str(), access, perms);
 	p.SetUnixPath(s);
 
 	//find free handle entry
@@ -364,8 +367,6 @@ void SysCalls::sys_chdir(CONTEXT &ctx)
  */
 void SysCalls::sys_fchdir(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	int fd;
 	IOHandler * ioh;
 
@@ -376,20 +377,35 @@ void SysCalls::sys_fchdir(CONTEXT &ctx)
 		return;
 	}
 
-	ioh = pProcessData->FileHandlers[fd];
-	if(ioh == NULL)
+	ioh = P->m_OpenFiles[fd];
+	if(ioh == NULL
+	|| !instanceof(ioh,IOHFile))
 	{
 		ctx.Eax = -EBADF;
 		return;
 	}
 
-	//delegate
-	ctx.Ebx = (DWORD)ioh->GetUnixPath();
-	sys_chdir(pCtx);
+	//it is a directory, right?
+	Path& path = ((IOHFile*)ioh)->GetPath();
+	DWORD attr;
+	attr = GetFileAttributes(path.GetWin32Path());
+	if(attr==INVALID_FILE_ATTRIBUTES)
+	{
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
+		return;
+	}
+	if((attr&FILE_ATTRIBUTE_DIRECTORY) == 0)
+	{
+		ctx.Eax = -ENOTDIR;
+		return;
+	}
 
-	//restore overwritten data
-	ctx.Ebx = fd; 
-#endif
+
+	//seems to be a directory - use it
+	ktrace("chdir %s\n", path.GetUnixPath());
+	P->m_UnixPwd = path;
+
+	ctx.Eax = 0;
 }
 
 
@@ -872,10 +888,6 @@ void SysCalls::sys_readlink(CONTEXT &ctx)
  */
 void SysCalls::sys_pipe(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	int *fds = (int*)ctx.Ebx;
-
 	//handles to open
 	HANDLE hRead, hWrite;
 
@@ -885,22 +897,17 @@ void SysCalls::sys_pipe(CONTEXT &ctx)
 		return;
 	}
 
-	//make then inheritable
-	HANDLE h;
-	h=hRead;
-	DuplicateHandle(GetCurrentProcess(), h, GetCurrentProcess(), &hRead, 0, TRUE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
-	h=hWrite;
-	DuplicateHandle(GetCurrentProcess(), h, GetCurrentProcess(), &hWrite, 0, TRUE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
+	//make fd entries
+	int fds[2];
+	fds[0] = P->FindFreeFD();
+	P->m_OpenFiles[fds[0]] = new IOHPipe(hRead);
+	fds[1] = P->FindFreeFD();
+	P->m_OpenFiles[fds[1]] = new IOHPipe(hWrite);
 
-	
 	//return fd entries
-	fds[0] = FindFreeFD();
-	pProcessData->FileHandlers[fds[0]] = new PipeIOHandler(hRead);
-	fds[1] = FindFreeFD();
-	pProcessData->FileHandlers[fds[1]] = new PipeIOHandler(hWrite);
+	P->WriteMemory((ADDR)ctx.Ebx, sizeof(int)*2, fds);
 
 	ctx.Eax = 0;
-#endif
 }
 
 

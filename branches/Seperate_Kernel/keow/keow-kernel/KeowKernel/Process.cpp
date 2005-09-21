@@ -60,6 +60,8 @@ Process::Process()
 	m_ProcessGroupPID = 0;
 
 	memset(&m_Win32PInfo, 0, sizeof(m_Win32PInfo));
+	m_KernelThreadId = 0;
+	m_KernelThreadHandle = NULL;
 
 	memset(&m_ElfLoadData, 0, sizeof(m_ElfLoadData));
 	memset(&m_ptrace, 0, sizeof(m_ptrace));
@@ -86,6 +88,8 @@ Process::~Process()
 	//close all handles
 	CloseHandle(m_Win32PInfo.hProcess);
 	CloseHandle(m_Win32PInfo.hThread);
+
+	CloseHandle(m_KernelThreadHandle);
 
 	CloseHandle(m_hWaitTerminatingEvent);
 }
@@ -117,10 +121,9 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 
 
 	//env and args
-	NewP->m_Arguments = (ADDR)InitialArguments;
-	NewP->m_Environment = (ADDR)InitialEnvironment;
-	NewP->m_ArgCnt = 0;
-	NewP->m_EnvCnt = 0;
+	//StartNewImageRunning expects to be able to free these - so copy them - in the kernel still
+	NewP->m_Arguments   = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), (ADDR)InitialArguments, GetCurrentProcess(), NULL, &NewP->m_ArgCnt, NULL);
+	NewP->m_Environment = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), (ADDR)InitialEnvironment, GetCurrentProcess(), NULL, &NewP->m_EnvCnt, NULL);
 
 	//events to co-ordinate starting
 	NewP->m_hProcessStartEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -128,14 +131,13 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 
 	//need to start the process and debug it (to trap kernel calls etc)
 	//the debugger thread
-	HANDLE hThread = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerMain, NewP, 0, &NewP->m_KernelThreadId);
-	if(hThread==NULL)
+	NewP->m_KernelThreadHandle = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerMain, NewP, 0, &NewP->m_KernelThreadId);
+	if(NewP->m_KernelThreadHandle==NULL)
 	{
 		ktrace("failed to start debug thread for process\n");
 		delete NewP;
 		return NULL;
 	}
-	CloseHandle(hThread); //don't need it, just the id
 
 	//Wait for the thread to start the process, or die
 	DWORD dwRet = WaitForSingleObject(NewP->m_hProcessStartEvent, INFINITE);
@@ -206,14 +208,13 @@ Process* Process::StartFork(Process * pParent)
 
 	//need to start the process and debug it (to trap kernel calls etc)
 	//the debugger thread
-	HANDLE hThread = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerMain, NewP, 0, &NewP->m_KernelThreadId);
-	if(hThread==NULL)
+	NewP->m_KernelThreadHandle = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerMain, NewP, 0, &NewP->m_KernelThreadId);
+	if(NewP->m_KernelThreadHandle==NULL)
 	{
 		ktrace("failed to start debug thread for process\n");
 		delete NewP;
 		return NULL;
 	}
-	CloseHandle(hThread); //don't need it, just the id
 
 	//Wait for the thread to start the process, or die
 	DWORD dwRet = WaitForSingleObject(NewP->m_hProcessStartEvent, INFINITE);
@@ -273,10 +274,34 @@ Process* Process::StartFork(Process * pParent)
 	SetEvent(P->m_hProcessStartEvent);
 
 
-	//start the debugging stuff
+	//
+	//the debugging loop
+	//
 	P->DebuggerLoop();
 	ktrace("process handler debug loop exitted\n");
 
+
+	//parent should get SIGCHLD when we exit
+	if(P->m_Pid != 1)
+	{
+		Process * pParent = g_pKernelTable->FindProcess(P->m_ParentPid);
+		if(pParent)
+			pParent->SendSignal(SIGCHLD);
+	}
+
+	//any children get inherited by init
+	//also we are not ptracing any more
+	KernelTable::ProcessList::iterator it;
+	for(it=g_pKernelTable->m_Processes.begin();
+	    it!=g_pKernelTable->m_Processes.end();
+		++it)
+	{
+		Process * p2 = *it;
+		if(p2->m_ParentPid == P->m_Pid)
+			p2->m_ParentPid = 1; //init
+		if(p2->m_ptrace.OwnerPid == P->m_Pid)
+			p2->m_ptrace.OwnerPid = 0; //no-one
+	}
 
 	//cleanup
 	//leave the process in the kernel table - it's parent will clean it up
@@ -596,7 +621,7 @@ void Process::ForkCopyOtherProcess(Process &other)
 
 	m_ElfLoadData = other.m_ElfLoadData;
 
-	//DO NOT copy the ptrace state
+	//DO NOT copy the ptrace state on a fork
 	//m_ptrace;
 
 	//these are valid after memory copy
@@ -1072,8 +1097,8 @@ DWORD Process::StartNewImageRunning()
 	//when a new process first starts, it's args etc are in the kernel
 	//transfer them to the process
 	DWORD dwEnvSize, dwArgsSize;
-	ADDR pEnv = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Environment, m_Win32PInfo.hProcess, &m_EnvCnt, &dwEnvSize);
-	ADDR pArgs = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Arguments, m_Win32PInfo.hProcess, &m_ArgCnt, &dwArgsSize);
+	ADDR pEnv = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Environment, m_Win32PInfo.hProcess, this, &m_EnvCnt, &dwEnvSize);
+	ADDR pArgs = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Arguments, m_Win32PInfo.hProcess, this, &m_ArgCnt, &dwArgsSize);
 	//strings are now in the other process
 	//free kernel copy
 	VirtualFree(m_Arguments, dwArgsSize, MEM_DECOMMIT);
@@ -1207,6 +1232,18 @@ bool Process::WriteMemory(ADDR addr, DWORD len, const void * pBuf)
 
 void Process::SendSignal(int sig)
 {
+	//deal with it immediatly (it's on this kernel thread)
+	//or schedule it for the correct thread
+
+	if(this==P)
+	{
+		//we are the thread handling this process
+		m_CurrentSignal = sig;
+		HandleSignal(sig);
+		m_CurrentSignal = 0;
+		return;
+	}
+
 	//send the signal to this process
 	m_PendingSignals[sig] = true;
 	SetEvent(m_hWaitTerminatingEvent);
@@ -1620,27 +1657,32 @@ void Process::DumpContext(CONTEXT &ctx)
 void Process::DumpMemory(ADDR addr, DWORD len)
 {
 	const int BYTES_PER_LINE = 8;
-	char buf[5 * BYTES_PER_LINE + 100];
+	char hexbuf[5 * BYTES_PER_LINE + 1]; // "0x00 "... + null
+	char charbuf[BYTES_PER_LINE + 1];    // "xxxxxxxx" + null
 	int x;
 	BYTE b;
+
+	memset(charbuf, 0, sizeof(charbuf));
 
 	ktrace("memory dump @ 0x%p, len %d\n", addr,len);
 	x=0;
 	for(DWORD i=0; i<len; ++i)
 	{
 		ReadMemory(&b, addr+x, 1); //byte-by-byte is slow but this is just a debug thing anyway
-		StringCbPrintf(&buf[x*5], sizeof(buf)-(x*5), "0x%02x ", b);
+		StringCbPrintf(&hexbuf[x*5], sizeof(hexbuf)-(x*5), "0x%02x ", b);
+		charbuf[x] = (isalnum(b)||ispunct(b)) ? b : '.';
 
 		++x;
 		if(x>=BYTES_PER_LINE)
 		{
-			ktrace("  %p: %s\n", addr, buf);
+			ktrace("  %p: %s %s\n", addr, hexbuf, charbuf);
 			addr+=BYTES_PER_LINE;
 			x=0;
+			memset(charbuf, 0, sizeof(charbuf));
 		}
 	}
 	if(x>0)
-		ktrace("  %p: %s\n", addr, buf);
+		ktrace("  %p: %s %s\n", addr, hexbuf, charbuf);
 }
 
 //trace stack frames
@@ -1763,9 +1805,32 @@ void Process::InitSignalHandling()
 
 bool Process::IsSuspended()
 {
-	DWORD cnt = SuspendThread(m_Win32PInfo.hThread);
+	//if either the process or it's kernel handler is suspended then true
+	bool suspended = false;
+	DWORD cnt;
+
+	cnt = SuspendThread(m_Win32PInfo.hThread);
 	if(cnt==-1)
-		return false;
-	ResumeThread(m_Win32PInfo.hThread);
-	return cnt>0;	
+	{
+		//some error
+	}
+	else
+	{
+		suspended = (cnt>0);
+		ResumeThread(m_Win32PInfo.hThread);
+	}
+	if(suspended)
+		return suspended;
+
+	cnt = SuspendThread(m_KernelThreadHandle);
+	if(cnt==-1)
+	{
+		//some error
+	}
+	else
+	{
+		suspended = (cnt>0);
+		ResumeThread(m_KernelThreadHandle);
+	}
+	return suspended;	
 }

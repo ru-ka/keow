@@ -41,6 +41,11 @@ public:
 	IOHFile(Path &path);
 	virtual ~IOHFile();
 
+	Path& GetPath()
+	{
+		return m_Path;
+	}
+
 	virtual bool Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags);
 	virtual bool Close();
 	virtual DWORD ioctl(DWORD request, DWORD data);

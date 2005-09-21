@@ -312,7 +312,7 @@ bool MemoryHelper::FillMem(HANDLE hToProcess, ADDR toAddr, int len, BYTE fill)
  * Copy a string list (eg argv[]) between two processes
  * Return addr to use in the 'to' process (eg as argv)
  */
-ADDR MemoryHelper::CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFromList, HANDLE hToProcess, DWORD * pdwCount, DWORD * pdwMemSize)
+ADDR MemoryHelper::CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFromList, HANDLE hToProcess, Process* pProcToRecordMemoryIn, DWORD * pdwCount, DWORD * pdwMemSize)
 {
 	//calculate how large the data is
 	DWORD count, datasize;
@@ -356,7 +356,9 @@ ADDR MemoryHelper::CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFro
 	DWORD total = datasize + sizeof(ADDR)*(count+1); //+1 for the null array terminater
 	ADDR pTo;
 
-	pTo = AllocateMemAndProtectProcess(hToProcess, 0, total, PAGE_EXECUTE_READWRITE);
+	pTo = AllocateMemAndProtectProcess(hToProcess, 0, total, PAGE_READWRITE);
+	if(pProcToRecordMemoryIn)
+		pProcToRecordMemoryIn->m_MemoryAllocations.push_back(new Process::MemoryAlloc(pTo, total, PAGE_READWRITE));
 	if(pdwMemSize)
 		*pdwMemSize = total;
 

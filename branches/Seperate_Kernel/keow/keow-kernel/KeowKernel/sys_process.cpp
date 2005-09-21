@@ -213,9 +213,10 @@ void SysCalls::sys_fork(CONTEXT &ctx)
 void SysCalls::sys_execve(CONTEXT &ctx)
 {
 	string filename = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	//need a kernel copy of argv and envp  (we're about to remove the processes own memory)
 	DWORD dwCnt, dwMemSize;
-	ADDR argv = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx, GetCurrentProcess(), &dwCnt, &dwMemSize);
-	ADDR envp = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Edx, GetCurrentProcess(), &dwCnt, &dwMemSize);
+	ADDR argv = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx, GetCurrentProcess(), NULL, &dwCnt, &dwMemSize);
+	ADDR envp = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Edx, GetCurrentProcess(), NULL, &dwCnt, &dwMemSize);
 
 	ktrace("execve(%s,...,...)\n", filename.c_str());
 
@@ -235,7 +236,21 @@ void SysCalls::sys_execve(CONTEXT &ctx)
 	P->m_ProcessFileImage.SetUnixPath(filename);
 	P->LoadImage(P->m_ProcessFileImage, false); //this runs it too
 
-	//when we get here the execution point has changed, update ctx to reflect this
+	//participate in ptrace() 
+	if(P->m_ptrace.OwnerPid)
+	{
+		ktrace("stopping for ptrace on successfull exec\n");
+
+		//need dummy context for this - fake a successfull execve return
+		P->m_ptrace.ctx = ctx;
+		P->m_ptrace.ctx.Eax = 0;//success
+		P->m_ptrace.Saved_Eax = __NR_execve; //syscall
+		P->m_ptrace.ctx_valid = true;
+		P->SendSignal(SIGTRAP);
+	}
+
+	//when we get here the execution point has changed - it's a brand new process
+	// update ctx so that debugger loop doesn't restore a bad context
 	GetThreadContext(P->m_Win32PInfo.hThread, &ctx);
 }
 

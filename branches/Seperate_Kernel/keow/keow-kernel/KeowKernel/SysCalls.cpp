@@ -318,6 +318,9 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 
 	ktrace("\n"); //just get some blank lines to break up output between syscalls
 
+	P->m_ptrace.ctx = ctx;
+	P->m_ptrace.ctx_valid = true;
+
 	if(syscall < NR_syscalls)
 	{
 		ktrace("debug: syscall %d [%s] from @ 0x%08lx\n", ctx.Eax, syscall_names[ctx.Eax], ctx.Eip);
@@ -364,7 +367,10 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 		Unhandled(ctx);
 	}
 
+
 	ktrace("debug: syscall return (Eax=0x%lx,%ld)\n", ctx.Eax, ctx.Eax);
+
+	P->m_ptrace.ctx_valid = false;
 }
 
 //////////////////////////////////////////////////////////////////////////////

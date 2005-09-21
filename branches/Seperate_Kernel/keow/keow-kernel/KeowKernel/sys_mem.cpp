@@ -105,6 +105,13 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	if(args.flags & MAP_ANONYMOUS)
 		args.fd = -1; //swap
 
+	//addr must be aligned
+	if((args.addr & ~(SIZE4k-1)) != args.addr)
+	{
+		ctx.Eax = -EINVAL;
+		return;
+	}
+
 	if(args.fd != -1)
 	{
 		if(args.fd<0 || args.fd>MAX_OPEN_FILES)
@@ -124,6 +131,23 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 			dwFileSize = LONG_MAX;
 		else
 			dwFileSize = (DWORD)len;
+	}
+
+
+	//allocations are rounded up to 4k boundaries
+	int len4k = (args.len+0xFFFL) & ~0xFFFL;
+
+
+	//Need to unmap anything already there
+	// void munmap(void* start, unsigned long len)
+	if(args.addr!=0)
+	{
+		ktrace("unmap previous contents\n");
+		CONTEXT ctxUnmap = ctx;
+		ctxUnmap.Ebx = args.addr;
+		ctxUnmap.Ecx = len4k;
+		sys_munmap(ctxUnmap);
+		ktrace("resuming allocation\n");
 	}
 
 
@@ -156,9 +180,6 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 			ctx.Eax = -EINVAL; //invalid arguments
 			return;
 		}
-
-		//allocations are rounded up to 4k boundaries
-		int len4k = (args.len+0xFFFL) & ~0xFFFL;
 
 		ktrace("fake mmap, len %p\n", len4k);
 
@@ -281,6 +302,7 @@ void SysCalls::sys_munmap(CONTEXT &ctx)
 	Process::MmapList::iterator it;
 	for(it=P->m_MmapList.begin(); it!=P->m_MmapList.end(); ++it)
 	{
+		DebugBreak();//may need to split the mapping into two peices (before & after)?
 		Process::MMapRecord * pRec = *it;
 		if(pRec->Address == addr)
 		{
@@ -289,6 +311,12 @@ void SysCalls::sys_munmap(CONTEXT &ctx)
 			else
 				ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 			P->m_MmapList.erase(it);
+			return;
+		}
+		if(pRec->Address<=addr && (pRec->Address+pRec->len)>=addr)
+		{
+			//need to split the mapping into two peices (before & after)?
+			DebugBreak();
 			return;
 		}
 	}
