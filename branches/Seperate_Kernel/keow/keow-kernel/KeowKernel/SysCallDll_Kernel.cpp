@@ -147,7 +147,7 @@ DWORD _stdcall SysCallDll::ReadFile(HANDLE h, LPVOID buf, DWORD len)
 DWORD _stdcall SysCallDll::PeekAvailablePipe(HANDLE h)
 {
 	DWORD stack[] = {
-		(DWORD)h,
+		(DWORD)h
 	};
 	return P->InjectFunctionCall(P->SysCallAddr.PeekAvailablePipe, &stack, sizeof(stack));
 }
