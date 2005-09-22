@@ -3,7 +3,19 @@ Microsoft Developer Studio Workspace File, Format Version 6.00
 
 ###############################################################################
 
-Project: "KernelEmulationOnWindows"=".\KernelEmulationOnWindows.dsp" - Package Owner=<4>
+Project: "KeowConsole"=".\keow-kernel\KeowConsole\KeowConsole.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "KeowKernel"=".\KEOW-KERNEL\KeowKernel\KeowKernel.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -12,16 +24,19 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name ProcessStub
+    Project_Dep_Name KeowUtils
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name SysCalls
+    Project_Dep_Name KeowConsole
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name KeowProcessStub
     End Project Dependency
 }}}
 
 ###############################################################################
 
-Project: "ProcessStub"=".\ProcessStub\ProcessStub.dsp" - Package Owner=<4>
+Project: "KeowProcessStub"=".\keow-user\KeowProcessStub\KeowProcessStub.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -30,13 +45,13 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name SysCalls
+    Project_Dep_Name KeowUserSysCallsDll
     End Project Dependency
 }}}
 
 ###############################################################################
 
-Project: "SysCalls"=".\SysCalls\SysCalls.dsp" - Package Owner=<4>
+Project: "KeowUserSysCallsDll"=".\KEOW-USER\KeowUserSysCallsDll\KeowUserSysCallsDll.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
