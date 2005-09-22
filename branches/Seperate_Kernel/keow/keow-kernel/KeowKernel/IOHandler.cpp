@@ -34,7 +34,7 @@
 IOHandler::IOHandler()
 {
 	m_bInheritable = true; //default
-	m_dwFlags = 0;
+	m_Flags = 0;
 	m_pInProcess = P; //process this is in (used for cloning)
 }
 

@@ -29,4 +29,3 @@
 #include "../../keow-kernel/KeowKernel/SysCallDll.h"
 
 void ktrace(const char * format, ...);
-void hexdump(BYTE *addr, DWORD len);

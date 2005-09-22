@@ -38,16 +38,16 @@ static void LoadAddressInfo()
 	SET_ADDR(GetLastError);
 	SET_ADDR(CloseHandle);
 	SET_ADDR(SetFilePointer);
+	SET_ADDR(GetFilePointer);
 	SET_ADDR(SetEndOfFile);
 	SET_ADDR(ZeroMem);
+	SET_ADDR(exit);
 	SET_ADDR(CreateFileMapping);
 	SET_ADDR(MapViewOfFileEx);
 	SET_ADDR(UnmapViewOfFile);
-
-	SET_ADDR(write);
-	SET_ADDR(writev);
-	SET_ADDR(read);
-	SET_ADDR(exit);
+	SET_ADDR(WriteFile);
+	SET_ADDR(ReadFile);
+	SET_ADDR(PeekAvailablePipe);
 
 #undef SET_ADDR
 }
@@ -63,32 +63,6 @@ void ktrace(const char * format, ...)
 	wvsprintf(g_TraceBuffer, format, va);
 
 	OutputDebugString(g_TraceBuffer);
-}
-
-void hexdump(BYTE *addr, DWORD len)
-{
-	char buf[5 * 16 + 100];
-	int x;
-
-	x=0;
-	for(DWORD i=0; i<len; ++i)
-	{
-		wsprintf(&buf[x*5], "0x%02x", *addr);
-		buf[x*5+4]=' ';
-		buf[x*5+5]=0;
-
-		if(x<15)
-			++x;
-		else
-		{
-			ktrace("dump %p,%d: %s\n", addr,len, buf);
-			x=0;
-		}
-
-		++addr;
-	}
-	if(x>0)
-		ktrace("dump %p,%d: %s\n", addr,len, buf);
 }
 
 

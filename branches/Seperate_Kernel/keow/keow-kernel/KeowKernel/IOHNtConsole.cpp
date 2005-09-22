@@ -172,3 +172,80 @@ DWORD IOHNtConsole::ioctl(DWORD request, DWORD data)
 	LeaveCriticalSection(&m_pConsole->m_csIoctl);
 	return dwRet;
 }
+
+
+bool IOHNtConsole::Read(void* address, DWORD size, DWORD *pRead)
+{
+	if(m_Flags&O_NONBLOCK)
+	{
+		//non-blocking - ensure we can do the read before doing it
+		DWORD dwBytes;
+		dwBytes = SysCallDll::PeekAvailablePipe(m_hRemoteConsoleRead);
+		if(dwBytes < size)
+		{
+			if(dwBytes==0)
+			{
+				if(SysCallDll::GetLastError()==ERROR_BROKEN_PIPE)
+				{
+					//EOF
+					*pRead = 0;
+					return true;
+				}
+			}
+			//can't read without blocking
+			return false;
+		}
+	}
+
+	//read
+	*pRead = SysCallDll::ReadFile(m_hRemoteConsoleRead, address, size);
+	if(*pRead==0)
+	{
+		if(SysCallDll::GetLastError()==ERROR_BROKEN_PIPE)
+		{
+			//EOF
+			return true;
+		}
+
+		//failed read
+		return false;
+	}
+	return true;
+}
+
+
+bool IOHNtConsole::Write(void* address, DWORD size, DWORD *pWritten)
+{
+	*pWritten = SysCallDll::WriteFile(m_hRemoteConsoleWrite, address, size);
+	return *pWritten!=0;
+}
+
+
+bool IOHNtConsole::CanRead()
+{
+	//ok if we are not at eof
+	DWORD dwAvail = SysCallDll::PeekAvailablePipe(m_hRemoteConsoleRead);
+	return dwAvail!=0;
+}
+
+bool IOHNtConsole::CanWrite()
+{
+	//TODO: how will we know?
+	return true;
+}
+
+bool IOHNtConsole::HasException()
+{
+	//TODO: what could this be?
+	return false;
+}
+
+__int64 IOHNtConsole::Length()
+{
+	return 0;
+}
+
+__int64 IOHNtConsole::Seek(__int64 offset, DWORD method)
+{
+	return -1;
+}

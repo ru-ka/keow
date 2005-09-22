@@ -212,7 +212,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 				ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 				return;
 			}
-			if(dwReadLen != SysCallDll::read(ioh->GetRemoteReadHandle(), p, dwReadLen))
+			if(!ioh->Read(p, dwReadLen, &dwReadLen))
 			{
 				ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 				return;

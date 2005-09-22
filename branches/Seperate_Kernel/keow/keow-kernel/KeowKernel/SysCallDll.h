@@ -57,19 +57,16 @@ public:
 	SC GetLastError();
 	SC CloseHandle(HANDLE h);
 	SC SetFilePointer(HANDLE h, DWORD PosLo, DWORD PosHi, DWORD from);
+	SC GetFilePointer(HANDLE h);
 	SC SetEndOfFile(HANDLE h);
 	SC ZeroMem(void *p, DWORD len);
+	SC exit(UINT exitcode);
 	SC CreateFileMapping(HANDLE hFile, DWORD Prot, DWORD sizeHi, DWORD sizeLo);
 	SC MapViewOfFileEx(HANDLE hMap, DWORD Prot, DWORD offsetHi, DWORD offsetLo, DWORD len, void* BaseAddr);
 	SC UnmapViewOfFile(void* BaseAddr);
-
-
-	SC exit(UINT exitcode);
-
-	SC write(HANDLE h, LPVOID buf, DWORD len);
-	SC writev(HANDLE h, linux::iovec *pVec, int count);
-
-	SC read(HANDLE h, LPVOID buf, DWORD len);
+	SC WriteFile(HANDLE h, LPVOID buf, DWORD len);
+	SC ReadFile(HANDLE h, LPVOID buf, DWORD len);
+	SC PeekAvailablePipe(HANDLE h);
 
 #undef SC
 
@@ -78,16 +75,16 @@ public:
 		LPVOID GetLastError;
 		LPVOID CloseHandle;
 		LPVOID SetFilePointer;
+		LPVOID GetFilePointer;
 		LPVOID SetEndOfFile;
 		LPVOID ZeroMem;
+		LPVOID exit;
 		LPVOID CreateFileMapping;
 		LPVOID MapViewOfFileEx;
 		LPVOID UnmapViewOfFile;
-
-		LPVOID exit;
-		LPVOID write;
-		LPVOID writev;
-		LPVOID read;
+		LPVOID WriteFile;
+		LPVOID ReadFile;
+		LPVOID PeekAvailablePipe;
 	};
 };
 
