@@ -94,3 +94,50 @@ DWORD IOHNull::ioctl(DWORD request, DWORD data)
 {
 	return 0;
 }
+
+
+
+bool IOHNull::Read(void* address, DWORD size, DWORD *pRead)
+{
+	SysCallDll::ZeroMem(address, size);
+	*pRead = size;
+	return true;
+}
+
+
+bool IOHNull::Write(void* address, DWORD size, DWORD *pWritten)
+{
+	//swallow it
+	*pWritten = size;
+	return true;
+}
+
+
+bool IOHNull::CanRead()
+{
+	//never - can't get data from /dev/null
+	return false;
+}
+
+bool IOHNull::CanWrite()
+{
+	//always accept data
+	return true;
+}
+
+bool IOHNull::HasException()
+{
+	//always ok
+	return false;
+}
+
+
+__int64 IOHNull::Length()
+{
+	return 0;
+}
+
+__int64 IOHNull::Seek(__int64 offset, DWORD method)
+{
+	return -1;
+}

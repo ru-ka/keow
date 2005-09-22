@@ -56,8 +56,7 @@ void SysCalls::sys_write(CONTEXT &ctx)
 		return;
 	}
 
-	ctx.Eax = SysCallDll::write(ioh->GetRemoteWriteHandle(), (void*)ctx.Ecx, ctx.Edx);
-	if(ctx.Eax==0)
+	if(!ioh->Write((void*)ctx.Ecx, ctx.Edx, &ctx.Eax))
 		ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 }
 
@@ -68,6 +67,7 @@ void SysCalls::sys_write(CONTEXT &ctx)
 void SysCalls::sys_writev(CONTEXT &ctx)
 {
 	linux::iovec *pV = (linux::iovec *)ctx.Ecx;
+	linux::iovec iov;
 	int count = ctx.Edx;
 	int fd;
 	IOHandler * ioh;
@@ -86,9 +86,23 @@ void SysCalls::sys_writev(CONTEXT &ctx)
 		return;
 	}
 
-	ctx.Eax = SysCallDll::writev(ioh->GetRemoteWriteHandle(), pV, count);
-	if(ctx.Eax==0)
-		ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
+	DWORD total=0;
+	DWORD done;
+	for(int i=0; i<count; ++i)
+	{
+		P->ReadMemory(&iov, (ADDR)pV, sizeof(iov));
+
+		if(!ioh->Write(iov.iov_base, iov.iov_len, &done))
+		{
+			ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
+			return;
+		}
+
+		total += done;
+		++pV;
+	}
+
+	ctx.Eax = total;
 }
 
 /*****************************************************************************/
@@ -117,8 +131,7 @@ void SysCalls::sys_read(CONTEXT &ctx)
 		return;
 	}
 
-	ctx.Eax = SysCallDll::read(ioh->GetRemoteReadHandle(), (void*)ctx.Ecx, ctx.Edx);
-	if(ctx.Eax==0)
+	if(!ioh->Read((void*)ctx.Ecx, ctx.Edx, &ctx.Eax))
 		ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 }
 
@@ -1027,8 +1040,6 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
  */
 void SysCalls::sys_lseek(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	//use llseek
 	CONTEXT ctx2;
 	linux::loff_t result;
@@ -1039,7 +1050,7 @@ void SysCalls::sys_lseek(CONTEXT &ctx)
 	ctx2.Esi = (DWORD)(&result);
 	ctx2.Edi = ctx.Edx; //whence
 
-	sys__llseek(&ctx2);
+	sys__llseek(ctx2);
 	if(ctx2.Eax!=0)
 	{
 		//error
@@ -1048,7 +1059,6 @@ void SysCalls::sys_lseek(CONTEXT &ctx)
 	}
 
 	ctx.Eax = (DWORD)(result & 0x7FFFFFFF);
-#endif
 }
 
 
@@ -1059,13 +1069,22 @@ void SysCalls::sys_lseek(CONTEXT &ctx)
  */
 void SysCalls::sys__newselect(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	int numFds = ctx.Ebx;
 	linux::fd_set *pReadFds = (linux::fd_set*)ctx.Ecx;
 	linux::fd_set *pWriteFds = (linux::fd_set*)ctx.Edx;
 	linux::fd_set *pExceptFds = (linux::fd_set*)ctx.Esi;
 	linux::timeval *pTimeout = (linux::timeval*)ctx.Edi;
+
+	linux::fd_set ReadRequest, WriteRequest, ExceptRequest;
+	LINUX_FD_ZERO(&ReadRequest);
+	LINUX_FD_ZERO(&WriteRequest);
+	LINUX_FD_ZERO(&ExceptRequest);
+	if(pReadFds)
+		P->ReadMemory(&ReadRequest, (ADDR)pReadFds, sizeof(ReadRequest));
+	if(pWriteFds)
+		P->ReadMemory(&WriteRequest, (ADDR)pWriteFds, sizeof(WriteRequest));
+	if(pExceptFds)
+		P->ReadMemory(&ExceptRequest, (ADDR)pExceptFds, sizeof(ExceptRequest));
 
 	linux::fd_set ReadResults, WriteResults, ExceptResults;
 	LINUX_FD_ZERO(&ReadResults);
@@ -1079,8 +1098,11 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 		ktrace("new_select wait forever\n");
 	}
 	else {
-		dwWait = pTimeout->tv_sec*1000L + pTimeout->tv_usec/1000; //correct?
-		ktrace("new_select wait (%ld,%ld) = %ldms\n", pTimeout->tv_sec, pTimeout->tv_usec, dwWait);
+		linux::timeval to;
+		P->ReadMemory(&to, (ADDR)pTimeout, sizeof(to));
+
+		dwWait = to.tv_sec*1000L + to.tv_usec/1000; //correct?
+		ktrace("new_select wait (%ld,%ld) = %ldms\n", to.tv_sec, to.tv_usec, dwWait);
 	}
 
 	DWORD dwEnd = GetTickCount() + dwWait; //wrap around will cause a quick return - oops :-)
@@ -1089,26 +1111,23 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 	{
 		for(int fd=0; fd<numFds; ++fd)
 		{
-			if( pReadFds
-			&&  LINUX_FD_ISSET(fd, pReadFds)
-			&&  pProcessData->FileHandlers[fd]!=NULL
-			&&  pProcessData->FileHandlers[fd]->CanRead() ) {
+			if( LINUX_FD_ISSET(fd, &ReadRequest)
+			&&  P->m_OpenFiles[fd]!=NULL
+			&&  P->m_OpenFiles[fd]->CanRead() ) {
 				LINUX_FD_SET(fd, &ReadResults);
 				foundData = true;
 			}
 
-			if( pWriteFds
-			&&  LINUX_FD_ISSET(fd, pWriteFds)
-			&&  pProcessData->FileHandlers[fd]!=NULL
-			&&  pProcessData->FileHandlers[fd]->CanWrite() ) {
+			if( LINUX_FD_ISSET(fd, &WriteRequest)
+			&&  P->m_OpenFiles[fd]!=NULL
+			&&  P->m_OpenFiles[fd]->CanWrite() ) {
 				LINUX_FD_SET(fd, &WriteResults);
 				foundData = true;
 			}
 
-			if( pExceptFds
-			&&  LINUX_FD_ISSET(fd, pExceptFds)
-			&&  pProcessData->FileHandlers[fd]!=NULL
-			&&  pProcessData->FileHandlers[fd]->HasException() ) {
+			if( LINUX_FD_ISSET(fd, &ExceptRequest)
+			&&  P->m_OpenFiles[fd]!=NULL
+			&&  P->m_OpenFiles[fd]->HasException() ) {
 				LINUX_FD_SET(fd, &ExceptResults);
 				foundData = true;
 			}
@@ -1119,6 +1138,8 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 		//loop
 		if(dwWait==0)
 			break;
+
+		//todo: use proper waits, for now polling is simpler
 		//Sleep( (pTimeout->tv_sec*1000L + pTimeout->tv_usec) / 10 );
 		Sleep(50);
 	}
@@ -1127,13 +1148,13 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 
 	//store results
 	if(pReadFds)
-		*pReadFds = ReadResults;
+		P->WriteMemory((ADDR)pReadFds, sizeof(ReadResults), &ReadResults);
 	if(pWriteFds)
-		*pWriteFds = WriteResults;
+		P->WriteMemory((ADDR)pWriteFds, sizeof(WriteResults), &WriteResults);
 	if(pExceptFds)
-		*pExceptFds = ExceptResults;
+		P->WriteMemory((ADDR)pExceptFds, sizeof(ExceptResults), &ExceptResults);
+
 	ctx.Eax = 0;
-#endif
 }
 
 /*****************************************************************************/

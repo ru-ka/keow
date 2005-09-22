@@ -58,6 +58,13 @@ DWORD _stdcall SysCallDll::SetFilePointer(HANDLE h, DWORD PosLo, DWORD PosHi, DW
 	RET( ::SetFilePointer(h, PosLo, (LONG*)&PosHi, from) );
 }
 
+DWORD _stdcall SysCallDll::GetFilePointer(HANDLE h)
+{
+	SetLastError(0); //because we need to check it always and the call will not update it on success
+	//seek "zero from current" returns current position
+	RET( ::SetFilePointer(h, 0, NULL, FILE_CURRENT) );
+}
+
 DWORD _stdcall SysCallDll::SetEndOfFile(HANDLE h)
 {
 	RET( ::SetEndOfFile(h) );
@@ -96,30 +103,28 @@ DWORD _stdcall SysCallDll::exit(UINT exitcode)
 }
 
 
-DWORD _stdcall SysCallDll::write(HANDLE h, LPVOID buf, DWORD len)
+DWORD _stdcall SysCallDll::WriteFile(HANDLE h, LPVOID buf, DWORD len)
 {
 	DWORD dw;
+	SetLastError(0); //because we need to check it always and the call will not update it on success
 	BOOL ok = ::WriteFile(h, buf, len, &dw, NULL);
 	RET(dw);
 }
 
-DWORD _stdcall SysCallDll::writev(HANDLE h, linux::iovec *pVec, int count)
-{
-	int total=0;
-	while(count--)
-	{
-		DWORD dw=0;
-		if(!::WriteFile(h, pVec->iov_base, pVec->iov_len, &dw, NULL))
-			RET(GetLastError());
-		total += dw;
-		++pVec;
-	}
-	RET(total);
-}
-
-DWORD _stdcall SysCallDll::read(HANDLE h, LPVOID buf, DWORD len)
+DWORD _stdcall SysCallDll::ReadFile(HANDLE h, LPVOID buf, DWORD len)
 {
 	DWORD dw;
+	SetLastError(0); //because we need to check it always and the call will not update it on success
 	BOOL ok = ::ReadFile(h, buf, len, &dw, NULL);
 	RET(dw);
+}
+
+DWORD _stdcall SysCallDll::PeekAvailablePipe(HANDLE h)
+{
+	DWORD dwAvail = 0;
+
+	if(!PeekNamedPipe(h, NULL, 0, NULL, &dwAvail, NULL))
+		return 0;
+	else
+		return dwAvail;
 }

@@ -46,6 +46,12 @@ public:
 	virtual bool Close() = 0;
 	virtual DWORD ioctl(DWORD request, DWORD data) = 0;
 
+	virtual bool Read(void* address, DWORD size, DWORD *pRead) = 0;
+	virtual bool Write(void* address, DWORD size, DWORD *pWritten) = 0;
+
+	virtual __int64 Length() = 0;
+	virtual __int64 Seek(__int64 offset, DWORD method) = 0;
+
 	virtual HANDLE GetRemoteWriteHandle() = 0;
 	virtual HANDLE GetRemoteReadHandle() = 0;
 
@@ -56,6 +62,10 @@ public:
 	virtual bool IOHandler::Stat64(linux::stat64 * s) = 0;
 
 	virtual int GetDirEnts64(linux::dirent64 *de, int maxbytes);
+
+	virtual bool CanRead() = 0;
+	virtual bool CanWrite() = 0;
+	virtual bool HasException() = 0;
 
 	bool GetInheritable()
 	{
@@ -68,16 +78,16 @@ public:
 
 	DWORD GetFlags()
 	{
-		return m_dwFlags;
+		return m_Flags;
 	}
 	void SetFlags(DWORD flags)
 	{
-		m_dwFlags = flags;
+		m_Flags = flags;
 	}
 
 protected:
 	bool m_bInheritable;
-	DWORD m_dwFlags;
+	DWORD m_Flags;
 	Process * m_pInProcess;
 };
 

@@ -57,6 +57,15 @@ DWORD _stdcall SysCallDll::SetFilePointer(HANDLE h, DWORD PosLo, DWORD PosHi, DW
 	return P->InjectFunctionCall(P->SysCallAddr.SetFilePointer, &stack, sizeof(stack));
 }
 
+DWORD _stdcall SysCallDll::GetFilePointer(HANDLE h)
+{
+	DWORD stack[] = {
+		(DWORD)h
+	};
+	return P->InjectFunctionCall(P->SysCallAddr.GetFilePointer, &stack, sizeof(stack));
+}
+
+
 DWORD _stdcall SysCallDll::SetEndOfFile(HANDLE h)
 {
 	DWORD stack[] = {
@@ -109,40 +118,36 @@ DWORD _stdcall SysCallDll::UnmapViewOfFile(void* BaseAddr)
 }
 
 
-/*******************************************************************/
-
 DWORD _stdcall SysCallDll::exit(UINT exitcode)
 {
 	return P->InjectFunctionCall(P->SysCallAddr.exit, &exitcode, sizeof(UINT));
 }
 
 
-DWORD _stdcall SysCallDll::write(HANDLE h, LPVOID buf, DWORD len)
+DWORD _stdcall SysCallDll::WriteFile(HANDLE h, LPVOID buf, DWORD len)
 {
 	DWORD stack[] = {
 		(DWORD)h,
 		(DWORD)buf,
 		len
 	};
-	return P->InjectFunctionCall(P->SysCallAddr.write, &stack, sizeof(stack));
+	return P->InjectFunctionCall(P->SysCallAddr.WriteFile, &stack, sizeof(stack));
 }
 
-DWORD _stdcall SysCallDll::writev(HANDLE h, linux::iovec *pVec, int count)
-{
-	DWORD stack[] = {
-		(DWORD)h,
-		(DWORD)pVec,
-		count
-	};
-	return P->InjectFunctionCall(P->SysCallAddr.writev, &stack, sizeof(stack));
-}
-
-DWORD _stdcall SysCallDll::read(HANDLE h, LPVOID buf, DWORD len)
+DWORD _stdcall SysCallDll::ReadFile(HANDLE h, LPVOID buf, DWORD len)
 {
 	DWORD stack[] = {
 		(DWORD)h,
 		(DWORD)buf,
 		len
 	};
-	return P->InjectFunctionCall(P->SysCallAddr.read, &stack, sizeof(stack));
+	return P->InjectFunctionCall(P->SysCallAddr.ReadFile, &stack, sizeof(stack));
+}
+
+DWORD _stdcall SysCallDll::PeekAvailablePipe(HANDLE h)
+{
+	DWORD stack[] = {
+		(DWORD)h,
+	};
+	return P->InjectFunctionCall(P->SysCallAddr.PeekAvailablePipe, &stack, sizeof(stack));
 }

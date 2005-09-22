@@ -197,11 +197,12 @@ __int64 IOHFile::Length()
 	return s.st_size;
 }
 
-DWORD IOHFile::Seek(__int64 pos, DWORD from)
+__int64 IOHFile::Seek(__int64 pos, DWORD from)
 {
 	LARGE_INTEGER li;
 	li.QuadPart = pos;
-	return SysCallDll::SetFilePointer(m_RemoteHandle, li.LowPart, li.HighPart, from);
+	li.LowPart = SysCallDll::SetFilePointer(m_RemoteHandle, li.LowPart, li.HighPart, from);
+	return li.QuadPart;
 }
 
 
@@ -309,4 +310,49 @@ int IOHFile::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 		SetLastError(err);
 	}
 	return filled;
+}
+
+
+bool IOHFile::Read(void* address, DWORD size, DWORD *pRead)
+{
+	//read
+	*pRead = SysCallDll::ReadFile(m_RemoteHandle, address, size);
+	if(*pRead==0)
+	{
+		if(SysCallDll::GetLastError()==0)
+		{
+			//EOF
+			return true;
+		}
+
+		//failed read
+		return false;
+	}
+	return true;
+}
+
+
+bool IOHFile::Write(void* address, DWORD size, DWORD *pWritten)
+{
+	*pWritten = SysCallDll::WriteFile(m_RemoteHandle, address, size);
+	return *pWritten!=0;
+}
+
+
+bool IOHFile::CanRead()
+{
+	//ok if we are not at eof
+	return SysCallDll::GetFilePointer(m_RemoteHandle) < Length();
+}
+
+bool IOHFile::CanWrite()
+{
+	//always except to be able to write to the File?
+	return true;
+}
+
+bool IOHFile::HasException()
+{
+	//TODO: what could this be?
+	return false;
 }
