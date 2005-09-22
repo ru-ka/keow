@@ -121,10 +121,11 @@ DWORD _stdcall SysCallDll::ReadFile(HANDLE h, LPVOID buf, DWORD len)
 
 DWORD _stdcall SysCallDll::PeekAvailablePipe(HANDLE h)
 {
+	BYTE buf;
+	DWORD dwRead, dwMsgLeft;
 	DWORD dwAvail = 0;
 
-	if(!PeekNamedPipe(h, NULL, 0, NULL, &dwAvail, NULL))
-		return 0;
-	else
-		return dwAvail;
+	if(!::PeekNamedPipe(h, &buf, 0, &dwRead, &dwAvail, &dwMsgLeft))
+		dwAvail = 0;
+	RET(dwAvail);
 }

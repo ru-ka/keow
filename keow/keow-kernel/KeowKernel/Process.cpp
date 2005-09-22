@@ -1578,6 +1578,9 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 				ctx.ContextFlags = CONTEXT_FULL;
 				GetThreadContext(m_Win32PInfo.hThread, &ctx);
 				DumpContext(ctx);
+				//single step is for debugging - keep it up if it was started
+				P->SetSingleStep(true, &ctx);
+				SetThreadContext(m_Win32PInfo.hThread, &ctx);
 			}
 			else
 			{

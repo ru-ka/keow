@@ -1031,7 +1031,9 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
 
 	linux::loff_t result = SysCallDll::SetFilePointer(ioh->GetRemoteReadHandle(), offset_low, offset_high, method);
 	result |= ((__int64)offset_high << 32);
-	ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
+
+	P->WriteMemory((ADDR)pResult, sizeof(result), &result);
+	ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError()); //may = 0 = success
 }
 
 
@@ -1040,25 +1042,45 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
  */
 void SysCalls::sys_lseek(CONTEXT &ctx)
 {
-	//use llseek
-	CONTEXT ctx2;
-	linux::loff_t result;
+	int fd;
+	IOHandler * ioh;
+	DWORD offset = ctx.Ecx;
+	DWORD whence = ctx.Edx;
 
-	ctx2.Ebx = ctx.Ebx; //fd
-	ctx2.Ecx = 0; //offset, high
-	ctx2.Edx = ctx.Ecx; //offset, low
-	ctx2.Esi = (DWORD)(&result);
-	ctx2.Edi = ctx.Edx; //whence
-
-	sys__llseek(ctx2);
-	if(ctx2.Eax!=0)
+	fd = ctx.Ebx;
+	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		//error
-		ctx.Eax = ctx2.Eax;
+		ctx.Eax = -EBADF;
 		return;
 	}
 
-	ctx.Eax = (DWORD)(result & 0x7FFFFFFF);
+	ioh = P->m_OpenFiles[fd];
+	if(ioh == NULL)
+	{
+		ctx.Eax = -EBADF;
+		return;
+	}
+
+	DWORD method;
+	if(whence==SEEK_SET)
+		method=FILE_BEGIN;
+	else
+	if(whence==SEEK_END)
+		method=FILE_END;
+	else
+	if(whence==SEEK_CUR)
+		method=FILE_CURRENT;
+	else
+	{
+		ctx.Eax = -EINVAL;
+		return;
+	}
+
+
+	DWORD result = SysCallDll::SetFilePointer(ioh->GetRemoteReadHandle(), offset, 0, method);
+	ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
+	if(ctx.Eax==0)
+		ctx.Eax = result;
 }
 
 
@@ -1107,7 +1129,7 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 
 	DWORD dwEnd = GetTickCount() + dwWait; //wrap around will cause a quick return - oops :-)
 	bool foundData = false;
-	while(dwEnd > GetTickCount())
+	do
 	{
 		for(int fd=0; fd<numFds; ++fd)
 		{
@@ -1142,7 +1164,8 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 		//todo: use proper waits, for now polling is simpler
 		//Sleep( (pTimeout->tv_sec*1000L + pTimeout->tv_usec) / 10 );
 		Sleep(50);
-	}
+
+	} while(dwEnd > GetTickCount());
 
 	ktrace("new_select found data: %d\n", foundData);
 
