@@ -35,6 +35,8 @@
 class Filesystem  
 {
 public:
+	virtual const char * Name() = 0;
+
 	virtual void SetAssociatedMount(MountPoint& mp);
 
 	virtual IOHandler * CreateIOHandler(Path& path) = 0;

@@ -157,7 +157,7 @@ void Path::AppendUnixPath(string unixp)
 
 //helper to turn a list into a final path
 //
-string Path::JoinList(Path::ElementList& lst, char delimiter)
+string Path::JoinList(const Path::ElementList& lst, char delimiter)
 {
 	string final;
 
@@ -201,7 +201,7 @@ string Path::GetUnixPathElement(int count)
 
 // build the unix path from the elements of the path
 //
-string Path::GetUnixPath()
+string Path::GetUnixPath() const
 {
 	return string("/") + JoinList(m_PathStack, '/');
 }

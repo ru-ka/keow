@@ -44,6 +44,7 @@ typedef void (*FilesystemGenericStaticLister1)(DirEnt64List& lst, const char * p
 
 typedef IOHandler* (*FilesystemGenericStaticGetHandler0)();
 typedef IOHandler* (*FilesystemGenericStaticGetHandler1)(const char * param1);
+typedef IOHandler* (*FilesystemGenericStaticGetHandler2)(const char * param1, const char * param2);
 
 
 class FilesystemGenericStatic : public Filesystem
@@ -57,6 +58,7 @@ protected:
 
 	void AddFile(const char * pattern, FilesystemGenericStaticGetHandler0 handler);
 	void AddFile(const char * pattern, FilesystemGenericStaticGetHandler1 handler);
+	void AddFile(const char * pattern, FilesystemGenericStaticGetHandler2 handler);
 
 private:
 	class PathMappingNode;
@@ -80,6 +82,7 @@ private:
 			union {
 				FilesystemGenericStaticGetHandler0 GetHandlerProc0;
 				FilesystemGenericStaticGetHandler1 GetHandlerProc1;
+				FilesystemGenericStaticGetHandler2 GetHandlerProc2;
 			};
 		} handler;
 
@@ -99,6 +102,8 @@ private:
 	void AddListerInternal(const char * pattern, int wildcards, FilesystemGenericStaticLister0 lister);
 
 public:
+	virtual const char * Name();
+
 	virtual IOHandler * CreateIOHandler(Path& path);
 	virtual string GetPathSeperator();
 	virtual bool IsSymbolicLink(string& strPath);

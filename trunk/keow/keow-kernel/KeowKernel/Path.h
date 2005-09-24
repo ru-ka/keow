@@ -61,14 +61,14 @@ public:
 	int GetElementCount();
 	string GetUnixPathElement(int count);
 
-	string GetUnixPath();
+	string GetUnixPath() const;
 	string GetWin32Path();
 	string GetPathInFilesystem();
 
 protected:
 	typedef list<const string> ElementList;
 
-	static string JoinList(Path::ElementList& list, char delimiter);
+	static string JoinList(const Path::ElementList& list, char delimiter);
 
 	void TranverseMountPoints();
 	string GetFinalPath();

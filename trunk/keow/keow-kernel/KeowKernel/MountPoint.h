@@ -43,7 +43,7 @@ public:
 
 	const string& GetDestination()
 	{
-		return m_sDestination;
+		return m_strDestination;
 	}
 	const Path& GetUnixMountPoint()
 	{
@@ -55,6 +55,11 @@ public:
 		return m_pFileSystem;
 	}
 
+	string GetOptions()
+	{
+		return m_strOptions;
+	}
+
 protected:
 	friend Filesystem;
 
@@ -62,7 +67,8 @@ protected:
 	virtual ~MountPoint();
 
 	Path	m_UnixMountPoint;
-	string	m_sDestination;
+	string	m_strDestination;
+	string  m_strOptions;
 	Filesystem * m_pFileSystem;
 	void * m_pData;
 	int m_nDataLength;

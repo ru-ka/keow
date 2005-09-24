@@ -48,7 +48,7 @@ IOHStaticData::~IOHStaticData()
 
 void IOHStaticData::AddData(const char * text)
 {
-	int len = strlen(text) + 1;
+	int len = strlen(text);
 	AddData((LPBYTE)text, len);
 }
 

@@ -40,6 +40,8 @@ public:
 	FilesystemKeow();
 	virtual ~FilesystemKeow();
 
+	virtual const char * Name();
+
 	virtual IOHandler * CreateIOHandler(Path& path);
 	virtual string GetPathSeperator();
 	virtual bool IsSymbolicLink(string& strPath);

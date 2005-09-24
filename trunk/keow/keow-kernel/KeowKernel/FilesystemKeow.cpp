@@ -228,3 +228,7 @@ bool FilesystemKeow::IsRelativePath(string& strPath)
 	return PathIsRelative(strPath)!=FALSE;
 }
 
+const char * FilesystemKeow::Name()
+{
+	return "keow";
+}

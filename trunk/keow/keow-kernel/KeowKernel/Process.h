@@ -94,7 +94,10 @@ public:
 	bool m_bCoreDumped;
 	DWORD m_dwExitCode;
 
-	FILETIME m_StartedTime;
+	struct Timings {
+		FILETIME ftCreateTime, ftExitTime, ftKernelTime, ftUserTime;
+	} m_BaseTimes; //so we can subtract from GetProcessTimes() when an exec() reuses this process
+
 	HANDLE m_hWaitTerminatingEvent;
 
 	CONTEXT m_BaseWin32Ctx; //used for injection etc

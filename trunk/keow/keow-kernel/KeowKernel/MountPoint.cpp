@@ -49,7 +49,7 @@ MountPoint* MountPoint::Mount( Path& UnixMountPoint, string sDestination, Filesy
 	MountPoint * pMP = new MountPoint();
 
 	pMP->m_UnixMountPoint = UnixMountPoint;
-	pMP->m_sDestination = sDestination;
+	pMP->m_strDestination = sDestination;
 
 	pMP->m_pFileSystem = pFS;
 	pMP->m_pFileSystem->SetAssociatedMount(*pMP);

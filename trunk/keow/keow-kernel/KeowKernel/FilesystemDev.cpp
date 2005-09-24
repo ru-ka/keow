@@ -38,6 +38,7 @@ FilesystemDev::FilesystemDev()
 {
 	AddFile("/console", GetConsoleHandler);
 	AddFile("/tty", GetTtyHandler);
+	AddFile("/null", GetNullHandler);
 }
 
 FilesystemDev::~FilesystemDev()

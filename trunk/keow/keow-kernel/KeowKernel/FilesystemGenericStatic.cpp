@@ -61,6 +61,10 @@ void FilesystemGenericStatic::AddFile(const char * pattern, FilesystemGenericSta
 {
 	AddFileInternal(pattern, 1, (FilesystemGenericStaticGetHandler0)handler);
 }
+void FilesystemGenericStatic::AddFile(const char * pattern, FilesystemGenericStaticGetHandler2 handler)
+{
+	AddFileInternal(pattern, 2, (FilesystemGenericStaticGetHandler0)handler);
+}
 
 
 
@@ -136,14 +140,19 @@ void FilesystemGenericStatic::AddListerInternal(const char * pattern, int wildca
 		}
 		if(it==node->children.end())
 		{
-			//didn't find a node - we should have because the tree should be being build in order
-			ktrace("bad tree building\n");
-			DebugBreak();
+			//need to add an intermediate node
+			PathMappingNode * p2 = new PathMappingNode();
+			p2->PathPattern = want;
+
+			node->children.push_back(p2);
+			node = p2;
+			++depth;
 		}
 	}
 
 	//node is the one that this lister supplies elements to
 	node->lister.Lister0 = lister;
+	node->NumParams = wildcards;
 }
 
 
@@ -213,7 +222,8 @@ IOHandler * FilesystemGenericStatic::CreateIOHandler(Path& path)
 	//found a node that matches the path
 	//is it a file or do we need to list a directories contents?
 
-	if(node->children.empty())
+	if(node->children.empty()
+	&& node->lister.Lister0==NULL)
 	{
 		//a "file"
 
@@ -223,6 +233,8 @@ IOHandler * FilesystemGenericStatic::CreateIOHandler(Path& path)
 			return node->handler.GetHandlerProc0();
 		case 1:
 			return node->handler.GetHandlerProc1(wildcards[0]);
+		case 2:
+			return node->handler.GetHandlerProc2(wildcards[0], wildcards[1]);
 
 		default:
 			ktrace("Implement GenericStatic handler for params: %d\n", node->NumParams);
@@ -301,3 +313,9 @@ bool FilesystemGenericStatic::IsRelativePath(string& strPath)
 {
 	return strPath[0]!='/';
 }
+
+const char * FilesystemGenericStatic::Name()
+{
+	return m_pFsName;
+}
+
