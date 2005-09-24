@@ -1,6 +1,6 @@
 <map version="0.8.0 RC5">
 <!-- To view this file, download free mind mapping software FreeMind from http://freemind.sourceforge.net -->
-<node CREATED="1125379481933" ID="Freemind_Link_1359664046" MODIFIED="1127332077665" TEXT="Keow">
+<node CREATED="1125379481933" ID="Freemind_Link_1359664046" MODIFIED="1127449230828" TEXT="Keow">
 <icon BUILTIN="licq"/>
 <icon BUILTIN="penguin"/>
 <node CREATED="1127332273877" ID="Freemind_Link_1020862138" MODIFIED="1127332277632" POSITION="left" TEXT="Memory Management">
@@ -16,12 +16,33 @@
 <node CREATED="1127332622979" ID="Freemind_Link_1400949900" MODIFIED="1127332630480" TEXT="Console is a seperate process"/>
 <node CREATED="1127332630950" ID="Freemind_Link_1616874688" MODIFIED="1127332683215" TEXT="Kernel needs to see the data&#xa;so it can handle Ctrl-C generating a signal&#xa;(Before the process is ready to read data)"/>
 </node>
+<node CREATED="1127506276055" ID="Freemind_Link_1470955972" MODIFIED="1127506279380" TEXT="Filesystems">
+<node CREATED="1127506300340" ID="Freemind_Link_1026442478" MODIFIED="1127506323664" TEXT="GenericStatic filesystem supports fs with mostly static structure">
+<node CREATED="1127506326298" ID="Freemind_Link_486523449" MODIFIED="1127506371292" TEXT="can handle /proc/&lt;pid&gt;/* by pattern matching"/>
+<node CREATED="1127506376980" ID="Freemind_Link_1920222834" MODIFIED="1127506387516" TEXT="pattern portion is passed to the handler">
+<node CREATED="1127506388868" ID="Freemind_Link_713594535" MODIFIED="1127506424038" TEXT="eg. for /proc/pid/exe the pid is passed as&#xa;a parameter to a generic */exe handler"/>
+</node>
+<node CREATED="1127515888497" ID="Freemind_Link_1193225779" MODIFIED="1127515908106" TEXT="has a tree of PathMappingNode"/>
+<node CREATED="1127515908566" ID="Freemind_Link_234000351" MODIFIED="1127515915616" TEXT="Filesystems add in handler for">
+<node CREATED="1127515917589" ID="Freemind_Link_1526654688" MODIFIED="1127515947142" TEXT="files in the directory (GetHandlerX to get file data)"/>
+<node CREATED="1127515922226" ID="Freemind_Link_821907744" MODIFIED="1127515931319" TEXT="methods to get file listings (Listers)"/>
+</node>
+</node>
+</node>
 </node>
 <node CREATED="1127332846210" ID="Freemind_Link_548382610" MODIFIED="1127332863935" POSITION="right" TEXT="Doc">
 <icon BUILTIN="attach"/>
 </node>
-<node CREATED="1127332817198" ID="_" MODIFIED="1127332826181" POSITION="right" TEXT="TODO">
+<node CREATED="1127332817198" ID="_" MODIFIED="1127449243256" POSITION="right" TEXT="TODO">
 <icon BUILTIN="flag"/>
+<node CREATED="1127418970457" ID="Freemind_Link_1235886949" MODIFIED="1127418979530" TEXT="Implement more system calls"/>
+<node CREATED="1127418985218" ID="Freemind_Link_1945316736" MODIFIED="1127418991377" TEXT="/proc filesystem"/>
+<node CREATED="1127418991887" ID="Freemind_Link_434070339" MODIFIED="1127418994852" TEXT="/dev filesystem"/>
+<node CREATED="1127419016232" ID="Freemind_Link_1118788354" MODIFIED="1127419026697" TEXT="rename SysCallDll to Inject"/>
+<node CREATED="1127419028049" ID="Freemind_Link_1932496525" MODIFIED="1127419043682" TEXT="move syscalldll into stub">
+<node CREATED="1127419044753" ID="Freemind_Link_1312574292" MODIFIED="1127419052575" TEXT="but check exe size &lt;=64k"/>
+</node>
+<node CREATED="1127449144765" ID="Freemind_Link_243594485" MODIFIED="1127449155831" TEXT="MSI installer using Wix"/>
 </node>
 <node CREATED="1127332108409" ID="Freemind_Link_801234826" MODIFIED="1127332118373" POSITION="left" TEXT="Process Seperation">
 <node CREATED="1127332129629" ID="Freemind_Link_671840355" MODIFIED="1127332134787" TEXT="Kernel Process">
@@ -42,6 +63,12 @@
 </node>
 </node>
 </node>
+</node>
+<node CREATED="1127449122052" ID="Freemind_Link_1458457049" MODIFIED="1127449238339" POSITION="right" TEXT="Releases">
+<icon BUILTIN="wizard"/>
+<node CREATED="1127449126378" ID="Freemind_Link_1449231387" MODIFIED="1127449130244" TEXT="Release build"/>
+<node CREATED="1127449131586" ID="Freemind_Link_1198721616" MODIFIED="1127449139207" TEXT="Zip up with License and Readme"/>
+<node CREATED="1127419217141" ID="Freemind_Link_1013206397" MODIFIED="1127421191420" TEXT="Record the .PDB for production reported errors"/>
 </node>
 </node>
 </map>

@@ -234,9 +234,8 @@ int main(int argc, char* argv[])
 	//try for this more unix-like font (normal NT ones are too bold)
 	//TODO: use Lucidia Console 12
 
-	//SetConsoleCtrlHandler(CtrlEventHandler, TRUE);
+	SetConsoleCtrlHandler(CtrlEventHandler, TRUE);
 	//SetConsoleCtrlHandler(NULL, TRUE);
-	SetConsoleCtrlHandler(NULL, TRUE);
 
 	SetConsoleMode(g_hConsoleInput, ENABLE_PROCESSED_OUTPUT|ENABLE_WRAP_AT_EOL_OUTPUT);
 	SetConsoleMode(g_hConsoleOutput, ENABLE_PROCESSED_OUTPUT|ENABLE_WRAP_AT_EOL_OUTPUT);
@@ -287,9 +286,10 @@ int main(int argc, char* argv[])
 		GetExitCodeProcess(hProcKernel, &dwExitCode);
 		if(dwExitCode != STILL_ACTIVE)
 		{
-			char msg[] = "\nThe kernel has stopped.";
+			char msg[] = "\nThe kernel has stopped.\nPress Ctrl-C to close.";
 			DWORD dwWritten;
 			WriteConsole(g_hConsoleOutput, &msg, sizeof(msg), &dwWritten, NULL);
+			SetConsoleCtrlHandler(CtrlEventHandler, FALSE);
 			Sleep(INFINITE);
 		}
 	}

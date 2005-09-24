@@ -33,18 +33,19 @@
 #endif // _MSC_VER > 1000
 
 #include "Filesystem.h"
+#include "FilesystemGenericStatic.h"
 
-class FilesystemProc : public Filesystem  
+class FilesystemProc : public FilesystemGenericStatic
 {
 public:
 	FilesystemProc();
 	virtual ~FilesystemProc();
 
-	virtual IOHandler * CreateIOHandler(Path& path);
-	virtual string GetPathSeperator();
-	virtual bool IsSymbolicLink(string& strPath);
-	virtual string GetLinkDestination(string& strPath);
-	virtual bool IsRelativePath(string& strPath);
+protected: //handlers
+	static void GetPids(DirEnt64List& lst);
+
+	static IOHandler* Get_MemInfo();
+	static IOHandler* Get_Pid_Exe(const char * pid);
 };
 
 #endif // !defined(AFX_FILESYSTEMPROC_H__04DF9EB5_9771_4497_B1FF_89F772093E50__INCLUDED_)

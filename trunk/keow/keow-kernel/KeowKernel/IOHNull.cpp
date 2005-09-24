@@ -63,16 +63,6 @@ bool IOHNull::Close()
 }
 
 
-HANDLE IOHNull::GetRemoteWriteHandle()
-{
-	return m_hRemoteHandle;
-}
-
-HANDLE IOHNull::GetRemoteReadHandle()
-{
-	return m_hRemoteHandle;
-}
-
 IOHandler* IOHNull::Duplicate()
 {
 	IOHNull * pC = new IOHNull();
@@ -140,4 +130,9 @@ __int64 IOHNull::Length()
 __int64 IOHNull::Seek(__int64 offset, DWORD method)
 {
 	return -1;
+}
+
+void IOHNull::Truncate()
+{
+	//do nothing
 }

@@ -261,7 +261,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	if(ioh==NULL)
 		hFile=INVALID_HANDLE_VALUE;
 	else
-		hFile=ioh->GetRemoteWriteHandle(); //same as Read handle for a file
+		hFile=ioh->GetRemoteHandle();
 
 	//map the file (hMap & hFile are in the user process)
 	hMap = (HANDLE)SysCallDll::CreateFileMapping(hFile, ProtOpen, 0, args.offset+args.len);

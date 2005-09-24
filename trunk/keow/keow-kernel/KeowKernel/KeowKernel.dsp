@@ -40,10 +40,10 @@ RSC=rc.exe
 # PROP Use_Debug_Libraries 0
 # PROP Output_Dir "Release"
 # PROP Intermediate_Dir "Release"
-# PROP Ignore_Export_Lib 0
+# PROP Ignore_Export_Lib 1
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /GX /O2 /I "..\kernel-headers-2.4.24-1\include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX"includes.h" /FD /c
+# ADD CPP /nologo /MT /W3 /GR /GX /Zi /O2 /I "..\kernel-headers-2.4.24-1\include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX"includes.h" /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x1409 /d "NDEBUG"
@@ -53,7 +53,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib shlwapi.lib /nologo /subsystem:windows /machine:I386 /out:"..\..\Release/KeowKernel.exe"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib shlwapi.lib /nologo /subsystem:windows /debug /machine:I386 /out:"..\..\Release/KeowKernel.exe"
 
 !ELSEIF  "$(CFG)" == "KeowKernel - Win32 Debug"
 
@@ -113,6 +113,10 @@ SOURCE=.\FilesystemDev.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\FilesystemGenericStatic.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\FilesystemKeow.cpp
 # End Source File
 # Begin Source File
@@ -138,6 +142,10 @@ SOURCE=.\IOHNull.cpp
 # Begin Source File
 
 SOURCE=.\IOHPipe.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\IOHStaticData.cpp
 # End Source File
 # Begin Source File
 
@@ -241,6 +249,10 @@ SOURCE=.\FilesystemDev.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\FilesystemGenericStatic.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\FilesystemKeow.h
 # End Source File
 # Begin Source File
@@ -270,6 +282,10 @@ SOURCE=.\IOHNull.h
 # Begin Source File
 
 SOURCE=.\IOHPipe.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\IOHStaticData.h
 # End Source File
 # Begin Source File
 
@@ -314,6 +330,10 @@ SOURCE=.\SysCallDll.h
 # Begin Source File
 
 SOURCE=.\SysCalls.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\Tree.h
 # End Source File
 # Begin Source File
 

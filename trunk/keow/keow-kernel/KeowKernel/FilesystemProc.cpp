@@ -27,47 +27,59 @@
 
 #include "includes.h"
 #include "FilesystemProc.h"
+#include "IOHStaticData.h"
 
 //////////////////////////////////////////////////////////////////////
 
 FilesystemProc::FilesystemProc()
+: FilesystemGenericStatic("proc")
 {
+	AddLister("/", GetPids);
 
+	AddFile("/meminfo", Get_MemInfo);
+	AddFile("/*/exe", Get_Pid_Exe);
 }
 
 FilesystemProc::~FilesystemProc()
 {
-
 }
 
 
-IOHandler * FilesystemProc::CreateIOHandler(Path& path)
+void FilesystemProc::GetPids(DirEnt64List& lst)
 {
-	//everything in this filesystem should be a proc object?
+	linux::dirent64 de;
 
-	ktrace("implement /proc path: %s\n", path.GetPathInFilesystem());
-	return NULL;
+	KernelTable::ProcessList::iterator it;
+	for(it=g_pKernelTable->m_Processes.begin();
+	    it!=g_pKernelTable->m_Processes.end();
+		++it)
+	{
+		de.d_ino = 0; //dummy value
+		de.d_type = 0; //not provided on linux x86 32bit?  (GetUnixFileType(p);
+
+		StringCbPrintf(de.d_name, sizeof(de.d_name), "%d", (*it)->m_Pid);
+	
+		lst.push_back(de);
+	}
 }
 
-string FilesystemProc::GetPathSeperator()
+IOHandler* FilesystemProc::Get_MemInfo()
 {
-	return "/";
+	IOHStaticData * ioh = new IOHStaticData(true);
+
+	ioh->AddData("hello");
+
+	return ioh;
 }
 
-bool FilesystemProc::IsSymbolicLink(string& strPath)
+IOHandler* FilesystemProc::Get_Pid_Exe(const char * pid)
 {
-	//no sym links is procfs?
-	return false;
-}
+	int n = atoi(pid);
+	Process * pp = g_pKernelTable->FindProcess(n);
 
-string FilesystemProc::GetLinkDestination(string& strPath)
-{
-	//no sym links is procfs?
-	return "";
-}
+	IOHStaticData * ioh = new IOHStaticData(true);
 
-bool FilesystemProc::IsRelativePath(string& strPath)
-{
-	return strPath[0]!='/';
-}
+	ioh->AddData(pp->m_ProcessFileImage.GetUnixPath().c_str());
 
+	return ioh;
+}
