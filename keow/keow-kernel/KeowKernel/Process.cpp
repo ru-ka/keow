@@ -165,6 +165,8 @@ Process* Process::StartFork(Process * pParent)
 {
 	ktrace("StartFork()\n");
 
+	g_pKernelTable->m_ForksSinceBoot++;
+
 	/*
 	launch win32 process stub
 	copy over memory
@@ -339,7 +341,7 @@ void Process::DebuggerLoop()
 		{
 		case CREATE_PROCESS_DEBUG_EVENT:
 			CloseHandle(evt.u.CreateProcessInfo.hFile); //don't need this
-			GetSystemTimeAsFileTime(&m_StartedTime);
+			GetProcessTimes(P->m_Win32PInfo.hProcess, &P->m_BaseTimes.ftCreateTime, &P->m_BaseTimes.ftExitTime, &P->m_BaseTimes.ftKernelTime, &P->m_BaseTimes.ftUserTime);
 			break;
 
 		case EXIT_PROCESS_DEBUG_EVENT:
@@ -425,6 +427,8 @@ void Process::ConvertProcessToKeow()
 	//This is the details we use as win32 state for code injection etc
 	//keep this seperate from the keow stuff that happens later (eg FS reg changes)
 	m_BaseWin32Ctx = ctx;
+
+	GetProcessTimes(P->m_Win32PInfo.hProcess, &P->m_BaseTimes.ftCreateTime, &P->m_BaseTimes.ftExitTime, &P->m_BaseTimes.ftKernelTime, &P->m_BaseTimes.ftUserTime);
 
 
 	//read syscall data from dll (pointer in eax)
@@ -1086,6 +1090,8 @@ DWORD Process::StartNewImageRunning()
 			AT_ENTRY, real entry point of the executeable (from ELF header)
 
 	*/
+
+	GetProcessTimes(P->m_Win32PInfo.hProcess, &P->m_BaseTimes.ftCreateTime, &P->m_BaseTimes.ftExitTime, &P->m_BaseTimes.ftKernelTime, &P->m_BaseTimes.ftUserTime);
 
 	if(m_ElfLoadData.interpreter_start==0)
 	{

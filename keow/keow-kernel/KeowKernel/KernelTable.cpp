@@ -40,6 +40,7 @@ KernelTable::KernelTable()
 	m_LastPID = 0;
 
 	GetSystemTime(&m_BootTime);
+	m_ForksSinceBoot=0;
 
 	//simple - probably doesn't match the kernel
 	m_BogoMips = 0;

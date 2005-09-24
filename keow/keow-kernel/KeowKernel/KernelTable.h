@@ -49,6 +49,7 @@ public:
 
 	SYSTEMTIME m_BootTime;
 	DWORD m_BogoMips;
+	DWORD m_ForksSinceBoot;
 
 	int m_DebugLevel;
 	HANDLE m_hLogFile;
