@@ -45,15 +45,6 @@ IOHFile::~IOHFile()
 	Close();
 }
 
-HANDLE IOHFile::GetRemoteWriteHandle()
-{
-	return m_RemoteHandle;
-}
-HANDLE IOHFile::GetRemoteReadHandle()
-{
-	return m_RemoteHandle;
-}
-
 IOHandler * IOHFile::Duplicate()
 {
 	IOHFile * pF = new IOHFile(m_Path);
@@ -130,9 +121,39 @@ bool IOHFile::Stat64(linux::stat64 * s)
 
 	IOHandler::BasicStat64(s, 0);
 
+	string w32path = m_Path.GetWin32Path();
 
-	if(!GetFileAttributesEx(m_Path.GetWin32Path(), GetFileExInfoStandard, &fi))
-		return false;
+	//W95 does not have GetFileAttributesEx, may need to emulate it
+	HMODULE hlib = GetModuleHandle("KERNEL32");
+	FARPROC fp = GetProcAddress(hlib, "GetFileAttributesExA");
+	if(fp)
+	{
+		BOOL (CALLBACK *RealGetFileAttributesEx)
+				 (LPCTSTR, GET_FILEEX_INFO_LEVELS, LPVOID);
+        *(FARPROC *)&RealGetFileAttributesEx = fp;
+		if(!RealGetFileAttributesEx(w32path, GetFileExInfoStandard, &fi))
+			return false;
+	}
+	else
+	{
+		if(GetFileAttributes(w32path) == INVALID_FILE_ATTRIBUTES)
+			return false;
+
+        HANDLE hfind;
+        WIN32_FIND_DATA wfd;
+        hfind = FindFirstFile(w32path, &wfd);
+        if(hfind == INVALID_HANDLE_VALUE)
+			return false;
+
+        FindClose(hfind);
+
+        fi.dwFileAttributes = wfd.dwFileAttributes;
+        fi.ftCreationTime   = wfd.ftCreationTime;
+        fi.ftLastAccessTime = wfd.ftLastAccessTime;
+        fi.ftLastWriteTime  = wfd.ftLastWriteTime;
+        fi.nFileSizeHigh    = wfd.nFileSizeHigh;
+        fi.nFileSizeLow     = wfd.nFileSizeLow;
+	}
 
 
 	if(fi.dwFileAttributes & FILE_ATTRIBUTE_READONLY)
@@ -167,11 +188,10 @@ bool IOHFile::Stat64(linux::stat64 * s)
 	s->st_gid = 0;
 
 	//use major '3' and minor as drive letter
-	string w32 = m_Path.GetWin32Path();
-	s->st_dev = s->st_rdev = (3<<8) | (BYTE)(w32[0] - 'A');
+	s->st_dev = s->st_rdev = (3<<8) | (BYTE)(w32path[0] - 'A');
 
 	//use hash of filename as inode
-	s->st_ino = s->__st_ino = w32.hash();
+	s->st_ino = s->__st_ino = w32path.hash();
 
 
 	i.LowPart = fi.nFileSizeLow;
@@ -203,6 +223,12 @@ __int64 IOHFile::Seek(__int64 pos, DWORD from)
 	li.QuadPart = pos;
 	li.LowPart = SysCallDll::SetFilePointer(m_RemoteHandle, li.LowPart, li.HighPart, from);
 	return li.QuadPart;
+}
+
+void IOHFile::Truncate()
+{
+	//truncate at current location
+	SysCallDll::SetEndOfFile(m_RemoteHandle);
 }
 
 

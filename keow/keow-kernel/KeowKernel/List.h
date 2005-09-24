@@ -32,8 +32,6 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include "List.h"
-
 
 template<class T>
 class list
@@ -104,9 +102,10 @@ public:
 	~list();
 
 	list& operator=(const list& other);
+	T& operator[](int index);
 
 	list& push_back(T element);
-	void pop_back();
+	T pop_back();
 	iterator find(T value);
 	void erase(iterator it);
 	void erase(T value);
@@ -147,6 +146,18 @@ list<T>& list<T>::operator=(const list<T>& other)
 	return *this;
 }
 
+template<class T> inline
+T& list<T>::operator[](int index)
+{
+	list<T>::iterator it;
+	for(it=begin(); it!=end(); ++it)
+	{
+		if(index==0)
+			break;
+		--index;
+	}
+	return *it;
+}
 
 template<class T> inline
 list<T>& list<T>::push_back(T element)
@@ -159,13 +170,12 @@ list<T>& list<T>::push_back(T element)
 	else
 		head = n; //first element in list
 	tail = n; //new tail
-if(head && head->next==head->prev && head->prev!=0) DebugBreak();
-if(tail && tail->next==tail->prev && tail->prev!=0) DebugBreak();
+
 	return *this;
 }
 
 template<class T> inline
-void list<T>::pop_back()
+T list<T>::pop_back()
 {
 	list<T>::node *n = tail; //save
 
@@ -175,9 +185,10 @@ void list<T>::pop_back()
 	else
 		head=NULL; //removed entire list
 
-if(head && head->next==head->prev && head->prev!=0) DebugBreak();
-if(tail && tail->next==tail->prev && tail->prev!=0) DebugBreak();
+
+	T value = n->value;
 	delete n;
+	return value;
 }
 
 template<class T> inline

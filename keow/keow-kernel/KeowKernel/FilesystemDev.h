@@ -33,18 +33,18 @@
 #endif // _MSC_VER > 1000
 
 #include "Filesystem.h"
+#include "FilesystemGenericStatic.h"
 
-class FilesystemDev : public Filesystem  
+class FilesystemDev : public FilesystemGenericStatic
 {
 public:
 	FilesystemDev();
 	virtual ~FilesystemDev();
 
-	virtual IOHandler * CreateIOHandler(Path& path);
-	virtual string GetPathSeperator();
-	virtual bool IsSymbolicLink(string& strPath);
-	virtual string GetLinkDestination(string& strPath);
-	virtual bool IsRelativePath(string& strPath);
+protected: //handlers
+	static IOHandler* GetConsoleHandler();
+	static IOHandler* GetTtyHandler();
+	static IOHandler* GetNullHandler();
 };
 
 #endif // !defined(AFX_FilesystemDev_H__04DF9EB5_9771_4497_B1FF_89F772093E50__INCLUDED_)

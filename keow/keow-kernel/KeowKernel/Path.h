@@ -58,6 +58,9 @@ public:
 
 	Filesystem * GetFinalFilesystem();
 
+	int GetElementCount();
+	string GetUnixPathElement(int count);
+
 	string GetUnixPath();
 	string GetWin32Path();
 	string GetPathInFilesystem();

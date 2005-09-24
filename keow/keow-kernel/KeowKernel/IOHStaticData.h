@@ -21,12 +21,12 @@
  *
  */
 
-// File.h: interface for the File class.
+// IOHStaticData.h: interface for the IOHStaticData class.
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined(AFX_FILE_H__5FA578F4_1C37_466C_BED7_3CE1E76298CB__INCLUDED_)
-#define AFX_FILE_H__5FA578F4_1C37_466C_BED7_3CE1E76298CB__INCLUDED_
+#if !defined(AFX_IOHSTATICDATA_H__F88B0536_91B6_452C_AD1B_075A41EFCECD__INCLUDED_)
+#define AFX_IOHSTATICDATA_H__F88B0536_91B6_452C_AD1B_075A41EFCECD__INCLUDED_
 
 #if _MSC_VER > 1000
 #pragma once
@@ -34,26 +34,21 @@
 
 #include "IOHandler.h"
 
-
-class IOHFile : public IOHandler
+class IOHStaticData : public IOHandler  
 {
 public:
-	IOHFile(Path &path);
-	virtual ~IOHFile();
+	IOHStaticData(bool IsAFile);
+	virtual ~IOHStaticData();
 
-	Path& GetPath()
-	{
-		return m_Path;
-	}
+	void AddData(const char * text);
+	void AddData(void * pData, int length);
+	void AddData(linux::dirent64 de);
 
-	HANDLE GetRemoteHandle()
-	{
-		return m_RemoteHandle;
-	}
-
+public:
 	virtual bool Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD flags);
 	virtual bool Close();
 	virtual DWORD ioctl(DWORD request, DWORD data);
+	virtual int GetDirEnts64(linux::dirent64 *de, int maxbytes);
 
 	virtual bool Read(void* address, DWORD size, DWORD *pRead);
 	virtual bool Write(void* address, DWORD size, DWORD *pWritten);
@@ -66,18 +61,17 @@ public:
 
 	virtual bool Stat64(linux::stat64 * s);
 
-	virtual int GetDirEnts64(linux::dirent64 *de, int maxbytes);
-
 	virtual bool CanRead();
 	virtual bool CanWrite();
 	virtual bool HasException();
 
 protected:
-	Path m_Path;
-	HANDLE m_RemoteHandle;
-	bool m_bIsADirectory;
-	HANDLE m_hFindData;
-	int m_nFindCount;
+	BYTE * m_pData;
+	int m_DataLength;
+	int m_nFilePointer;
+
+	bool m_bFileNotFound;
+	bool m_bIsAFile;
 };
 
-#endif // !defined(AFX_FILE_H__5FA578F4_1C37_466C_BED7_3CE1E76298CB__INCLUDED_)
+#endif // !defined(AFX_IOHSTATICDATA_H__F88B0536_91B6_452C_AD1B_075A41EFCECD__INCLUDED_)

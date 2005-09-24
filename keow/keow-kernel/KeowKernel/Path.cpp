@@ -174,6 +174,31 @@ string Path::JoinList(Path::ElementList& lst, char delimiter)
 }
 
 
+//how many elements in the path?
+//
+int Path::GetElementCount()
+{
+	return m_PathStack.size();
+}
+
+// Return an element in the path
+// [0] is the first
+//
+string Path::GetUnixPathElement(int count)
+{
+	Path::ElementList::iterator it;
+	for(it=m_PathStack.begin(); it!=m_PathStack.end(); ++it)
+	{
+		const string& element = *it;
+
+		if(count == 0)
+			return element;
+		--count;
+	}
+	return "";
+}
+
+
 // build the unix path from the elements of the path
 //
 string Path::GetUnixPath()
@@ -211,7 +236,7 @@ void Path::TranverseMountPoints()
 {
 	//start at root
 	m_pFinalMountPoint = g_pKernelTable->m_pRootMountPoint;
-	m_strPathInMountPoint = "";
+	m_strPathInMountPoint = "/";
 	m_strMountRealPath = m_pFinalMountPoint ? m_pFinalMountPoint->GetDestination() : "";
 
 	//follow path elements
@@ -233,7 +258,7 @@ void Path::TranverseMountPoints()
 				//a mount matches this current path
 				m_pFinalMountPoint = pMP;
 				m_strMountRealPath = pMP->GetDestination();
-				m_strPathInMountPoint = "";
+				m_strPathInMountPoint = "/";
 				bMountFound = true;
 			}
 		}
@@ -262,7 +287,7 @@ void Path::TranverseMountPoints()
 				}
 				else
 				{
-					m_strMountRealPath = "";
+					m_strMountRealPath = "/";
 					m_strPathInMountPoint = dest;
 				}
 				continue;

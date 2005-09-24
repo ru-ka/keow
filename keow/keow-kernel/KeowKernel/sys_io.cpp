@@ -236,12 +236,12 @@ void SysCalls::sys_open(CONTEXT &ctx)
 	//more flags
 	if(access & O_TRUNC) 
 	{
-		SysCallDll::SetFilePointer(ioh->GetRemoteWriteHandle(), 0,0, FILE_BEGIN);
-		SysCallDll::SetEndOfFile(ioh->GetRemoteWriteHandle());
+		ioh->Seek(0, FILE_BEGIN);
+		ioh->Truncate();
 	}
 	if(access & O_APPEND)
 	{
-		SysCallDll::SetFilePointer(ioh->GetRemoteWriteHandle(), 0,0, FILE_END);
+		ioh->Seek(0, FILE_END);
 	}
 
 }
@@ -1029,8 +1029,11 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
 	}
 
 
-	linux::loff_t result = SysCallDll::SetFilePointer(ioh->GetRemoteReadHandle(), offset_low, offset_high, method);
-	result |= ((__int64)offset_high << 32);
+	LARGE_INTEGER li;
+	li.LowPart = offset_low;
+	li.HighPart = offset_high;
+
+	linux::loff_t result = ioh->Seek(li.QuadPart, method);
 
 	P->WriteMemory((ADDR)pResult, sizeof(result), &result);
 	ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError()); //may = 0 = success
@@ -1077,7 +1080,7 @@ void SysCalls::sys_lseek(CONTEXT &ctx)
 	}
 
 
-	DWORD result = SysCallDll::SetFilePointer(ioh->GetRemoteReadHandle(), offset, 0, method);
+	DWORD result = ioh->Seek(offset, method);
 	ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 	if(ctx.Eax==0)
 		ctx.Eax = result;

@@ -1808,32 +1808,23 @@ void Process::InitSignalHandling()
 
 bool Process::IsSuspended()
 {
-	//if either the process or it's kernel handler is suspended then true
+	//the process doesn't get suspended, just the kernel thread
+	//testing the process would be meaningless anyway as it appears
+	//suspended if the kernel currently is processing a syscall
+
 	bool suspended = false;
 	DWORD cnt;
-
-	cnt = SuspendThread(m_Win32PInfo.hThread);
-	if(cnt==-1)
-	{
-		//some error
-	}
-	else
-	{
-		suspended = (cnt>0);
-		ResumeThread(m_Win32PInfo.hThread);
-	}
-	if(suspended)
-		return suspended;
 
 	cnt = SuspendThread(m_KernelThreadHandle);
 	if(cnt==-1)
 	{
 		//some error
+		return false;
 	}
 	else
 	{
 		suspended = (cnt>0);
 		ResumeThread(m_KernelThreadHandle);
+		return suspended;
 	}
-	return suspended;	
 }

@@ -34,57 +34,29 @@
 //////////////////////////////////////////////////////////////////////
 
 FilesystemDev::FilesystemDev()
+: FilesystemGenericStatic("dev")
 {
-
+	AddFile("/console", GetConsoleHandler);
+	AddFile("/tty", GetTtyHandler);
 }
 
 FilesystemDev::~FilesystemDev()
 {
-
 }
 
 
-IOHandler * FilesystemDev::CreateIOHandler(Path& path)
+IOHandler* FilesystemDev::GetConsoleHandler()
 {
-	//everything in this filesystem should be a dev object?
-
-	string what = path.GetPathInFilesystem();
-	if(what == "/null")
-	{
-		return new IOHNull();
-	}
-	else
-	if(what == "/tty")
-	{
-		//for now everyone uses the console
-		return new IOHNtConsole(g_pKernelTable->m_pMainConsole);
-	}
-	else
-	{
-		ktrace("implement /dev path: %s\n", what.c_str());
-		return NULL;
-	}
+	return new IOHNtConsole( g_pKernelTable->m_pMainConsole );
 }
 
-string FilesystemDev::GetPathSeperator()
+IOHandler* FilesystemDev::GetTtyHandler()
 {
-	return "/";
+	//for now /dev/tty returns only the console
+	return new IOHNtConsole( g_pKernelTable->m_pMainConsole );
 }
 
-bool FilesystemDev::IsSymbolicLink(string& strPath)
+IOHandler* FilesystemDev::GetNullHandler()
 {
-	//no sym links is /dev?
-	return false;
+	return new IOHNull();
 }
-
-string FilesystemDev::GetLinkDestination(string& strPath)
-{
-	//no sym links is /dev?
-	return "";
-}
-
-bool FilesystemDev::IsRelativePath(string& strPath)
-{
-	return strPath[0]!='/';
-}
-

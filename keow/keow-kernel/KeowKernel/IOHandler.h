@@ -51,9 +51,7 @@ public:
 
 	virtual __int64 Length() = 0;
 	virtual __int64 Seek(__int64 offset, DWORD method) = 0;
-
-	virtual HANDLE GetRemoteWriteHandle() = 0;
-	virtual HANDLE GetRemoteReadHandle() = 0;
+	virtual void Truncate() = 0;
 
 	virtual IOHandler* Duplicate() = 0;
 
