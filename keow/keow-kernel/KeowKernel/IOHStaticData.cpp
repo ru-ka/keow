@@ -30,14 +30,14 @@
 
 //////////////////////////////////////////////////////////////////////
 
-IOHStaticData::IOHStaticData(bool IsAFile)
+IOHStaticData::IOHStaticData(Path& path, DataType type, bool refreshable)
 {
 	m_pData = NULL;
 	m_DataLength = 0;
 	m_nFilePointer = 0;
-
-	m_bFileNotFound = true;
-	m_bIsAFile = IsAFile;
+	m_Path = path;
+	m_DataType = type;
+	m_bRefreshable = refreshable;
 }
 
 IOHStaticData::~IOHStaticData()
@@ -74,15 +74,13 @@ void IOHStaticData::AddData(linux::dirent64 de)
 
 IOHandler * IOHStaticData::Duplicate()
 {
-	IOHStaticData * p2 = new IOHStaticData(m_bIsAFile);
+	IOHStaticData * p2 = new IOHStaticData(m_Path, m_DataType, m_bRefreshable);
 
 	p2->m_pData = new BYTE[m_DataLength];
 	memcpy(p2->m_pData, m_pData, m_DataLength);
 
 	p2->m_DataLength = m_DataLength;
 	p2->m_nFilePointer = m_nFilePointer;
-
-	p2->m_bFileNotFound = m_bFileNotFound;
 
 	return p2;
 }
@@ -111,7 +109,7 @@ bool IOHStaticData::Stat64(linux::stat64 * s)
 	//make it all read only
 	s->st_mode = 0444;  // r--r--r--
 
-	if(m_bIsAFile)
+	if(m_DataType==File)
 		s->st_mode |= S_IFREG; //regular file
 	else
 		s->st_mode |= S_IFDIR; //directory
@@ -181,6 +179,8 @@ int IOHStaticData::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 
 bool IOHStaticData::Read(void* address, DWORD size, DWORD *pRead)
 {
+	RefreshData();
+
 	int DataLeft = m_DataLength - m_nFilePointer;
 	if(DataLeft <= 0)
 	{
@@ -252,4 +252,22 @@ __int64 IOHStaticData::Seek(__int64 offset, DWORD method)
 void IOHStaticData::Truncate()
 {
 	//do nothing - can truncate static data
+}
+
+void IOHStaticData::RefreshData()
+{
+	if(!m_bRefreshable)
+		return;
+
+	//refresh the data if we can
+	IOHandler * io2 = IOHandler::CreateForPath(m_Path);
+	IOHStaticData * sd2 = dynamic_cast<IOHStaticData*>(io2);
+	if(sd2!=NULL)
+	{
+		delete m_pData;
+		m_pData = new BYTE[sd2->m_DataLength];
+		memcpy(m_pData, sd2->m_pData, sd2->m_DataLength);
+		m_DataLength = sd2->m_DataLength;
+	}
+	delete io2;
 }

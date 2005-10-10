@@ -423,10 +423,13 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 			else
 			{
 				ktrace("peekusr get Traced context\n");
-				//already suspended for ptrace, no need for SuspendThread
+				//it's possible that the traced process has caught a signal and then
+				//signalled us, however it's kernel thread has yet to sleep
+				//so we do an extra suspend here to get the correct context
+				SuspendThread(pTraced->m_Win32PInfo.hThread);
 				TempCtx.ContextFlags = CONTEXT_FULL;
 				GetThreadContext(pTraced->m_Win32PInfo.hThread, &TempCtx);
-				//dont ResumeThread;
+				ResumeThread(pTraced->m_Win32PInfo.hThread);
 				pTracedCtx = &TempCtx;
 			}
 

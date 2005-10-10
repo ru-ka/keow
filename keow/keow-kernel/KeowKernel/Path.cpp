@@ -301,6 +301,13 @@ void Path::TranverseMountPoints()
 
 }
 
+// tests to see if this path completely matches another path
+//
+bool Path::operator ==(const Path& other) const
+{
+	return EqualsPartialPath(other, other.m_PathStack.size());
+}
+
 // tests to see if this path (in it's entirety) equals the portion of the other path
 //
 bool Path::EqualsPartialPath(const Path& other, int otherLen) const
@@ -343,3 +350,4 @@ Filesystem * Path::GetFinalFilesystem()
 {
 	return m_pFinalMountPoint->GetFilesystem();
 }
+

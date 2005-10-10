@@ -208,7 +208,7 @@ void KernelStartup::AutoMountDrives()
 				ktrace("automatic drive mount: %s on /mnt/%c\n", drive, *pMntLetter);
 
 				//record the mount
-				MountPoint * pMp = MountPoint::Mount(p, drive, new FilesystemKeow(), NULL, 0);
+				MountPoint * pMp = MountPoint::Mount(p, drive, new FilesystemKeow(), 0, NULL, 0);
 
 				//update /etc/mtab (because we're not using unix 'mount' which normally does it)
 				if(fMtab!=NULL)
@@ -228,7 +228,7 @@ void KernelStartup::AutoMountDrives()
 	if(GetFileAttributes(p.GetWin32Path())&FILE_ATTRIBUTE_DIRECTORY)
 	{
 		//record the mount
-		MountPoint * pMp = MountPoint::Mount(p, "", new FilesystemProc(), NULL, 0);
+		MountPoint * pMp = MountPoint::Mount(p, "", new FilesystemProc(), 0, NULL, 0);
 
 		//update /etc/mtab
 		if(fMtab)
@@ -239,7 +239,7 @@ void KernelStartup::AutoMountDrives()
 	if(GetFileAttributes(p.GetWin32Path())&FILE_ATTRIBUTE_DIRECTORY)
 	{
 		//record the mount
-		MountPoint * pMp = MountPoint::Mount(p, "", new FilesystemDev(), NULL, 0);
+		MountPoint * pMp = MountPoint::Mount(p, "", new FilesystemDev(), 0, NULL, 0);
 
 		//update /etc/mtab
 		if(fMtab)
@@ -267,7 +267,7 @@ void KernelStartup::arg_root(const char *arg)
 	GetCurrentDirectory(MAX_PATH, root);
 	g_pKernelTable->m_FilesystemRoot = root;
 	Path pRoot("/", false);
-	g_pKernelTable->m_pRootMountPoint = MountPoint::Mount(pRoot, g_pKernelTable->m_FilesystemRoot, new FilesystemKeow(), 0,0);
+	g_pKernelTable->m_pRootMountPoint = MountPoint::Mount(pRoot, g_pKernelTable->m_FilesystemRoot, new FilesystemKeow(), 0,0,0);
 
 	ktrace("Using %s as filesystem root\n", g_pKernelTable->m_FilesystemRoot.c_str());
 }

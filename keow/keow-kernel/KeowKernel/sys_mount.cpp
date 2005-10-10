@@ -24,6 +24,10 @@
 #include "includes.h"
 #include "SysCalls.h"
 
+#include "FilesystemKeow.h"
+#include "FilesystemProc.h"
+#include "FilesystemDev.h"
+
 // eax is the syscall number
 // ebx,ecx,edx,esi,edi,ebp are up to 6(max) parameters
 // any more parameters and the caller just puts a struct pointer in one of these
@@ -37,95 +41,90 @@
  */
 void SysCalls::sys_mount(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	const char *source = (const char*)pCtx->Ebx;
-	const char *target = (const char*)pCtx->Ecx;
-	const char *filesystemtype = (const char*)pCtx->Edx;
-	unsigned long mountflags = pCtx->Esi;
-	const void *data = (const void*)pCtx->Edi;
+	string source = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	string target = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx);
+	string filesystemtype = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Edx);
+	unsigned long mountflags = ctx.Esi;
+	const void *data = (const void*)ctx.Edi;
 
-	if(source==0
-	|| target==0
-	|| filesystemtype==0
-	|| source[0]==0
-	|| target[0]==0)
+	if(target.length()==0
+	|| filesystemtype.length()==0)
 	{
-		pCtx->Eax = EINVAL;
+		ctx.Eax = EINVAL;
 		return;
 	}
-	ktrace("mount request: '%s' on '%s' - type %s\n", source,target,filesystemtype);
+	ktrace("mount request: '%s' on '%s' - type %s\n", source.c_str(),target.c_str(),filesystemtype.c_str());
 
 	//the target must always be a directory
-	Path p;
+	Path p(false);
 	p.SetUnixPath(target);
 
-	DWORD attr = p.GetFileAttributes();
+	DWORD attr = GetFileAttributes(p.GetWin32Path());
 	if(attr==INVALID_FILE_ATTRIBUTES)
 	{
-		pCtx->Eax = ENOTDIR;
+		ctx.Eax = ENOTDIR;
 		return;
 	}
 	if((attr&FILE_ATTRIBUTE_DIRECTORY)==0)
 	{
-		pCtx->Eax = ENOTDIR;
+		ctx.Eax = ENOTDIR;
 		return;
 	}
 
 
 	//TODO: make these if's a lookup for plugins etc
-	if(strcmp("keow", filesystemtype)==0)
+	if(filesystemtype=="keow")
 	{
 		//expect the source to be a valid win32 directory path
 		//and we also need it to end in a backslash if it is just a drive letter
-		if(source[1]==':' && source[2]==0) {
+		if(source.length()==0 || source[1]==':' && source[2]==0) {
 			//just drive letter, need path:  eg. C: bad,  C:\ is ok
-			pCtx->Eax = ENOTDIR;
+			ctx.Eax = ENOTDIR;
 			return;
 		}
 		attr = GetFileAttributes(source);
 		if(attr==INVALID_FILE_ATTRIBUTES)
 		{
-			pCtx->Eax = ENOTDIR;
+			ctx.Eax = ENOTDIR;
 			return;
 		}
 		if((attr&FILE_ATTRIBUTE_DIRECTORY)==0)
 		{
-			pCtx->Eax = ENOTDIR;
+			ctx.Eax = ENOTDIR;
 			return;
 		}
 
-		//for now we just keep a table of mounts - a fixed number are available
-		if(pKernelSharedData->NumCurrentMounts >= MAX_MOUNTS)
-		{
-			pCtx->Eax = ENOMEM;
-			return;
-		}
+		//copy of the mount data
+		string MntData = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)data);
 
-		//try to perform the mount
-		//no work to do for keow, just remember the mount point
+		//perform the mount
 
-		//record the mount
-		MountPointDataStruct& mnt = pKernelSharedData->MountPoints[pKernelSharedData->NumCurrentMounts];
-		strncpy(mnt.Destination, target, MAX_PATH);
-		mnt.DestinatinLen = strlen(mnt.Destination); 
-		if(mnt.Destination[mnt.DestinatinLen-1]=='/')
-			mnt.Destination[mnt.DestinatinLen-1]=0; //dont' want to record the trailing slash - MakeWin32Path is easier that way
-		strncpy(mnt.Source, source, MAX_PATH);
-		mnt.SourceLen = strlen(mnt.Source); 
-		mnt.Flags = mountflags;
-		strncpy(mnt.Data, (char*)data, sizeof(mnt.Data)-1);
-		mnt.nFsHandler = FileSystemHandler::GetIndex("keow");
-		pKernelSharedData->NumCurrentMounts++;
+		Filesystem * pFS = new FilesystemKeow();
+		MountPoint * pMP = MountPoint::Mount(Path(target), source, pFS, mountflags, (LPBYTE)MntData.c_str(), MntData.length());
 
-		pCtx->Eax = 0;
+		ctx.Eax = 0;
+	}
+	else
+	if(filesystemtype=="proc")
+	{
+		Filesystem * pFS = new FilesystemProc();
+		MountPoint * pMP = MountPoint::Mount(Path(target), source, pFS, mountflags, NULL, 0);
+
+		ctx.Eax = 0;
+	}
+	else
+	if(filesystemtype=="dev")
+	{
+		Filesystem * pFS = new FilesystemDev();
+		MountPoint * pMP = MountPoint::Mount(Path(target), source, pFS, mountflags, NULL, 0);
+
+		ctx.Eax = 0;
 	}
 	else
 	{
-		pCtx->Eax = ENODEV; //filesystem type not supported
+		ctx.Eax = ENODEV; //filesystem type not supported
 		return;
 	}
-#endif
 }
 
 /*****************************************************************************/
@@ -135,39 +134,38 @@ void SysCalls::sys_mount(CONTEXT &ctx)
  */
 void SysCalls::sys_umount(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	const char *target = (const char*)pCtx->Ebx;
-	if(target==0)
+	string target = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+
+	if(target.length()==0)
 	{
-		pCtx->Eax = -EINVAL;
+		ctx.Eax = -EINVAL;
 		return;
 	}
 
-	int len = strlen(target);
-	if(target[len-1]=='/')
-		len--; //don't want to match the slash
-
-	int m;
-	for(m=0; m<pKernelSharedData->NumCurrentMounts; ++m)
+	KernelTable::MountPointList::iterator it, itFound;
+	itFound=g_pKernelTable->m_MountPoints.end(); 
+	
+	for(it=g_pKernelTable->m_MountPoints.begin();
+	    it!=g_pKernelTable->m_MountPoints.end();
+		++it)
 	{
-		if(strcmp(target, pKernelSharedData->MountPoints[m].Destination)==0)
-		{
-			//remove this mount from the table,
-			//move others to fill the space
+		MountPoint * mp = *it;
 
-			while(m<pKernelSharedData->NumCurrentMounts-1) {
-				pKernelSharedData->MountPoints[m] = pKernelSharedData->MountPoints[m+1];
-				++m;
-			}
-			--pKernelSharedData->NumCurrentMounts;
-			pCtx->Eax = 0;
-			return;
+		if(mp->GetUnixMountPoint() == target)
+		{
+			itFound = it;
+			//keep going - unmount last one found
 		}
+	}
+	if(itFound!=g_pKernelTable->m_MountPoints.end())
+	{
+		ktrace("umount request: '%s'\n", target.c_str());
+		g_pKernelTable->m_MountPoints.erase(itFound);
+		ctx.Eax = 0;
+		return;
 	}
 
 	//nothing found
-	pCtx->Eax = -EINVAL;
-#endif
+	ctx.Eax = -EINVAL;
 }
 

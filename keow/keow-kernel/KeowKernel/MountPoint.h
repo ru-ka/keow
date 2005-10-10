@@ -39,7 +39,7 @@ class MountPoint
 public:
 	bool Unmount();
 
-	static MountPoint* Mount( Path& UnixMountPoint, string sDestination, Filesystem* pFS, BYTE * pData, int nDataLen);
+	static MountPoint* Mount( Path& UnixMountPoint, string sDestination, Filesystem* pFS, DWORD mountflags, BYTE * pData, int nDataLen);
 
 	const string& GetDestination()
 	{
@@ -70,6 +70,7 @@ protected:
 	string	m_strDestination;
 	string  m_strOptions;
 	Filesystem * m_pFileSystem;
+	DWORD	m_dwMountFlags;
 	void * m_pData;
 	int m_nDataLength;
 };

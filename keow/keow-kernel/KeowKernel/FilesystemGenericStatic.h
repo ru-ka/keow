@@ -42,9 +42,9 @@ typedef list<linux::dirent64> DirEnt64List;
 typedef void (*FilesystemGenericStaticLister0)(DirEnt64List& lst);
 typedef void (*FilesystemGenericStaticLister1)(DirEnt64List& lst, const char * param1);
 
-typedef IOHandler* (*FilesystemGenericStaticGetHandler0)();
-typedef IOHandler* (*FilesystemGenericStaticGetHandler1)(const char * param1);
-typedef IOHandler* (*FilesystemGenericStaticGetHandler2)(const char * param1, const char * param2);
+typedef IOHandler* (*FilesystemGenericStaticGetHandler0)(Path& path);
+typedef IOHandler* (*FilesystemGenericStaticGetHandler1)(Path& path, const char * param1);
+typedef IOHandler* (*FilesystemGenericStaticGetHandler2)(Path& path, const char * param1, const char * param2);
 
 
 class FilesystemGenericStatic : public Filesystem

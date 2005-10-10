@@ -37,7 +37,12 @@
 class IOHStaticData : public IOHandler  
 {
 public:
-	IOHStaticData(bool IsAFile);
+	enum DataType {
+		File,
+		Directory
+	};
+
+	IOHStaticData(Path& path, DataType type, bool Refreshable);
 	virtual ~IOHStaticData();
 
 	void AddData(const char * text);
@@ -66,12 +71,15 @@ public:
 	virtual bool HasException();
 
 protected:
+	void RefreshData();
+	bool m_bRefreshable;
+
 	BYTE * m_pData;
 	int m_DataLength;
 	int m_nFilePointer;
 
-	bool m_bFileNotFound;
-	bool m_bIsAFile;
+	Path m_Path;
+	DataType m_DataType;
 };
 
 #endif // !defined(AFX_IOHSTATICDATA_H__F88B0536_91B6_452C_AD1B_075A41EFCECD__INCLUDED_)

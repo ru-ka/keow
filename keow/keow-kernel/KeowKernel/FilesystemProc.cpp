@@ -102,9 +102,14 @@ void FilesystemProc::CalcCpuTimingsInJiffies(DWORD *uptime, DWORD *user, DWORD *
 	//init
 	*user = *system = *nice = *idle = 0;
 
+	SYSTEMTIME stNow;
+	FILETIME ftNow;
+	GetSystemTime(&stNow);
+	SystemTimeToFileTime(&stNow, &ftNow);
+
 	FILETIME ftBoot;
 	SystemTimeToFileTime(&g_pKernelTable->m_BootTime, &ftBoot);
-	*uptime = FILETIME_TO_TIME_T(ftBoot)*Jiffies;
+	*uptime = ToJiffies(&ftBoot, &ftNow);
 
 	//for now just report the kernel itself
 	//we don't have these values yet
@@ -170,9 +175,9 @@ void FilesystemProc::GetOpenFiles(DirEnt64List& lst, const char * pid)
 
 //////////////////////////////////////////////////////////////////
 
-IOHandler* FilesystemProc::Get_MemInfo()
+IOHandler* FilesystemProc::Get_MemInfo(Path& path)
 {
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	MEMORYSTATUS ms;
 	ms.dwLength = sizeof(ms);
@@ -197,9 +202,9 @@ IOHandler* FilesystemProc::Get_MemInfo()
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_CpuInfo()
+IOHandler* FilesystemProc::Get_CpuInfo(Path& path)
 {
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
@@ -220,9 +225,9 @@ IOHandler* FilesystemProc::Get_CpuInfo()
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_Uptime()
+IOHandler* FilesystemProc::Get_Uptime(Path& path)
 {
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	DWORD up,user,system,nice,idle;
 	CalcCpuTimingsInJiffies(&up, &user, &system, &nice, &idle);
@@ -235,25 +240,38 @@ IOHandler* FilesystemProc::Get_Uptime()
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_Stat()
+IOHandler* FilesystemProc::Get_Stat(Path& path)
 {
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	DWORD uptime,user,system,nice,idle;
 	CalcCpuTimingsInJiffies(&uptime, &user, &system, &nice, &idle);
 
+	FILETIME ftBoot;
+	SystemTimeToFileTime(&g_pKernelTable->m_BootTime, &ftBoot);
+
 	ioh->AddData( string::format("cpu %ld %ld %ld %ld\x0a", user, nice, system, idle) );
 
-	ioh->AddData( string::format("btime %ld\x0a", uptime/Jiffies) );
+	ioh->AddData( string::format("page %ld %ld\x0a", 0, 0) );
+
+	ioh->AddData( string::format("swap %ld %ld\x0a", 0, 0) );
+
+	ioh->AddData( string::format("intr %ld\x0a", 0) );
+
+	ioh->AddData( string::format("disk_io: \x0a") );
+
+	ioh->AddData( string::format("ctxt %ld\x0a", 0) );
+
+	ioh->AddData( string::format("btime %ld\x0a", FILETIME_TO_TIME_T(ftBoot)) );
 
 	ioh->AddData( string::format("processes %ld\x0a", g_pKernelTable->m_ForksSinceBoot) );
 
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_Mounts()
+IOHandler* FilesystemProc::Get_Mounts(Path& path)
 {
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	KernelTable::MountPointList::iterator it;
 	for(it=g_pKernelTable->m_MountPoints.begin();
@@ -268,9 +286,9 @@ IOHandler* FilesystemProc::Get_Mounts()
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_LoadAvg()
+IOHandler* FilesystemProc::Get_LoadAvg(Path& path)
 {
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	ioh->AddData( string::format(
 			"%ld %ld %ld\x0a"
@@ -284,13 +302,13 @@ IOHandler* FilesystemProc::Get_LoadAvg()
 
 //////////////////////////////////////////////////////////////////
 
-IOHandler* FilesystemProc::Get_Pid_Cmdline(const char * pid)
+IOHandler* FilesystemProc::Get_Pid_Cmdline(Path& path, const char * pid)
 {
 	Process * pp = PidStrToProcess(pid);
 	if(pp==0)
 		return NULL;
 
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, false);
 
 	ADDR StrArrayEntry;
 	ADDR str;
@@ -312,26 +330,26 @@ IOHandler* FilesystemProc::Get_Pid_Cmdline(const char * pid)
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_Pid_Cwd(const char * pid)
+IOHandler* FilesystemProc::Get_Pid_Cwd(Path& path, const char * pid)
 {
 	Process * pp = PidStrToProcess(pid);
 	if(pp==0)
 		return NULL;
 
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	ioh->AddData( pp->m_UnixPwd.GetUnixPath().c_str() );
 
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_Pid_Environ(const char * pid)
+IOHandler* FilesystemProc::Get_Pid_Environ(Path& path, const char * pid)
 {
 	Process * pp = PidStrToProcess(pid);
 	if(pp==0)
 		return NULL;
 
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, false);
 
 	ADDR StrArrayEntry;
 	ADDR str;
@@ -353,41 +371,41 @@ IOHandler* FilesystemProc::Get_Pid_Environ(const char * pid)
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_Pid_Exe(const char * pid)
+IOHandler* FilesystemProc::Get_Pid_Exe(Path& path, const char * pid)
 {
 	Process * pp = PidStrToProcess(pid);
 	if(pp==0)
 		return NULL;
 
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, false);
 
 	ioh->AddData(pp->m_ProcessFileImage.GetUnixPath().c_str());
 
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_Pid_Maps(const char * pid)
+IOHandler* FilesystemProc::Get_Pid_Maps(Path& path, const char * pid)
 {
 	return NULL;
 }
 
-IOHandler* FilesystemProc::Get_Pid_Mem(const char * pid)
+IOHandler* FilesystemProc::Get_Pid_Mem(Path& path, const char * pid)
 {
 	return NULL;
 }
 
-IOHandler* FilesystemProc::Get_Pid_Root(const char * pid)
+IOHandler* FilesystemProc::Get_Pid_Root(Path& path, const char * pid)
 {
 	return NULL;
 }
 
-IOHandler* FilesystemProc::Get_Pid_Stat(const char * pid)
+IOHandler* FilesystemProc::Get_Pid_Stat(Path& path, const char * pid)
 {
 	Process * pp = PidStrToProcess(pid);
 	if(pp==0)
 		return NULL;
 
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	FILETIME ftCreateTime, ftExitTime, ftKernelTime, ftUserTime;
 	GetProcessTimes(pp->m_Win32PInfo.hProcess, &ftCreateTime, &ftExitTime, &ftKernelTime, &ftUserTime);
@@ -445,13 +463,13 @@ IOHandler* FilesystemProc::Get_Pid_Stat(const char * pid)
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_Pid_Statm(const char * pid)
+IOHandler* FilesystemProc::Get_Pid_Statm(Path& path, const char * pid)
 {
 	Process * pp = PidStrToProcess(pid);
 	if(pp==0)
 		return NULL;
 
-	IOHStaticData * ioh = new IOHStaticData(true);
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	FILETIME ftCreateTime, ftExitTime, ftKernelTime, ftUserTime;
 	GetProcessTimes(pp->m_Win32PInfo.hProcess, &ftCreateTime, &ftExitTime, &ftKernelTime, &ftUserTime);
@@ -475,14 +493,14 @@ IOHandler* FilesystemProc::Get_Pid_Statm(const char * pid)
 	return ioh;
 }
 
-IOHandler* FilesystemProc::Get_Pid_Status(const char * pid)
+IOHandler* FilesystemProc::Get_Pid_Status(Path& path, const char * pid)
 {
 	return NULL;
 }
 
 
 
-IOHandler* FilesystemProc::Get_Pid_Fd(const char * pid, const char * strFd)
+IOHandler* FilesystemProc::Get_Pid_Fd(Path& path, const char * pid, const char * strFd)
 {
 	Process * pp = PidStrToProcess(pid);
 	if(pp==0)
