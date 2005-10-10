@@ -24,8 +24,8 @@
 </node>
 <node CREATED="1127515888497" ID="Freemind_Link_1193225779" MODIFIED="1127515908106" TEXT="has a tree of PathMappingNode"/>
 <node CREATED="1127515908566" ID="Freemind_Link_234000351" MODIFIED="1127515915616" TEXT="Filesystems add in handler for">
-<node CREATED="1127515917589" ID="Freemind_Link_1526654688" MODIFIED="1127515947142" TEXT="files in the directory (GetHandlerX to get file data)"/>
-<node CREATED="1127515922226" ID="Freemind_Link_821907744" MODIFIED="1127515931319" TEXT="methods to get file listings (Listers)"/>
+<node CREATED="1127515917589" ID="Freemind_Link_1526654688" MODIFIED="1127712015954" TEXT="files in the directory (return IOHandler*)"/>
+<node CREATED="1127515922226" ID="Freemind_Link_821907744" MODIFIED="1127712039037" TEXT="methods to add to the file listing of a virtual directory (listers)"/>
 </node>
 </node>
 </node>

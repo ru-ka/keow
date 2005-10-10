@@ -45,15 +45,20 @@ void ktrace(const char *format, ...)
 	char * pNext = g_pTraceBuffer;
 	size_t size = KTRACE_BUFFER_SIZE;
 
+	SYSTEMTIME st;
+	GetLocalTime(&st);
+	StringCbPrintfEx(pNext, size, &pNext, &size, 0, "%02d:%02d:%02d.%03d ", st.wHour,st.wMinute,st.wSecond,st.wMilliseconds);
+
 	if(P==NULL || IsBadReadPtr(P, sizeof(Process)))
-		StringCbPrintfEx(g_pTraceBuffer, size, &pNext, &size, 0, "kernel:");
+		StringCbPrintfEx(pNext, size, &pNext, &size, 0, "kernel: ");
 	else
-		StringCbPrintfEx(g_pTraceBuffer, size, &pNext, &size, 0, "pid %d:", P->m_Pid);
+		StringCbPrintfEx(pNext, size, &pNext, &size, 0, "pid %d: ", P->m_Pid);
 
 	StringCbVPrintfEx(pNext, size, &pNext, &size, 0, format, va);
 
 	DWORD dwWrite = KTRACE_BUFFER_SIZE-size; //what to write
-	OutputDebugString(g_pTraceBuffer);
+	if(g_pKernelTable && g_pKernelTable->m_DebugLevel>5)
+		OutputDebugString(g_pTraceBuffer);
 	if(g_pKernelTable && g_pKernelTable->m_hLogFile!=NULL)
 		WriteFile(g_pKernelTable->m_hLogFile, g_pTraceBuffer, dwWrite, &dwWrite, NULL);
 }

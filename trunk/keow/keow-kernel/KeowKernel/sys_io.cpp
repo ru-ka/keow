@@ -856,16 +856,12 @@ void SysCalls::sys_fstat64(CONTEXT &ctx)
  */
 void SysCalls::sys_readlink(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
-	int c;
-
 	//don't follow symlinks
 	Path p;
 	p.FollowSymLinks(false);
-	p.SetUnixPath((const char*)ctx.Ebx);
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
 
-	if(p.GetFileAttributes()==INVALID_FILE_ATTRIBUTES)
+	if(GetFileAttributes(p.GetWin32Path())==INVALID_FILE_ATTRIBUTES)
 	{
 		ctx.Eax = -ENOENT; //no file
 	}
@@ -880,17 +876,15 @@ void SysCalls::sys_readlink(CONTEXT &ctx)
 		p.FollowSymLinks(true);
 
 		//readlink does not copy the null!
-		char *pD = (char*)ctx.Ecx;
-		const char *pS = p.UnixPath();
+		char *pDest = (char*)ctx.Ecx;
+		string up = p.GetUnixPath();
 		int max = (int)ctx.Edx;
-		for(c=0; *pS!=0 && c<max; ++c,++pD,++pS)
-		{
-			*pD = *pS;
-		}
+		if(max>up.length())
+			max = up.length();
 
-		ctx.Eax = c; //ok
+		P->WriteMemory((ADDR)pDest, max, up.c_str());
+		ctx.Eax = max; //chars copied
 	}
-#endif
 }
 
 
@@ -1080,7 +1074,7 @@ void SysCalls::sys_lseek(CONTEXT &ctx)
 	}
 
 
-	DWORD result = ioh->Seek(offset, method);
+	DWORD result = (DWORD)ioh->Seek(offset, method);
 	ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
 	if(ctx.Eax==0)
 		ctx.Eax = result;
@@ -1192,14 +1186,12 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
  */
 void SysCalls::sys_mkdir(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	DWORD mode = ctx.Ecx;
 
 	Path p;
-	p.SetUnixPath((const char *)ctx.Ebx);
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
 
-	if(CreateDirectory(p.Win32Path(), NULL))
+	if(CreateDirectory(p.GetWin32Path(), NULL))
 	{
 		ctx.Eax = 0;
 		return;
@@ -1207,7 +1199,6 @@ void SysCalls::sys_mkdir(CONTEXT &ctx)
 
 	DWORD err = GetLastError();
 	ctx.Eax = -Win32ErrToUnixError(err);
-#endif
 }
 
 /*
@@ -1216,12 +1207,10 @@ void SysCalls::sys_mkdir(CONTEXT &ctx)
  */
 void SysCalls::sys_rmdir(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	Path p(false);
-	p.SetUnixPath((const char *)ctx.Ebx);
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
 
-	if(RemoveDirectory(p.Win32Path()))
+	if(RemoveDirectory(p.GetWin32Path()))
 	{
 		ctx.Eax = 0;
 		return;
@@ -1246,7 +1235,6 @@ void SysCalls::sys_rmdir(CONTEXT &ctx)
 	}
 	*/
 	return; //return the original error
-#endif
 }
 
 
@@ -1258,12 +1246,10 @@ void SysCalls::sys_rmdir(CONTEXT &ctx)
  */
 void SysCalls::sys_rename(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	Path OldP, NewP;
 
-	OldP.SetUnixPath((const char *)ctx.Ebx);
-	NewP.SetUnixPath((const char *)ctx.Ecx);
+	OldP.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
+	NewP.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx) );
 
 	char * p2 = NULL;
 	if(OldP.IsSymbolicLink())
@@ -1271,16 +1257,15 @@ void SysCalls::sys_rename(CONTEXT &ctx)
 		int len = strlen(p2);
 		len+=4;
 		p2 = new char[len];
-		StringCbPrintf(p2, len, "%s.lnk", NewP.Win32Path);
+		StringCbPrintf(p2, len, "%s.lnk", NewP.GetWin32Path());
 	}
 
-	if(MoveFileEx(OldP.Win32Path(), p2?p2:NewP.Win32Path(), MOVEFILE_REPLACE_EXISTING))
+	if(MoveFileEx(OldP.GetWin32Path(), p2?p2:NewP.GetWin32Path(), MOVEFILE_REPLACE_EXISTING))
 		ctx.Eax = 0;
 	else
 		ctx.Eax = -Win32ErrToUnixError(GetLastError());
 
 	if(p2)
 		delete p2;
-#endif
 }
 

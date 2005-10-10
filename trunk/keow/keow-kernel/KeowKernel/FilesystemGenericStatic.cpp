@@ -230,11 +230,11 @@ IOHandler * FilesystemGenericStatic::CreateIOHandler(Path& path)
 		switch(node->NumParams)
 		{
 		case 0:
-			return node->handler.GetHandlerProc0();
+			return node->handler.GetHandlerProc0(path);
 		case 1:
-			return node->handler.GetHandlerProc1(wildcards[0]);
+			return node->handler.GetHandlerProc1(path, wildcards[0]);
 		case 2:
-			return node->handler.GetHandlerProc2(wildcards[0], wildcards[1]);
+			return node->handler.GetHandlerProc2(path, wildcards[0], wildcards[1]);
 
 		default:
 			ktrace("Implement GenericStatic handler for params: %d\n", node->NumParams);
@@ -245,7 +245,7 @@ IOHandler * FilesystemGenericStatic::CreateIOHandler(Path& path)
 	{
 		//a "directory"
 
-		IOHStaticData * ioh = new IOHStaticData(false);
+		IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::Directory, true);
 
 
 		PathMappingList::iterator it;

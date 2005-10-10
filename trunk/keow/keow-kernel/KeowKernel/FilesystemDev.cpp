@@ -46,18 +46,18 @@ FilesystemDev::~FilesystemDev()
 }
 
 
-IOHandler* FilesystemDev::GetConsoleHandler()
+IOHandler* FilesystemDev::GetConsoleHandler(Path& path)
 {
 	return new IOHNtConsole( g_pKernelTable->m_pMainConsole );
 }
 
-IOHandler* FilesystemDev::GetTtyHandler()
+IOHandler* FilesystemDev::GetTtyHandler(Path& path)
 {
 	//for now /dev/tty returns only the console
 	return new IOHNtConsole( g_pKernelTable->m_pMainConsole );
 }
 
-IOHandler* FilesystemDev::GetNullHandler()
+IOHandler* FilesystemDev::GetNullHandler(Path& path)
 {
 	return new IOHNull();
 }

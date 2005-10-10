@@ -47,6 +47,8 @@ public:
 
 	Path& operator=(const Path& other);
 
+	bool operator==(const Path& other) const;
+
 	void SetUnixPath(string path);
 	void AppendUnixPath(string unixp);
 

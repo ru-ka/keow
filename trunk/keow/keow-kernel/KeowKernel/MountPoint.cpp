@@ -44,7 +44,7 @@ MountPoint::~MountPoint()
 }
 
 
-MountPoint* MountPoint::Mount( Path& UnixMountPoint, string sDestination, Filesystem* pFS, BYTE * pData, int nDataLen)
+MountPoint* MountPoint::Mount( Path& UnixMountPoint, string sDestination, Filesystem* pFS, DWORD mountflags, BYTE * pData, int nDataLen)
 {
 	MountPoint * pMP = new MountPoint();
 
@@ -53,6 +53,8 @@ MountPoint* MountPoint::Mount( Path& UnixMountPoint, string sDestination, Filesy
 
 	pMP->m_pFileSystem = pFS;
 	pMP->m_pFileSystem->SetAssociatedMount(*pMP);
+
+	pMP->m_dwMountFlags = mountflags;
 
 	pMP->m_pData = new BYTE[nDataLen];
 	pMP->m_nDataLength = nDataLen;

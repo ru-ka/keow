@@ -42,9 +42,9 @@ public:
 	virtual ~FilesystemDev();
 
 protected: //handlers
-	static IOHandler* GetConsoleHandler();
-	static IOHandler* GetTtyHandler();
-	static IOHandler* GetNullHandler();
+	static IOHandler* GetConsoleHandler(Path& path);
+	static IOHandler* GetTtyHandler(Path& path);
+	static IOHandler* GetNullHandler(Path& path);
 };
 
 #endif // !defined(AFX_FilesystemDev_H__04DF9EB5_9771_4497_B1FF_89F772093E50__INCLUDED_)

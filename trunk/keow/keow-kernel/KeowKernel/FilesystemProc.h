@@ -51,25 +51,25 @@ protected: //handlers
 	static void GetPids(DirEnt64List& lst);
 	static void GetOpenFiles(DirEnt64List& lst, const char * pid);
 
-	static IOHandler* Get_MemInfo();
-	static IOHandler* Get_CpuInfo();
-	static IOHandler* Get_Uptime();
-	static IOHandler* Get_Stat();
-	static IOHandler* Get_Mounts();
-	static IOHandler* Get_LoadAvg();
+	static IOHandler* Get_MemInfo(Path& path);
+	static IOHandler* Get_CpuInfo(Path& path);
+	static IOHandler* Get_Uptime(Path& path);
+	static IOHandler* Get_Stat(Path& path);
+	static IOHandler* Get_Mounts(Path& path);
+	static IOHandler* Get_LoadAvg(Path& path);
 
-	static IOHandler* Get_Pid_Cmdline(const char * pid);
-	static IOHandler* Get_Pid_Cwd(const char * pid);
-	static IOHandler* Get_Pid_Environ(const char * pid);
-	static IOHandler* Get_Pid_Exe(const char * pid);
-	static IOHandler* Get_Pid_Maps(const char * pid);
-	static IOHandler* Get_Pid_Mem(const char * pid);
-	static IOHandler* Get_Pid_Root(const char * pid);
-	static IOHandler* Get_Pid_Stat(const char * pid);
-	static IOHandler* Get_Pid_Statm(const char * pid);
-	static IOHandler* Get_Pid_Status(const char * pid);
+	static IOHandler* Get_Pid_Cmdline(Path& path, const char * pid);
+	static IOHandler* Get_Pid_Cwd(Path& path, const char * pid);
+	static IOHandler* Get_Pid_Environ(Path& path, const char * pid);
+	static IOHandler* Get_Pid_Exe(Path& path, const char * pid);
+	static IOHandler* Get_Pid_Maps(Path& path, const char * pid);
+	static IOHandler* Get_Pid_Mem(Path& path, const char * pid);
+	static IOHandler* Get_Pid_Root(Path& path, const char * pid);
+	static IOHandler* Get_Pid_Stat(Path& path, const char * pid);
+	static IOHandler* Get_Pid_Statm(Path& path, const char * pid);
+	static IOHandler* Get_Pid_Status(Path& path, const char * pid);
 
-	static IOHandler* Get_Pid_Fd(const char * pid, const char * fd);
+	static IOHandler* Get_Pid_Fd(Path& path, const char * pid, const char * fd);
 };
 
 #endif // !defined(AFX_FILESYSTEMPROC_H__04DF9EB5_9771_4497_B1FF_89F772093E50__INCLUDED_)

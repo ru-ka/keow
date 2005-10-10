@@ -90,7 +90,7 @@ bool IOHFile::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD
 		return false;
 
 	//move handle to the user
-	DuplicateHandle(GetCurrentProcess(), h, P->m_Win32PInfo.hProcess, &m_RemoteHandle, 0, FALSE, DUPLICATE_SAME_ACCESS);
+	DuplicateHandle(GetCurrentProcess(), h, P->m_Win32PInfo.hProcess, &m_RemoteHandle, 0, FALSE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
 
 	return true;
 }
