@@ -73,7 +73,7 @@ public:
 	virtual ~Process();
 
 	//process handler thread
-	static DWORD WINAPI KernelProcessHandlerMain(LPVOID param);
+	static DWORD WINAPI KernelProcessHandlerEntry(LPVOID param);
 	static const int KERNEL_PROCESS_THREAD_STACK_SIZE;
 	static const char * KEOW_PROCESS_STUB;
 
@@ -82,6 +82,9 @@ public:
 	PID m_Pid;
 	PID m_ParentPid;
 	PID m_ProcessGroupPID;
+
+	Device * m_pControllingTty;
+	bool m_bIsInForeground;
 
 	int m_gid, m_uid;
 	int m_egid, m_euid;
@@ -191,9 +194,14 @@ public:
 	int m_CurrentSignal;
 	int m_KilledBySig;
 	bool m_PendingSignals[_NSIG];
-	linux::sigset_t m_SignalMask[MAX_PENDING_SIGNALS];
+	linux::sigset_t m_SignalMask;
 	linux::sigaction m_SignalAction[_NSIG];
-	int m_SignalDepth;
+	
+	//we save this stuff when calling signal handlers, so that we can return from the signal
+	struct SignalSaveState {
+		CONTEXT ctx;
+		linux::sigset_t SignalMask;
+	};
 
 	//open files
 	IOHandler * m_OpenFiles[MAX_OPEN_FILES];

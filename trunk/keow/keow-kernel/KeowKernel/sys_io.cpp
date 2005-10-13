@@ -1174,7 +1174,10 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 	if(pExceptFds)
 		P->WriteMemory((ADDR)pExceptFds, sizeof(ExceptResults), &ExceptResults);
 
-	ctx.Eax = 0;
+	if(foundData)
+		ctx.Eax = numFds;
+	else
+		ctx.Eax = 0; //timeout
 }
 
 /*****************************************************************************/

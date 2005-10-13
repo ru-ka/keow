@@ -33,14 +33,16 @@
 <node CREATED="1127332846210" ID="Freemind_Link_548382610" MODIFIED="1127332863935" POSITION="right" TEXT="Doc">
 <icon BUILTIN="attach"/>
 </node>
+<node CREATED="1129141798352" ID="Freemind_Link_42298877" MODIFIED="1129141810290" POSITION="right" TEXT="Find Out">
+<icon BUILTIN="help"/>
+</node>
 <node CREATED="1127332817198" ID="_" MODIFIED="1127449243256" POSITION="right" TEXT="TODO">
 <icon BUILTIN="flag"/>
 <node CREATED="1127418970457" ID="Freemind_Link_1235886949" MODIFIED="1127418979530" TEXT="Implement more system calls"/>
-<node CREATED="1127418985218" ID="Freemind_Link_1945316736" MODIFIED="1127418991377" TEXT="/proc filesystem"/>
-<node CREATED="1127418991887" ID="Freemind_Link_434070339" MODIFIED="1127418994852" TEXT="/dev filesystem"/>
 <node CREATED="1127419016232" ID="Freemind_Link_1118788354" MODIFIED="1127419026697" TEXT="rename SysCallDll to Inject"/>
 <node CREATED="1127419028049" ID="Freemind_Link_1932496525" MODIFIED="1127419043682" TEXT="move syscalldll into stub">
 <node CREATED="1127419044753" ID="Freemind_Link_1312574292" MODIFIED="1127419052575" TEXT="but check exe size &lt;=64k"/>
+<node CREATED="1129141739598" ID="Freemind_Link_584463497" MODIFIED="1129141782750" TEXT="maybe have seperate console &amp; gui subsystem exes&#xa;then a shared dll is needed? or maybe just a shared .lib"/>
 </node>
 <node CREATED="1127449144765" ID="Freemind_Link_243594485" MODIFIED="1127449155831" TEXT="MSI installer using Wix"/>
 </node>

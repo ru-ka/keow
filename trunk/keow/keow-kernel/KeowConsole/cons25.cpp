@@ -56,17 +56,6 @@
 
 cons25::cons25()
 {
-	m_TermIOs.c_iflag = IGNBRK|IGNPAR|IXOFF;
-	m_TermIOs.c_oflag = 0;
-	m_TermIOs.c_cflag = CS8;
-	m_TermIOs.c_lflag = ECHO;
-	m_TermIOs.c_line = N_TTY;
-	memset(m_TermIOs.c_cc, 0, sizeof(m_TermIOs.c_cc));
-	StringCbCopy((char*)m_TermIOs.c_cc, sizeof(m_TermIOs.c_cc), INIT_C_CC); //default special chars from kernel files
-
-	//make normal chars work - reverse CR/LF
-	//m_DeviceData.TermIOs.c_iflag |= INLCR | ICRNL;
-
 	m_InputState=0;
 	m_OutputState=0;
 }
@@ -620,6 +609,7 @@ void cons25::InputChar()
 
 	//send it
 	WriteFile(g_hKernelTextInput, SendBuf, NumToSend, &dwWritten, 0);
-
+	//kernel needs it NOW
+	FlushFileBuffers(g_hKernelTextInput);
 }
 

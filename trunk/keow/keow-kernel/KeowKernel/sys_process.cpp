@@ -97,7 +97,7 @@ void SysCalls::sys_sigprocmask(CONTEXT &ctx)
 	linux::sigset_t *pSet = (linux::sigset_t*)ctx.Ecx;
 	linux::sigset_t *pOldset = (linux::sigset_t*)ctx.Edx;
 
-	linux::sigset_t *pCurrSigset = &P->m_SignalMask[P->m_SignalDepth];
+	linux::sigset_t *pCurrSigset = &P->m_SignalMask;
 
 	if(pOldset)
 	{
