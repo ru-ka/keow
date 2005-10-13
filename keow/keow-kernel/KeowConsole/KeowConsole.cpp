@@ -81,21 +81,6 @@ void ProcessIoctlRequest()
 
 	switch(dwRequestType)
 	{
-	case TCGETS: //get stty stuff
-		{
-			linux::termios rec;
-
-			rec.c_iflag = g_Terminal.m_TermIOs.c_iflag;
-			rec.c_oflag = g_Terminal.m_TermIOs.c_oflag;
-			rec.c_cflag = g_Terminal.m_TermIOs.c_cflag;
-			rec.c_lflag = g_Terminal.m_TermIOs.c_lflag;
-			rec.c_line = g_Terminal.m_TermIOs.c_line;
-			memcpy(rec.c_cc, g_Terminal.m_TermIOs.c_cc, NCCS);
-
-			WriteFile(g_hKernelIoctlInput, &rec, sizeof(rec), &dwDone,0);
-		}
-		break;
-
 	case TCSETSW:
 		//flush output
 		//console io never buffered, so not required
@@ -105,18 +90,6 @@ void ProcessIoctlRequest()
 		FlushConsoleInputBuffer(g_hConsoleInput);
 		//...fall through...
 	case TCSETS: //set stty stuff
-		{
-			linux::termios rec;
-
-			ReadFile(g_hKernelIoctlOutput, &rec, sizeof(rec), &dwDone,0);
-
-			g_Terminal.m_TermIOs.c_iflag = rec.c_iflag;
-			g_Terminal.m_TermIOs.c_oflag = rec.c_oflag;
-			g_Terminal.m_TermIOs.c_cflag = rec.c_cflag;
-			g_Terminal.m_TermIOs.c_lflag = rec.c_lflag;
-			g_Terminal.m_TermIOs.c_line = rec.c_line;
-			memcpy(g_Terminal.m_TermIOs.c_cc, rec.c_cc, NCCS);
-		}
 		break;
 
 	case TIOCGWINSZ: //get window size

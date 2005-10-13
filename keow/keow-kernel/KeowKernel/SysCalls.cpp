@@ -457,7 +457,6 @@ void SysCalls::sys_swapoff(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_sysinfo(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_ipc(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_fsync(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sigreturn(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_clone(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_setdomainname(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_modify_ldt(CONTEXT &ctx)		{Unhandled(ctx);}

@@ -59,6 +59,9 @@ Process::Process()
 
 	m_ProcessGroupPID = 0;
 
+	m_pControllingTty = NULL;
+	m_bIsInForeground = true;
+
 	memset(&m_Win32PInfo, 0, sizeof(m_Win32PInfo));
 	m_KernelThreadId = 0;
 	m_KernelThreadHandle = NULL;
@@ -131,7 +134,7 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 
 	//need to start the process and debug it (to trap kernel calls etc)
 	//the debugger thread
-	NewP->m_KernelThreadHandle = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerMain, NewP, 0, &NewP->m_KernelThreadId);
+	NewP->m_KernelThreadHandle = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerEntry, NewP, 0, &NewP->m_KernelThreadId);
 	if(NewP->m_KernelThreadHandle==NULL)
 	{
 		ktrace("failed to start debug thread for process\n");
@@ -210,7 +213,7 @@ Process* Process::StartFork(Process * pParent)
 
 	//need to start the process and debug it (to trap kernel calls etc)
 	//the debugger thread
-	NewP->m_KernelThreadHandle = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerMain, NewP, 0, &NewP->m_KernelThreadId);
+	NewP->m_KernelThreadHandle = CreateThread(NULL, KERNEL_PROCESS_THREAD_STACK_SIZE, KernelProcessHandlerEntry, NewP, 0, &NewP->m_KernelThreadId);
 	if(NewP->m_KernelThreadHandle==NULL)
 	{
 		ktrace("failed to start debug thread for process\n");
@@ -245,7 +248,7 @@ Process* Process::StartFork(Process * pParent)
 
 
 //Handler Thread Entry
-/*static*/ DWORD WINAPI Process::KernelProcessHandlerMain(LPVOID param)
+/*static*/ DWORD WINAPI Process::KernelProcessHandlerEntry(LPVOID param)
 {
 	//need thread stuff
 	g_pTraceBuffer = new char [KTRACE_BUFFER_SIZE];
@@ -330,11 +333,22 @@ void Process::DebuggerLoop()
 		{
 			if(m_PendingSignals[sig])
 			{
-				m_CurrentSignal = sig;
-				HandleSignal(sig);
-				m_CurrentSignal = 0;
+				m_PendingSignals[sig] = false;
+				break;
 			}
 		}
+		if(sig<_NSIG) //found a pending signal
+		{
+			m_CurrentSignal = sig;
+			HandleSignal(sig);
+			m_CurrentSignal = 0;
+
+			//debuging in signal handler now - abort original reason for debug
+			FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for our process modifications?
+			ContinueDebugEvent(evt.dwProcessId, evt.dwThreadId, DBG_CONTINUE);
+			continue;
+		}
+
 
 		//handle the real reason we are in the debugger
 		switch(evt.dwDebugEventCode)
@@ -638,7 +652,6 @@ void Process::ForkCopyOtherProcess(Process &other)
 	memcpy(&m_PendingSignals, &other.m_PendingSignals, sizeof(m_PendingSignals));
 	memcpy(&m_SignalMask, &other.m_SignalMask, sizeof(m_SignalMask));
 	memcpy(&m_SignalAction, &other.m_SignalAction, sizeof(m_SignalAction));
-	m_SignalDepth = other.m_SignalDepth;
 
 	//copy memory allocations (except mmap)
 	MemoryAllocationsList::iterator mem_it;
@@ -1269,7 +1282,7 @@ void Process::SendSignal(int sig)
 
 void Process::HandleSignal(int sig)
 {
-	ktrace("signal handler starting for %d (depth %d)\n", sig, m_SignalDepth);
+	ktrace("signal handler starting for %d\n", sig);
 
 	//participate in ptrace()
 	if(m_ptrace.OwnerPid)
@@ -1317,22 +1330,12 @@ void Process::HandleSignal(int sig)
 	//}
 
 	//is this process ignoring this signal?
-	linux::sigset_t &mask = m_SignalMask[m_SignalDepth];
-	if( (mask.sig[(sig-1)/_NSIG_BPW]) & (1 << (sig-1)%_NSIG_BPW) )
+	if( (m_SignalMask.sig[(sig-1)/_NSIG_BPW]) & (1 << (sig-1)%_NSIG_BPW) )
 	{
 		ktrace("signal not delivered - currently masked\n");
 		return;
 	}
 
-
-	//nested
-	m_SignalDepth++;
-	if(m_SignalDepth >= MAX_PENDING_SIGNALS)
-	{
-		m_SignalDepth= MAX_PENDING_SIGNALS-1;
-		ktrace("WARN overflow in nested signal handling\n");
-	}
-	m_SignalMask[m_SignalDepth] = m_SignalAction[sig].sa_mask;
 
 	//is there a signal handler registered for this signal?
 	//	pProcessData->signal_action[signum].sa_handler     = act->sa_handler;
@@ -1427,16 +1430,78 @@ void Process::HandleSignal(int sig)
 
 		//need to update user process
 		CONTEXT ctx;
-		ctx.ContextFlags = CONTEXT_CONTROL;
+		ctx.ContextFlags = CONTEXT_FULL | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
+		SuspendThread(P->m_Win32PInfo.hThread);
 		GetThreadContext(P->m_Win32PInfo.hThread, &ctx);
 
-		//dispatch to custom handler
+
+		//Dispatch to custom handler
+		//
+		//The handler may accept a single argument (sig) OR a several (sig,siginfo,data)
+		//however they both have sig as the first argument so we can
+		//build up a siginfo type one on the stack in both cases
+		//the single argument handler will just ignore the extras
+
+		//Signal handlers have their own state (registers etc) and when
+		//they exit, the original state is restored.
+		//To do this we also use the stack to save a CONTEXT record and
+		//use a call to the kernels sigreturn routine to restore the record.
+		//The stack is set up such that a return from the handler runs the
+		//restoration code.
+
+		//basic info
+		linux::siginfo si;
+		si.si_signo = sig;
+		si.si_errno = 0;
+		si.si_code = SI_USER;
+
+		BYTE asm_code[] = {
+			//the code we want
+			0xbb, 0,0,0,0,		// mov ebx, context_addr
+			0xb8, 0,0,0,0,		// mov eax, _NR_sigreturn
+			0xcd, 0x80,			// int 80
+
+			//this is code that gdb looks for 
+			//(so says the kernel source in arch/i386/kernel/signal.c)
+			0x58,				// popl eax
+			0xb8, 0,0,0,0,		// mov eax,__NR_sigreturn
+			0xcd, 0x80,			// int 80
+		};
+		*((DWORD*)&asm_code[1]) = 0x0; //context_addr
+		*((DWORD*)&asm_code[6]) = __NR_sigreturn;
+		*((DWORD*)&asm_code[14]) = __NR_sigreturn;
+
+		//add new items to write onto the stack
+		struct {
+			//what the handler sees
+			DWORD ReturnAddress;
+			int    Arg_Signal;
+			void * Arg_pSigInfo;
+			void * Arg_pData;
+
+			//supporting data for stack arguments
+			linux::siginfo SigInfo;
+
+			//restoration stuff
+			Process::SignalSaveState SavedState;
+
+			BYTE Restorer[sizeof(asm_code)]; //room for a small assembly routine
+		} stack;
+
+		memset(&stack, 0, sizeof(stack));
+		stack.Arg_Signal = sig;
+		stack.SavedState.ctx = ctx;
+		memcpy(&stack.SavedState.SignalMask, &m_SignalMask, sizeof(m_SignalMask));
+
+		DWORD NewEsp = ctx.Esp - sizeof(stack);
+
+		//put in the restorer code
+		*((DWORD*)&asm_code[1]) = NewEsp + ((DWORD)&stack.SavedState.ctx - (DWORD)&stack);
+		memcpy(stack.Restorer, asm_code, sizeof(asm_code));
+
+		//populate extra items?
 		if(m_SignalAction[sig].sa_flags & SA_SIGINFO)
 		{
-			linux::siginfo si;
-			si.si_signo = sig;
-			si.si_errno = 0;
-			si.si_code = SI_USER;
 			ktrace("IMPLEMENT correct signal sa_action siginfo stuff\n");
 
 			/*
@@ -1449,72 +1514,50 @@ void Process::HandleSignal(int sig)
 			ktrace("IMPLEMENT correct signal sa_action ucontext stuff\n");
 			//copy the context to the process and pass as param
 
+			stack.SigInfo.si_signo = sig;
+			stack.SigInfo.si_errno = 0;
+			stack.SigInfo.si_code = SI_USER;
 
-			//invoke: void _cdecl handler(int, linux::siginfo *, void *)
-
-			//add new items to write onto the stack
-			struct {
-				struct {
-					DWORD ReturnAddress;
-					int signal;
-					void * pSiginfo;
-					void * pData;
-				} call_data;
-				linux::siginfo si;
-			} stack;
-
-			ctx.Esp -= sizeof(stack);
-
-			stack.call_data.ReturnAddress = ctx.Eip;
-			stack.call_data.signal = sig;
-			stack.call_data.pSiginfo = (void*)(ctx.Esp - sizeof(stack) + sizeof(stack.call_data));
-			stack.call_data.pData = 0;
-			stack.si = si; //place a copy on the stack
-
-			//update stack and then run the handler
-			P->WriteMemory((ADDR)ctx.Esp, sizeof(stack), &stack);
-			ctx.Eip = (DWORD)handler;
-			SetThreadContext(P->m_Win32PInfo.hThread, &ctx);
-		}
-		else
-		{
-			//invoke: void _cdecl handler(int)
-
-			//add new items to write onto the stack
-			struct {
-				DWORD ReturnAddress;
-				int signal;
-			} stack;
-
-			ctx.Esp -= sizeof(stack);
-
-			stack.ReturnAddress = ctx.Eip;
-			stack.signal = sig;
-
-			//update stack and then run the handler
-			P->WriteMemory((ADDR)ctx.Esp, sizeof(stack), &stack);
-			ctx.Eip = (DWORD)handler;
-			SetThreadContext(P->m_Win32PInfo.hThread, &ctx);
+			stack.Arg_pSigInfo = (void*)(NewEsp + ((DWORD)&stack.SigInfo - (DWORD)&stack));
+			stack.Arg_pData = 0;
 		}
 
+		stack.ReturnAddress = NewEsp + ((DWORD)&stack.Restorer - (DWORD)&stack);
 		//use restorer
 		//in linux this is a call to sys_sigreturn ?
 		//to return to user-land?
 		//documented as 'dont use'
 		//if(m_SignalAction[sig].sa_flags & SA_RESTORER)
 		//{
-		//	invoke: ((void (_cdecl *)(void))m_SignalAction[sig].sa_restorer)();
+		//	ReturnAddress = sa_restorer?
 		//}
+		ktrace("signal restorer @ 0x%08lx\n", stack.ReturnAddress);
+
+		//move to new masks
+		m_SignalMask = m_SignalAction[sig].sa_mask;
+		if((m_SignalAction[sig].sa_flags & SA_NODEFER)==0
+		|| (m_SignalAction[sig].sa_flags & SA_NOMASK)==0 )
+		{
+			//mask current signal too
+			m_SignalMask.sig[(sig-1)/_NSIG_BPW] |= (1 << (sig-1)%_NSIG_BPW);
+		}
+
+		//kernel arch/i386/kernel/signal.c seems to set up registers too
+		ctx.Eax = stack.Arg_Signal;
+		ctx.Edx = (DWORD)stack.Arg_pSigInfo;
+		ctx.Ecx = (DWORD)stack.Arg_pData;
+
+		//update stack and then run the handler
+		ctx.Esp = NewEsp;
+		P->WriteMemory((ADDR)NewEsp, sizeof(stack), &stack);
+
+		ctx.Eip = (DWORD)handler;
+
+		SetThreadContext(P->m_Win32PInfo.hThread, &ctx);
+		ResumeThread(P->m_Win32PInfo.hThread);
 
 	}
 
-		
-	//un-nest
-	m_SignalDepth--;
-	if(m_SignalDepth<0)
-		m_SignalDepth = 0;
-
-	ktrace("signal handler ending for %d (depth %d)\n", sig, m_SignalDepth);
 }
 
 
@@ -1702,7 +1745,8 @@ void Process::DumpStackTrace(CONTEXT &ctx)
 	ADDR esp = (ADDR)ctx.Esp;
 	ADDR ebp = (ADDR)ctx.Ebp;
 	ADDR retAddr = 0;
-	while(esp>=(ADDR)ctx.Esp && esp<=m_KeowUserStackTop) //while data seems sensible
+	int cnt=0;
+	while(esp>=(ADDR)ctx.Esp && esp<=m_KeowUserStackTop && ++cnt<1000) //while data seems sensible
 	{
 		//edp is old stack pos
 		esp=ebp;
@@ -1800,8 +1844,6 @@ void Process::InitSignalHandling()
 	memset(&m_PendingSignals, 0, sizeof(m_PendingSignals));
 
 	memset(&m_SignalMask, 0, sizeof(m_SignalMask));
-
-	m_SignalDepth = 0;
 
 	//default signal handling
 	for(i=0; i<_NSIG; ++i) {
