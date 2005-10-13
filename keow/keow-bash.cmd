@@ -1,1 +1,1 @@
-KernelEmulationOnWindows debug=1 root=linux init=/bin/bash
+KeowKernel debug=1 root=linux init=/bin/bash
