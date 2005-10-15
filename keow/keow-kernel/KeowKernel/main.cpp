@@ -63,13 +63,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	g_pTraceBuffer = new char [KTRACE_BUFFER_SIZE];
 	P = NULL;
 
-	g_pKernelTable= new KernelTable();
+	ktrace("Kernel Booting\n");
+
+	g_pKernelTable = new KernelTable();
 
 
 	// A file time is a 64-bit value that represents the number of 100-nanosecond intervals 
 	// that have elapsed since 12:00 A.M. January 1, 1601 (UTC).
 	// A unix time_t is time since the Epoch (00:00:00 UTC, January 1, 1970), in seconds.
 	// Need a base time for calculations
+	ktrace("calc 1-jan-1970\n");
 	SYSTEMTIME st;
 	FILETIME ft, ft2;
 	st.wDayOfWeek = 0;
@@ -85,9 +88,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	SystemTimeToFileTime(&st, &ft2);
 	Time1Jan1970.LowPart = ft.dwLowDateTime;
 	Time1Jan1970.HighPart = ft.dwHighDateTime;
-
-
-	ktrace("Kernel Booting\n");
+	ktrace("calculated win32 1-jan-1970 (for unix epoch)\n");
 
 	KernelStartup::ValidateKernelTraps();
 

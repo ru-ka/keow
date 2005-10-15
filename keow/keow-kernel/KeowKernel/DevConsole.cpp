@@ -52,6 +52,8 @@ const DWORD DevConsole::KERNEL_CONSOLE_HANDLER_STACK_SIZE = 2048; //hardly need 
 DevConsole::DevConsole(int tty)
 : Device("tty", 0, 0)
 {
+	ktrace("creating new console, tty%d\n", tty);
+
 	m_tty = tty;
 	m_ProcessGroup = 0;
 	m_hConsoleRead = m_hConsoleWrite = NULL;
@@ -106,6 +108,7 @@ DevConsole::DevConsole(int tty)
 	//this is so the kernel can see and handle Ctrl-C before a process is ready to read
 	m_hHandlerThread = CreateThread(NULL, KERNEL_CONSOLE_HANDLER_STACK_SIZE, ConsoleHandlerEntry, this, 0, &m_dwHandlerThreadId);
 
+	ktrace("console tty%d created\n", tty);
 }
 
 DevConsole::~DevConsole()
@@ -138,7 +141,10 @@ DWORD DevConsole::ConsoleHandlerMain()
 		if(!ReadFile(m_hRealConsoleRead, buf, max_read, &dwRead, NULL))
 		{
 			//eof?
+#ifdef _DEBUG
 			DebugBreak();
+#endif
+			return 0;
 		}
 
 		//handle any special characters (eg Ctrl-C)
@@ -211,6 +217,7 @@ DWORD DevConsole::ConsoleHandlerMain()
 			//#define FLUSHO	0010000
 			//#define PENDIN	0040000
 			//#define IEXTEN	0100000
+			bool bSigSent = false;
 			if(m_TermIOs.c_lflag & ISIG)
 			{
 				if(*p==m_TermIOs.c_cc[VINTR])
@@ -226,6 +233,7 @@ DWORD DevConsole::ConsoleHandlerMain()
 						&& p2->m_bIsInForeground)
 						{
 							p2->SendSignal(SIGINT);
+							bSigSent = true;
 						}
 					}
 				}
@@ -249,10 +257,13 @@ DWORD DevConsole::ConsoleHandlerMain()
 			}
 			if(m_TermIOs.c_lflag & ECHO)
 			{
-				if(m_TermIOs.c_lflag & ECHOE)
-					WriteFile(m_hConsoleWrite, "\b \b", 3, &dwWritten, NULL); //backspace-space-backspace
-				else
-					WriteFile(m_hConsoleWrite, p, 1, &dwWritten, NULL); //echo char
+				if(!bSigSent)
+				{
+					if(m_TermIOs.c_lflag & ECHOE)
+						WriteFile(m_hConsoleWrite, "\b \b", 3, &dwWritten, NULL); //backspace-space-backspace
+					else
+						WriteFile(m_hConsoleWrite, p, 1, &dwWritten, NULL); //echo char
+				}
 			}
 
 			//Output settings: c_oflag;

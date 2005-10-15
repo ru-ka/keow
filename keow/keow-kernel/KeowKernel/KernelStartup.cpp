@@ -129,11 +129,19 @@ void KernelStartup::ProcessCommandLine(LPSTR lpCmdLine)
 
 	}
 	ktrace("Finished argument processing\n");
+
+
+	//we started with debug on
+	//turn off now unless a log file was specified
+	if(g_pKernelTable->m_hLogFile==NULL)
+		g_pKernelTable->m_DebugLevel=0;
 }
 
 
 void KernelStartup::ValidateKernelTraps()
 {
+	ktrace("Validating kernel traps\n");
+
 	//Test whether INT 80h is illegal in Windows
 	//and will trigger our error handler
 	bool trapped = false;
@@ -146,7 +154,7 @@ void KernelStartup::ValidateKernelTraps()
 	if(!trapped)
 	{
 		ktrace("Cannot trap kernel calls.\n");
-		halt();
+//		halt();
 	}
 
 	//Check if call gates 7h and 27h are illegal
@@ -170,6 +178,9 @@ void KernelStartup::ValidateKernelTraps()
 		ktrace("Architecture assumptions not met/not supported\n");
 		halt();
 	}
+
+
+	ktrace("Kernel trap mechanisms OK\n");
 }
 
 

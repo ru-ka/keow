@@ -103,10 +103,18 @@ void Path::FollowSymLinks(bool follow)
 
 void Path::AppendUnixPath(string unixp)
 {
+	AppendPath(m_PathStack, unixp);
+}
+
+
+//helper to update a path stack
+//
+void Path::AppendPath(Path::ElementList& lst, string unixp)
+{
 	//reset to root? (absolute path)
 	if(unixp[0] == '/')
 	{
-		m_PathStack.clear();
+		lst.clear();
 	}
 
 	//add individual path elements
@@ -136,14 +144,14 @@ void Path::AppendUnixPath(string unixp)
 		if(element.compare("..") == 0)
 		{
 			//pop an element
-			if(!m_PathStack.empty())
-				m_PathStack.pop_back();
+			if(!lst.empty())
+				lst.pop_back();
 		}
 		else
 		if(!element.empty())
 		{
 			//add and element to the path
-			m_PathStack.push_back(element);
+			lst.push_back(element);
 		}
 
 		if(next_pos < 0)
@@ -201,9 +209,10 @@ string Path::GetUnixPathElement(int count)
 
 // build the unix path from the elements of the path
 //
-string Path::GetUnixPath() const
+string Path::GetUnixPath()
 {
-	return string("/") + JoinList(m_PathStack, '/');
+	TranverseMountPoints();
+	return m_strActualUnixPath;
 }
 
 
@@ -234,17 +243,20 @@ string Path::GetFinalPath()
 // Follows the path across mount points
 void Path::TranverseMountPoints()
 {
+	//TODO - this entire path processing needs rework - it's not right and ugly!
+
 	//start at root
 	m_pFinalMountPoint = g_pKernelTable->m_pRootMountPoint;
-	m_strPathInMountPoint = "/";
+	m_strPathInMountPoint = m_pFinalMountPoint ? m_pFinalMountPoint->GetFilesystem()->GetPathSeperator() : "\\";
 	m_strMountRealPath = m_pFinalMountPoint ? m_pFinalMountPoint->GetDestination() : "";
 
 	//follow path elements
+	ElementList FinalUnixPath;
 	ElementList::iterator it;
 	int cnt;
 	for(it=m_PathStack.begin(),cnt=1; it!=m_PathStack.end(); ++it,++cnt)
 	{
-		const string& element = *it;
+		string element = *it;
 
 		//Check if this is a new point point to follow
 		KernelTable::MountPointList::iterator mnt_it;
@@ -259,46 +271,54 @@ void Path::TranverseMountPoints()
 				m_pFinalMountPoint = pMP;
 				m_strMountRealPath = pMP->GetDestination();
 				m_strPathInMountPoint = "/";
+				AppendPath(FinalUnixPath, element);
 				bMountFound = true;
 			}
 		}
 		if(bMountFound)
 			continue;
 
+		//path as it currently has been calculated
+		string curpath = GetFinalPath();
+		if(!curpath.empty())
+			curpath += m_pFinalMountPoint->GetFilesystem()->GetPathSeperator();
+		curpath += element;
+
+		//Check if we have reached a symbolic link
+		bool IsLnk = false;
+		string LnkDest = m_pFinalMountPoint->GetFilesystem()->GetLinkDestination(curpath+".lnk");
+		IsLnk = !LnkDest.empty();
+
 		//Check if this is a link to follow
-		if(m_FollowSymLinks)
+		if(IsLnk && m_FollowSymLinks)
 		{
-			//path as it currently has been calculated
-			string curpath = GetFinalPath();
-			if(!curpath.empty())
-				curpath += m_pFinalMountPoint->GetFilesystem()->GetPathSeperator();
-			curpath += element;
+			//TODO: handle links ACROSS filesystems - How?
 
-			string dest = m_pFinalMountPoint->GetFilesystem()->GetLinkDestination(curpath);
-
-			if(!dest.empty())
+			if(m_pFinalMountPoint->GetFilesystem()->IsRelativePath(LnkDest))
 			{
-				//TODO: handle links ACROSS filesystems - How?
-
-				if(m_pFinalMountPoint->GetFilesystem()->IsRelativePath(dest))
-				{
-					m_strPathInMountPoint += m_pFinalMountPoint->GetFilesystem()->GetPathSeperator();
-					m_strPathInMountPoint += dest;
-				}
-				else
-				{
-					m_strMountRealPath = "/";
-					m_strPathInMountPoint = dest;
-				}
-				continue;
+				m_strPathInMountPoint += m_pFinalMountPoint->GetFilesystem()->GetPathSeperator();
+				m_strPathInMountPoint += LnkDest;
+				AppendPath(FinalUnixPath, LnkDest);
 			}
+			else
+			{
+				m_strMountRealPath = "/";
+				m_strPathInMountPoint = LnkDest;
+				FinalUnixPath.clear();
+				AppendPath(FinalUnixPath, LnkDest);
+			}
+			continue;
 		}
 
 		//just a normal element
 		m_strPathInMountPoint += m_pFinalMountPoint->GetFilesystem()->GetPathSeperator();
 		m_strPathInMountPoint += element;
+		AppendPath(FinalUnixPath, element);
+		if(IsLnk)
+			m_strPathInMountPoint += ".lnk"; //not being resolved - need to record this as part of the win32 path - probably the last element
 	}
 
+	m_strActualUnixPath = string("/") + JoinList(FinalUnixPath, '/');
 }
 
 // tests to see if this path completely matches another path
@@ -337,9 +357,6 @@ bool Path::EqualsPartialPath(const Path& other, int otherLen) const
 
 bool Path::IsSymbolicLink()
 {
-	if(m_FollowSymLinks)
-		return false; //it's not because we'll always resolve them to a real location
-
 	TranverseMountPoints();
 	return m_pFinalMountPoint->GetFilesystem()->IsSymbolicLink( GetFinalPath() );
 }

@@ -219,7 +219,7 @@ IOHandler* FilesystemProc::Get_CpuInfo(Path& path)
 
 		ioh->AddData( string::format("cpu count : %d\x0a", si.dwNumberOfProcessors) );
 
-		ioh->AddData( string::format("fpu       : %s\x0a", IsProcessorFeaturePresent(PF_FLOATING_POINT_EMULATED) ? "no" : "yes") );
+		ioh->AddData( string::format("fpu       : %s\x0a", LegacyWindows::IsProcessorFeaturePresent(PF_FLOATING_POINT_EMULATED) ? "no" : "yes") );
 	}
 
 	return ioh;

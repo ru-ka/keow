@@ -123,37 +123,9 @@ bool IOHFile::Stat64(linux::stat64 * s)
 
 	string w32path = m_Path.GetWin32Path();
 
-	//W95 does not have GetFileAttributesEx, may need to emulate it
-	HMODULE hlib = GetModuleHandle("KERNEL32");
-	FARPROC fp = GetProcAddress(hlib, "GetFileAttributesExA");
-	if(fp)
-	{
-		BOOL (CALLBACK *RealGetFileAttributesEx)
-				 (LPCTSTR, GET_FILEEX_INFO_LEVELS, LPVOID);
-        *(FARPROC *)&RealGetFileAttributesEx = fp;
-		if(!RealGetFileAttributesEx(w32path, GetFileExInfoStandard, &fi))
+	//Win95 does not have GetFileAttributesEx, may need to emulate it
+	if(!LegacyWindows::GetFileAttributesEx(w32path, GetFileExInfoStandard, &fi))
 			return false;
-	}
-	else
-	{
-		if(GetFileAttributes(w32path) == INVALID_FILE_ATTRIBUTES)
-			return false;
-
-        HANDLE hfind;
-        WIN32_FIND_DATA wfd;
-        hfind = FindFirstFile(w32path, &wfd);
-        if(hfind == INVALID_HANDLE_VALUE)
-			return false;
-
-        FindClose(hfind);
-
-        fi.dwFileAttributes = wfd.dwFileAttributes;
-        fi.ftCreationTime   = wfd.ftCreationTime;
-        fi.ftLastAccessTime = wfd.ftLastAccessTime;
-        fi.ftLastWriteTime  = wfd.ftLastWriteTime;
-        fi.nFileSizeHigh    = wfd.nFileSizeHigh;
-        fi.nFileSizeLow     = wfd.nFileSizeLow;
-	}
 
 
 	if(fi.dwFileAttributes & FILE_ATTRIBUTE_READONLY)
@@ -161,11 +133,11 @@ bool IOHFile::Stat64(linux::stat64 * s)
 	else
 		s->st_mode = 0755;  // rwxr-xr-x
 
-	if(fi.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		s->st_mode |= S_IFDIR;
-	else
 	if(m_Path.IsSymbolicLink())
 		s->st_mode |= S_IFLNK;
+	else
+	if(fi.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		s->st_mode |= S_IFDIR;
 	else
 		s->st_mode |= S_IFREG; //regular file
 		/*

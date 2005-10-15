@@ -52,12 +52,12 @@ ADDR MemoryHelper::AllocateMemAndProtectProcess(HANDLE hProcess, ADDR addr, DWOR
 		return (ADDR)-1;
 	}
 
-	ktrace("allocating %p, len %d in proc %p\n", addr, size, hProcess);
+	ktrace("allocating 0x%08lx, len %d in proc %lx\n", addr, size, hProcess);
 
 	//if no addr, then we can assign one
 	if(addr==0)
 	{
-		addr = (ADDR)VirtualAllocEx(hProcess, NULL, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+		addr = (ADDR)LegacyWindows::VirtualAllocEx(hProcess, NULL, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	}
 	end_addr = addr + size;
 
@@ -67,11 +67,11 @@ ADDR MemoryHelper::AllocateMemAndProtectProcess(HANDLE hProcess, ADDR addr, DWOR
 	tmp64k = (ADDR)((DWORD)addr & 0xFFFF0000);
 	while(tmp64k < end_addr)
 	{
-		VirtualQueryEx(hProcess, tmp64k, &mbi, sizeof(mbi));
+		LegacyWindows::VirtualQueryEx(hProcess, tmp64k, &mbi, sizeof(mbi));
 		if(mbi.State == MEM_FREE)
 		{
 			//allocate with full perms, individual pages can lock it down as required
-			p = (ADDR)VirtualAllocEx(hProcess, tmp64k, SIZE64k, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+			p = (ADDR)LegacyWindows::VirtualAllocEx(hProcess, tmp64k, SIZE64k, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 			if(p!=tmp64k)
 			{
 				return (ADDR)-1;
@@ -85,18 +85,18 @@ ADDR MemoryHelper::AllocateMemAndProtectProcess(HANDLE hProcess, ADDR addr, DWOR
 	tmp4k = (ADDR)((DWORD)addr & 0xFFFFF000);
 	while(tmp4k < end_addr)
 	{
-		VirtualQueryEx(hProcess, (void*)tmp4k, &mbi, sizeof(mbi));
+		LegacyWindows::VirtualQueryEx(hProcess, (void*)tmp4k, &mbi, sizeof(mbi));
 		if(mbi.State == MEM_RESERVE)
 		{
 //seems this cannot be changed within the 64k successfully?
-//			p = VirtualAlloc((void*)tmp4k, SIZE4k, MEM_COMMIT, prot);
-			p = (ADDR)VirtualAllocEx(hProcess, (void*)tmp4k, SIZE4k, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+//			p = LegacyWindows::VirtualAlloc((void*)tmp4k, SIZE4k, MEM_COMMIT, prot);
+			p = (ADDR)LegacyWindows::VirtualAllocEx(hProcess, (void*)tmp4k, SIZE4k, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 			if(p!=tmp4k)
 			{
 				return (ADDR)-1;
 			}
 		}
-//		VirtualProtect((void*)tmp64k, SIZE4k, prot, &oldprot); //in case re-using old area
+//		LegacyWindows::VirtualProtect((void*)tmp64k, SIZE4k, prot, &oldprot); //in case re-using old area
 		tmp4k += SIZE4k;
 	}
 
@@ -125,9 +125,9 @@ bool MemoryHelper::DeallocateMemory(ADDR addr, DWORD size)
 		if(pAlloc->addr == addr
 		&& pAlloc->len == size)
 		{
-			ktrace("freeing %p, len %d in proc %p\n", addr, size, P->m_Win32PInfo.hProcess);
+			ktrace("freeing 0x%08lx, len %d in proc %lx\n", addr, size, P->m_Win32PInfo.hProcess);
 
-			if(!VirtualFreeEx(P->m_Win32PInfo.hProcess, addr, size, MEM_DECOMMIT))
+			if(!LegacyWindows::VirtualFreeEx(P->m_Win32PInfo.hProcess, addr, size, MEM_DECOMMIT))
 				return false;
 
 			P->m_MemoryAllocations.erase(it);

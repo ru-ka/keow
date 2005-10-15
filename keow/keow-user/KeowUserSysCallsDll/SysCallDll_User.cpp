@@ -41,6 +41,25 @@ DWORD g_LastError = 0;
 ////////////////////////////////////////////////////////////////////////
 
 
+DWORD _stdcall SysCallDll::VirtualAlloc(LPVOID lpAddress, DWORD dwSize, DWORD flAllocationType, DWORD flProtect)
+{
+	ktrace("VirtualAlloc(0x%08lx, %d, %d, %d)\n", lpAddress, dwSize, flAllocationType, flProtect);
+	RET( (DWORD)::VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect) );
+}
+
+DWORD _stdcall SysCallDll::VirtualFree(LPVOID lpAddress, DWORD dwSize, DWORD dwFreeType)
+{
+	ktrace("VirtualFree(0x%08lx, %d, %d)\n", lpAddress, dwSize, dwFreeType);
+	RET( ::VirtualFree(lpAddress, dwSize, dwFreeType) );
+}
+
+DWORD _stdcall SysCallDll::VirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZE_T dwLength)
+{
+	ktrace("virtualquery(0x%08lx,0x%08lx,%d)\n", lpAddress, lpBuffer, dwLength);
+	RET( ::VirtualQuery(lpAddress, lpBuffer, dwLength) );
+}
+
+
 DWORD _stdcall SysCallDll::GetLastError()
 {
 	RET( g_LastError );
@@ -83,13 +102,13 @@ DWORD _stdcall SysCallDll::CreateFileMapping(HANDLE hFile, DWORD Prot, DWORD siz
 
 DWORD _stdcall SysCallDll::MapViewOfFileEx(HANDLE hMap, DWORD Prot, DWORD offsetHi, DWORD offsetLo, DWORD len, void* BaseAddr)
 {
-	ktrace("mapview.. %d %d:%d, %d, %p\n", hMap, offsetHi, offsetLo, len, BaseAddr);
+	ktrace("mapview.. %d %d:%d, %d, 0x%08lx\n", hMap, offsetHi, offsetLo, len, BaseAddr);
 	RET( (DWORD)::MapViewOfFileEx(hMap, Prot, offsetHi, offsetLo, len, BaseAddr) );
 }
 
 DWORD _stdcall SysCallDll::UnmapViewOfFile(void* BaseAddr)
 {
-	ktrace("unmapview.. %p\n", BaseAddr);
+	ktrace("unmapview.. 0x%08lx\n", BaseAddr);
 	RET( (DWORD)::UnmapViewOfFile(BaseAddr) );
 }
 

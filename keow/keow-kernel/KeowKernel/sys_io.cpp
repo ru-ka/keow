@@ -115,7 +115,7 @@ void SysCalls::sys_read(CONTEXT &ctx)
 	int fd;
 	IOHandler * ioh;
 
-	ktrace("read(fd %d, len %d into 0x%p)\n", ctx.Ebx, ctx.Edx, ctx.Ecx);
+	ktrace("read(fd %d, len %d into 0x%08lx)\n", ctx.Ebx, ctx.Edx, ctx.Ecx);
 
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
@@ -184,7 +184,7 @@ void SysCalls::sys_open(CONTEXT &ctx)
 	IOHandler * ioh;
 
 	string s = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
-	ktrace("open([%p]%s, 0x%lx, 0%lo)\n", ctx.Ebx,s.c_str(), access, perms);
+	ktrace("open([0x%08lx]%s, 0x%lx, 0%lo)\n", ctx.Ebx,s.c_str(), access, perms);
 	p.SetUnixPath(s);
 
 	//find free handle entry
@@ -607,7 +607,7 @@ void SysCalls::sys_getdents64(CONTEXT &ctx)
 		return;
 	}
 
-	ktrace("getdents64(fd %d, %p, max %d)\n", fd, s, maxbytes);
+	ktrace("getdents64(fd %d, 0x%08lx, max %d)\n", fd, s, maxbytes);
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)

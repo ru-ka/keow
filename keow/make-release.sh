@@ -9,7 +9,7 @@
 
 rm -f keow.zip
 [ ! -d keow ] && mkdir keow
-cp Release/*.exe Release/*.dll INSTALL-keow.txt keow
+cp Release/*.exe Release/*.dll Build/INSTALL-keow.txt keow
 zip -r9 keow.zip keow
 
 #do this manually - we need to keep the windows .lnk file intact

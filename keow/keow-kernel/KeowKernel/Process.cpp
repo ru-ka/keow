@@ -449,7 +449,7 @@ void Process::ConvertProcessToKeow()
 	ReadMemory(&SysCallAddr, (ADDR)ctx.Eax, sizeof(SysCallAddr));
 
 #ifdef _DEBUG
-	//ensure correct coding - all functions are populated
+	//ensure correct coding - all functions are populated?
 	for(int a=0; a<sizeof(SysCallAddr); a+=sizeof(DWORD))
 	{
 		DWORD * pa = (DWORD*)( ((LPBYTE)&SysCallAddr) + a );
@@ -492,6 +492,7 @@ void Process::ConvertProcessToKeow()
 	m_KeowUserStackTop = m_KeowUserStackBase + size;
 	//linux process start with a little bit of stack in use but overwritable?
 	ctx.Esp = (DWORD)m_KeowUserStackTop - 0x200;
+	//set new stack
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
 	//not fork or exec, must be 'init', the very first process
@@ -871,7 +872,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 				AlignedSize = (phdr->p_memsz + (pWantMem-pAlignedMem) + (phdr->p_align-1)) & ~(phdr->p_align-1);
 			}
 
-			ktrace("load segment file offset %d, file len %d, mem len %d (%d), to 0x%p (%p)\n", phdr->p_offset, phdr->p_filesz, phdr->p_memsz, AlignedSize, phdr->p_vaddr, pAlignedMem);
+			ktrace("load segment file offset %d, file len %d, mem len %d (%d), to 0x%08lx (0x%08lx)\n", phdr->p_offset, phdr->p_filesz, phdr->p_memsz, AlignedSize, phdr->p_vaddr, pAlignedMem);
 
 			pMem = MemoryHelper::AllocateMemAndProtect(pAlignedMem, AlignedSize, PAGE_EXECUTE_READWRITE);
 			if(pMem!=pAlignedMem)
@@ -1014,7 +1015,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 
 			pMem = CalculateVirtualAddress(phdr, pBaseAddr);
 			protection = ElfProtectionToWin32Protection(phdr->p_flags);
-			if(!VirtualProtectEx(pElf->pinfo.hProcess, pMem, phdr->p_memsz, protection, &oldprot))
+			if(!LegacyWindows::VirtualProtectEx(pElf->pinfo.hProcess, pMem, phdr->p_memsz, protection, &oldprot))
 			{
 				DWORD err = GetLastError();
 				ktrace("error 0x%lx in protect program segment @ 0x%lx (got 0x%lx)\n", err,pWantMem, pMem);
@@ -1125,8 +1126,8 @@ DWORD Process::StartNewImageRunning()
 	//point to the process
 	m_Environment = pEnv;
 	m_Arguments = pArgs;
-	ktrace("args @ %p\n", m_Arguments);
-	ktrace("env @ %p\n", m_Environment);
+	ktrace("args @ 0x%08lx\n", m_Arguments);
+	ktrace("env @ 0x%08lx\n", m_Environment);
 
 	//stack data needed
 	const int AUX_RESERVE = 2*sizeof(DWORD)*20; //heaps for what is below
@@ -1567,12 +1568,17 @@ void Process::GenerateCoreDump()
 	ktrace("Core Dump\n");
 }
 
-DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSize)
+DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSize, InjectionInfo * pInjectInfo /*=NULL*/, int CountInjectInfo /*=0*/)
 {
 	//Expect that the func is declared as _stdcall calling convention.
 	//(actually it ought to be from the SysCallDll::RemoteAddrInfo) 
 	//This means we place args on the stack so that param1 pops first
 	//Stack&register cleanup is irrelavent because HandleException() restores the correct state
+
+	//shouldn't need this, but...
+	CONTEXT OldCtx;
+	OldCtx.ContextFlags = CONTEXT_FULL | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
+	GetThreadContext(m_Win32PInfo.hThread, &OldCtx);
 
 	//Injection uses the original Win32 context (& stack etc) from when
 	//the stub process started.
@@ -1585,6 +1591,8 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	InjectCtx.Esp -= sizeof(ADDR);	//the return address
 	InjectCtx.Esp -= nStackDataSize;	//the params
 
+	//SetSingleStep(true, &InjectCtx); //FOR DEBUG
+
 	SetThreadContext(m_Win32PInfo.hThread, &InjectCtx);
 
 
@@ -1595,8 +1603,18 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	WriteMemory(addr, sizeof(DWORD), &dummy);
 	addr += sizeof(DWORD);
 
-	//parameters
+	//parameters & extra data
 	ADDR ParamAddr = addr;
+	if(pInjectInfo)
+	{
+		//some pointers in the stack frame need updating to where a buffer will be in the remote process
+		for(int i=0; i<CountInjectInfo; ++i)
+		{
+			DWORD addr = (DWORD)ParamAddr + pInjectInfo[i].StackRelativeOffsetToBuffer;
+			int offset = pInjectInfo[i].StackParamToActAsPointer;
+			((DWORD*)pStackData)[offset] = addr;
+		}
+	}
 	WriteMemory(addr, nStackDataSize, pStackData);
 	addr += nStackDataSize;
 
@@ -1671,10 +1689,9 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 	//done calling it, stub is still in the function, 
 	// but we can restore the stack and registers
+
 	// first retreive any altered parameters
-
 	addr = ParamAddr;
-
 	ReadMemory(pStackData, addr, nStackDataSize);
 
 
@@ -1685,6 +1702,8 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 
 	//No need to set keow context back. We'll be resetting the context when we return back to HandleException()
+	SetThreadContext(m_Win32PInfo.hThread, &OldCtx); //but we seem to need it when Win95 needs code injection before process fully running (VirtualAlloc etc)
+
 	return dwRet;
 }
 
@@ -1716,7 +1735,7 @@ void Process::DumpMemory(ADDR addr, DWORD len)
 
 	memset(charbuf, 0, sizeof(charbuf));
 
-	ktrace("memory dump @ 0x%p, len %d\n", addr,len);
+	ktrace("memory dump @ 0x%08lx, len %d\n", addr,len);
 	x=0;
 	for(DWORD i=0; i<len; ++i)
 	{
@@ -1727,14 +1746,14 @@ void Process::DumpMemory(ADDR addr, DWORD len)
 		++x;
 		if(x>=BYTES_PER_LINE)
 		{
-			ktrace("  %p: %s %s\n", addr, hexbuf, charbuf);
+			ktrace("  0x%08lx: %s %s\n", addr, hexbuf, charbuf);
 			addr+=BYTES_PER_LINE;
 			x=0;
 			memset(charbuf, 0, sizeof(charbuf));
 		}
 	}
 	if(x>0)
-		ktrace("  %p: %s %s\n", addr, hexbuf, charbuf);
+		ktrace("  0x%08lx: %s %s\n", addr, hexbuf, charbuf);
 }
 
 //trace stack frames
@@ -1762,7 +1781,7 @@ void Process::DumpStackTrace(CONTEXT &ctx)
 		ReadMemory(&ebp, esp, sizeof(ADDR));
 
 
-		ktrace(": from 0x%p\n", retAddr);
+		ktrace(": from 0x%08lx\n", retAddr);
 	}
 }
 
@@ -1818,8 +1837,8 @@ void Process::FreeResourcesBeforeExec()
 			continue;
 		}
 
-		if(!VirtualFreeEx(m_Win32PInfo.hProcess, pMemAlloc->addr, pMemAlloc->len, MEM_DECOMMIT))
-			ktrace("failed to free %p, len %d\n", pMemAlloc->addr, pMemAlloc->len);
+		if(!LegacyWindows::VirtualFreeEx(m_Win32PInfo.hProcess, pMemAlloc->addr, pMemAlloc->len, MEM_DECOMMIT))
+			ktrace("failed to free 0x%08lx, len %d\n", pMemAlloc->addr, pMemAlloc->len);
 
 		m_MemoryAllocations.erase(mem_it);
 		//iterator is invalid now? reset?

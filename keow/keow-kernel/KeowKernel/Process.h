@@ -68,7 +68,12 @@ public:
 	void DumpStackTrace(CONTEXT &ctx);
 
 	void SetSingleStep(bool set, CONTEXT * pCtx);
-	DWORD InjectFunctionCall(void *func, void *pStackData, int nStackDataSize);
+
+	struct InjectionInfo {
+		int StackParamToActAsPointer;	//which DWORD on the stack to update to point to actual data location
+		int StackRelativeOffsetToBuffer;	//byte offset within stack data where buffer is
+	};
+	DWORD InjectFunctionCall(void *func, void *pStackData, int nStackDataSize, InjectionInfo * pInjectInfo = NULL, int CountInjectInfo = 0);
 
 	virtual ~Process();
 

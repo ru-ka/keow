@@ -64,5 +64,5 @@ void SysCalls::sys_rt_sigreturn(CONTEXT &ctx)
 	ctx = state.ctx;
 	P->m_SignalMask = state.SignalMask;
 
-	ktrace("rt_sigreturn returning to 0x%p\n", ctx.Eip);
+	ktrace("rt_sigreturn returning to 0x%08lx\n", ctx.Eip);
 }

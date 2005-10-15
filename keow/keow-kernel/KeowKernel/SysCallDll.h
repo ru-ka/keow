@@ -54,6 +54,9 @@ public:
 
 #define SC static DWORD __stdcall
 
+	SC VirtualAlloc(LPVOID lpAddress, DWORD dwSize, DWORD flAllocationType, DWORD flProtect);
+	SC VirtualFree(LPVOID lpAddress, DWORD dwSize, DWORD dwFreeType);
+	SC VirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZE_T dwLength);
 	SC GetLastError();
 	SC CloseHandle(HANDLE h);
 	SC SetFilePointer(HANDLE h, DWORD PosLo, DWORD PosHi, DWORD from);
@@ -72,6 +75,9 @@ public:
 
 	//corresponding addresses
 	struct RemoteAddrInfo {
+		LPVOID VirtualAlloc;
+		LPVOID VirtualFree;
+		LPVOID VirtualQuery;
 		LPVOID GetLastError;
 		LPVOID CloseHandle;
 		LPVOID SetFilePointer;

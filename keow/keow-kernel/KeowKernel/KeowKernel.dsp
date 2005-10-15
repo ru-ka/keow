@@ -157,6 +157,10 @@ SOURCE=.\KernelTable.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\LegacyWindows.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\main.cpp
 # End Source File
 # Begin Source File
@@ -294,6 +298,10 @@ SOURCE=.\KernelStartup.h
 # Begin Source File
 
 SOURCE=.\KernelTable.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\LegacyWindows.h
 # End Source File
 # Begin Source File
 

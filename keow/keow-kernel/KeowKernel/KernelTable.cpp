@@ -34,7 +34,9 @@
 
 KernelTable::KernelTable()
 {
-	m_DebugLevel = 0;
+	ktrace("Init kernel tables\n");
+
+	m_DebugLevel = 1;	//not zero - because we want to keep logging before arguments are finished processing
 	m_hLogFile = NULL;
 	m_pRootMountPoint = 0;
 	m_LastPID = 0;
@@ -58,6 +60,7 @@ KernelTable::KernelTable()
 	//main console
 	m_pMainConsole = new DevConsole(0);
 
+	ktrace("Kernel table init done\n");
 }
 
 KernelTable::~KernelTable()
