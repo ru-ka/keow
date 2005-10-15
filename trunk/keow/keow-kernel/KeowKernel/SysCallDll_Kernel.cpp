@@ -31,6 +31,48 @@
 
 ////////////////////////////////////////////////////////////////////////
 
+DWORD _stdcall SysCallDll::VirtualAlloc(LPVOID lpAddress, DWORD dwSize, DWORD flAllocationType, DWORD flProtect)
+{
+	DWORD stack[] = {
+		(DWORD)lpAddress,
+		dwSize, 
+		flAllocationType,
+		flProtect
+	};
+	return P->InjectFunctionCall(P->SysCallAddr.VirtualAlloc, &stack, sizeof(stack));
+}
+
+DWORD _stdcall SysCallDll::VirtualFree(LPVOID lpAddress, DWORD dwSize, DWORD dwFreeType)
+{
+	DWORD stack[] = {
+		(DWORD)lpAddress, 
+		dwSize, 
+		dwFreeType
+	};
+	return P->InjectFunctionCall(P->SysCallAddr.VirtualFree, &stack, sizeof(stack));
+}
+
+DWORD _stdcall SysCallDll::VirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZE_T dwLength)
+{
+	struct {
+		DWORD lpAddress;
+		DWORD lpBuffer;
+		DWORD dwLength;
+		MEMORY_BASIC_INFORMATION MemBuf;
+	} stack;
+	stack.lpAddress = (DWORD)lpAddress;
+	stack.dwLength = dwLength;
+
+	Process::InjectionInfo info[] = {
+		{ 1, (DWORD)&stack.MemBuf-(DWORD)&stack }
+	};
+
+	DWORD ret = P->InjectFunctionCall(P->SysCallAddr.VirtualQuery, &stack, sizeof(stack), info, 1);
+	memcpy(lpBuffer, &stack.MemBuf, sizeof(stack.MemBuf));
+	return ret;
+}
+
+
 DWORD _stdcall SysCallDll::GetLastError()
 {
 	return P->InjectFunctionCall(P->SysCallAddr.GetLastError, NULL, 0);

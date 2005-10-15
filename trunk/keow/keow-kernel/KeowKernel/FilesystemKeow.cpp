@@ -53,7 +53,6 @@ string FilesystemKeow::GetShortCutTarget(string& path)
     HRESULT hres; 
     IShellLinkA* psl = 0; 
     IPersistFile* ppf = 0;
-    WIN32_FIND_DATA wfd; 
 	string Dest;
     wchar_t * pWsz = new wchar_t[MAX_PATH+1];
     char * pSz = new char[MAX_PATH+1];
@@ -106,6 +105,9 @@ string FilesystemKeow::GetShortCutTarget(string& path)
 
     // Get the path to the link target.
 	pSz[0] = 0;
+#undef KEOW_USE_LNK_PATH
+#if KEOW_USE_LNK_PATH
+    WIN32_FIND_DATA wfd; 
     hres = psl->GetPath(pSz, MAX_PATH,
                         (WIN32_FIND_DATA*)&wfd, 
                         SLGP_RAWPATH);
@@ -117,6 +119,9 @@ string FilesystemKeow::GetShortCutTarget(string& path)
 	{
 		//cygwin sym-link use desc as well as target, so use desc if target not available
 		ktrace("read link path failed 0x%08lx, falling back to description\n");
+#else
+	{
+#endif
 		psl->GetDescription(pSz, MAX_PATH);
 		if(FAILED(hres))  {
 			ktrace("get desc failed hr 0x%08lx\n", hres);
@@ -214,18 +219,16 @@ bool FilesystemKeow::IsSymbolicLink(string& strPath)
 
 string FilesystemKeow::GetLinkDestination(string& strPath)
 {
-	string w2 = strPath + ".lnk";
-
-	if(GetFileAttributes(w2) == INVALID_FILE_ATTRIBUTES)
+	if(GetFileAttributes(strPath) == INVALID_FILE_ATTRIBUTES)
 		return "";
 
 	//possibly a link, check it fully
-	return GetShortCutTarget(w2);
+	return GetShortCutTarget(strPath);
 }
 
 bool FilesystemKeow::IsRelativePath(string& strPath)
 {
-	return PathIsRelative(strPath)!=FALSE;
+	return strPath[0]!='/' && strPath[1]!='\\'; //PathIsRelative(strPath)!=FALSE;
 }
 
 const char * FilesystemKeow::Name()

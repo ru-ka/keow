@@ -63,13 +63,14 @@ public:
 	int GetElementCount();
 	string GetUnixPathElement(int count);
 
-	string GetUnixPath() const;
+	string GetUnixPath();
 	string GetWin32Path();
 	string GetPathInFilesystem();
 
 protected:
 	typedef list<const string> ElementList;
 
+	static void AppendPath(ElementList& list, string path);
 	static string JoinList(const Path::ElementList& list, char delimiter);
 
 	void TranverseMountPoints();
@@ -79,6 +80,7 @@ protected:
 	ElementList m_PathStack;
 	MountPoint * m_pFinalMountPoint;
 	string m_strMountRealPath, m_strPathInMountPoint;
+	string m_strActualUnixPath;
 	bool m_FollowSymLinks;
 };
 

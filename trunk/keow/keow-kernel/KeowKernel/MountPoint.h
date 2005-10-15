@@ -41,11 +41,11 @@ public:
 
 	static MountPoint* Mount( Path& UnixMountPoint, string sDestination, Filesystem* pFS, DWORD mountflags, BYTE * pData, int nDataLen);
 
-	const string& GetDestination()
+	string GetDestination()
 	{
 		return m_strDestination;
 	}
-	const Path& GetUnixMountPoint()
+	Path GetUnixMountPoint()
 	{
 		return m_UnixMountPoint;
 	}

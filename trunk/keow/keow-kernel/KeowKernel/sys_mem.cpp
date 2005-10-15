@@ -75,7 +75,7 @@ void SysCalls::sys_brk(CONTEXT &ctx)
 	}
 
 	P->m_ElfLoadData.brk = new_brk;
-	ktrace("brk(0x%p) = 0x%p\n", ctx.Ebx, new_brk);
+	ktrace("brk(0x%08lx) = 0x%08lx\n", ctx.Ebx, new_brk);
 	ctx.Eax = (DWORD)new_brk;
 	return;
 }
@@ -100,7 +100,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	IOHFile * ioh = NULL;
 
 	P->ReadMemory(&args, (ADDR)ctx.Ebx, sizeof(args));
-	ktrace("mmap(fd %d, offset %p, len %p, addr %p)\n", args.fd, args.offset, args.len, args.addr);
+	ktrace("mmap(fd %d, offset 0x%08lx, len 0x%08lx, addr 0x%08lx)\n", args.fd, args.offset, args.len, args.addr);
 
 	if(args.flags & MAP_ANONYMOUS)
 		args.fd = -1; //swap
@@ -181,7 +181,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 			return;
 		}
 
-		ktrace("fake mmap, len %p\n", len4k);
+		ktrace("fake mmap, len 0x%08lx\n", len4k);
 
 		//allocate the requested mem size
 		if(args.prot & PROT_WRITE)
@@ -220,10 +220,10 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 		}
 
 //can't change protection within the 64k once set?
-//		VirtualProtect(p, args.len, ProtMap, &ProtOpen);
+//		LegacyWindows::VirtualProtect(p, args.len, ProtMap, &ProtOpen);
 		if(args.flags & MAP_GROWSDOWN)
 			p = (LPBYTE)p + args.len;
-		ktrace("mmap'ed to 0x%p - 0x%p\n", p, (DWORD)p+len4k-1);
+		ktrace("mmap'ed to 0x%08lx - 0x%08lx\n", p, (DWORD)p+len4k-1);
 		ctx.Eax = (DWORD)p;
 		return;
 	}
@@ -283,7 +283,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	//opened - return actual addr
 	if(args.flags & MAP_GROWSDOWN)
 		p = (LPBYTE)p + args.len;
-	ktrace("mmap'ed to 0x%p - 0x%p\n", p, (DWORD)p+args.len-1);
+	ktrace("mmap'ed to 0x%08lx - 0x%08lx\n", p, (DWORD)p+args.len-1);
 	ctx.Eax = (DWORD)p;
 	return;
 }

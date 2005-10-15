@@ -35,6 +35,9 @@ static void LoadAddressInfo()
 
 #define SET_ADDR(func) AddrInfo.##func = (LPVOID)(SysCallDll::##func )
 
+	SET_ADDR(VirtualAlloc);
+	SET_ADDR(VirtualFree);
+	SET_ADDR(VirtualQuery);
 	SET_ADDR(GetLastError);
 	SET_ADDR(CloseHandle);
 	SET_ADDR(SetFilePointer);
