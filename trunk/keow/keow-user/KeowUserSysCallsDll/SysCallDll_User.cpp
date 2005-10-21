@@ -27,9 +27,10 @@
 
 #include "includes.h"
 
-
 SysCallDll::RemoteAddrInfo AddrInfo;
 DWORD g_LastError = 0;
+
+extern void DumpMemory(BYTE * addr, DWORD len);
 
 
 //How to return from these functions so that the kernel/debugger see's it
@@ -43,6 +44,53 @@ DWORD g_LastError = 0;
 
 DWORD _stdcall SysCallDll::VirtualAlloc(LPVOID lpAddress, DWORD dwSize, DWORD flAllocationType, DWORD flProtect)
 {
+#if 0
+	//we are expecting lpAddress = 0x6ff00000, dwSize=1M
+	//search to see where in memory we can find it
+	ktrace("lpaddr @ 0x%08lx\n", &lpAddress);
+	DWORD stack;
+	__asm mov stack,esp
+	DumpMemory((LPBYTE)stack-4, 64);
+
+	ktrace("searching for 0x6ff00000\n");
+	BYTE * addr;
+	BYTE * prev_addr = 0;
+	for(addr=0; addr<(BYTE*)0x80000000L; )
+	{
+		if(((DWORD)addr&0xFFF00000) != ((DWORD)prev_addr&0xFFF00000))
+		{
+			ktrace("looking ... %08lx\n", addr);
+		}
+		prev_addr = addr;
+
+		//is this block of memory allocated?
+		MEMORY_BASIC_INFORMATION m;
+		if(::VirtualQuery(addr, &m, sizeof(m)) > 0
+		&& m.State==MEM_COMMIT)
+		{
+			addr = (BYTE*)m.BaseAddress;
+			{
+				//search this block of memory for the value
+				for(DWORD i=0; i<m.RegionSize-8; ++i)
+				{
+					DWORD * pTest = (DWORD*)(addr+i);
+					if(*pTest==0x6ff00000
+					)//&& *(pTest+1)==1M)
+					{
+						ktrace("found 0x6ff00000 @ 0x%08lx\n", addr+i);
+						DumpMemory(addr+i, m.RegionSize-i<64?m.RegionSize-i:64);
+					}
+				}
+			}
+			addr += m.RegionSize;
+		}
+		else
+		{
+			addr+=4096;
+		}
+	}
+	ktrace("search done\n");
+#endif
 	ktrace("VirtualAlloc(0x%08lx, %d, %d, %d)\n", lpAddress, dwSize, flAllocationType, flProtect);
 	RET( (DWORD)::VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect) );
 }
@@ -52,13 +100,6 @@ DWORD _stdcall SysCallDll::VirtualFree(LPVOID lpAddress, DWORD dwSize, DWORD dwF
 	ktrace("VirtualFree(0x%08lx, %d, %d)\n", lpAddress, dwSize, dwFreeType);
 	RET( ::VirtualFree(lpAddress, dwSize, dwFreeType) );
 }
-
-DWORD _stdcall SysCallDll::VirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZE_T dwLength)
-{
-	ktrace("virtualquery(0x%08lx,0x%08lx,%d)\n", lpAddress, lpBuffer, dwLength);
-	RET( ::VirtualQuery(lpAddress, lpBuffer, dwLength) );
-}
-
 
 DWORD _stdcall SysCallDll::GetLastError()
 {

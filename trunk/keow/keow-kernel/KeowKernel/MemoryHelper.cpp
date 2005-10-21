@@ -68,16 +68,23 @@ ADDR MemoryHelper::AllocateMemAndProtectProcess(HANDLE hProcess, ADDR addr, DWOR
 	while(tmp64k < end_addr)
 	{
 		LegacyWindows::VirtualQueryEx(hProcess, tmp64k, &mbi, sizeof(mbi));
+
+		DWORD len64k = end_addr - tmp64k;
+		if(len64k > (mbi.RegionSize - (DWORD)(tmp64k - (LPBYTE)mbi.BaseAddress)))
+			len64k = (mbi.RegionSize - (DWORD)(tmp64k - (LPBYTE)mbi.BaseAddress));
+		len64k = (len64k+0xFFFFL) & ~0xFFFFL; //rounded up to 64k boundary
+
 		if(mbi.State == MEM_FREE)
 		{
 			//allocate with full perms, individual pages can lock it down as required
-			p = (ADDR)LegacyWindows::VirtualAllocEx(hProcess, tmp64k, SIZE64k, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+			p = (ADDR)LegacyWindows::VirtualAllocEx(hProcess, tmp64k, len64k, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 			if(p!=tmp64k)
 			{
 				return (ADDR)-1;
 			}
 		}
-		tmp64k += SIZE64k;
+
+		tmp64k += len64k;
 	}
 
 	//commit pages from reserved area
@@ -86,18 +93,25 @@ ADDR MemoryHelper::AllocateMemAndProtectProcess(HANDLE hProcess, ADDR addr, DWOR
 	while(tmp4k < end_addr)
 	{
 		LegacyWindows::VirtualQueryEx(hProcess, (void*)tmp4k, &mbi, sizeof(mbi));
+
+		DWORD len4k = end_addr - tmp4k;
+		if(len4k > (mbi.RegionSize - (DWORD)(tmp4k - (LPBYTE)mbi.BaseAddress)))
+			len4k = (mbi.RegionSize - (DWORD)(tmp4k - (LPBYTE)mbi.BaseAddress));
+		len4k = (len4k+0xFFFL) & ~0xFFFL; //rounded up to 4k boundary
+
 		if(mbi.State == MEM_RESERVE)
 		{
 //seems this cannot be changed within the 64k successfully?
 //			p = LegacyWindows::VirtualAlloc((void*)tmp4k, SIZE4k, MEM_COMMIT, prot);
-			p = (ADDR)LegacyWindows::VirtualAllocEx(hProcess, (void*)tmp4k, SIZE4k, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+			p = (ADDR)LegacyWindows::VirtualAllocEx(hProcess, (void*)tmp4k, len4k, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 			if(p!=tmp4k)
 			{
 				return (ADDR)-1;
 			}
+	//		LegacyWindows::VirtualProtect((void*)tmp64k, SIZE4k, prot, &oldprot); //in case re-using old area
 		}
-//		LegacyWindows::VirtualProtect((void*)tmp64k, SIZE4k, prot, &oldprot); //in case re-using old area
-		tmp4k += SIZE4k;
+
+		tmp4k += len4k;
 	}
 
 	//ktrace("AllocateMemAndProtect [h%lX] 0x%08lx -> 0x%08lx\n", hProcess, addr, end_addr);
@@ -145,8 +159,11 @@ bool MemoryHelper::ProcessReadWriteMemory(HANDLE hProcess, LPVOID pRemoteAddr, L
 {
 	/* It's not documented (anywhere I could find) but Read/Write ProcessMemory() calls
 	   appear to fail if either the local or remote addresses cross a 4k boundary.
+	   Possibly it is that you cannot cross an allocation boundary and that many things
+	   use VirtualAlloc to commit in 4k blocks and not larger.
+
 	   Therefore this routine has to transfer memory in chunks to ensure
-	   that neither end does.
+	   that neither end (src,dest) crosses 4k.
 
 	   Example: | is a 4k boundary, . is not accessed, * is copied
 
@@ -192,7 +209,7 @@ bool MemoryHelper::ProcessReadWriteMemory(HANDLE hProcess, LPVOID pRemoteAddr, L
 			bRet = ReadProcessMemory(hProcess, (LPVOID)pRemote, (LPVOID)pLocal, dwRemoteToCopy, &dwXfer);
 		else
 			bRet = WriteProcessMemory(hProcess, (LPVOID)pRemote, (LPVOID)pLocal, dwRemoteToCopy, &dwXfer);
-		if(bRet==FALSE)
+		if(bRet==0)
 		{
 			DWORD err = GetLastError();
 			ktrace("error 0x%lx in xfer program segment\n", err);
@@ -214,7 +231,7 @@ bool MemoryHelper::ProcessReadWriteMemory(HANDLE hProcess, LPVOID pRemoteAddr, L
 				bRet = ReadProcessMemory(hProcess, (LPVOID)pRemote, (LPVOID)pLocal, dwRemoteToCopy, &dwXfer);
 			else
 				bRet = WriteProcessMemory(hProcess, (LPVOID)pRemote, (LPVOID)pLocal, dwRemoteToCopy, &dwXfer);
-			if(bRet==FALSE)
+			if(bRet==0)
 			{
 				DWORD err = GetLastError();
 				ktrace("error 0x%lx in xfer program segment\n", err);
