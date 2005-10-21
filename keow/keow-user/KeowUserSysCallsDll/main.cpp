@@ -37,7 +37,6 @@ static void LoadAddressInfo()
 
 	SET_ADDR(VirtualAlloc);
 	SET_ADDR(VirtualFree);
-	SET_ADDR(VirtualQuery);
 	SET_ADDR(GetLastError);
 	SET_ADDR(CloseHandle);
 	SET_ADDR(SetFilePointer);
@@ -68,6 +67,39 @@ void ktrace(const char * format, ...)
 	OutputDebugString(g_TraceBuffer);
 }
 
+
+#if 1
+void DumpMemory(BYTE * addr, DWORD len)
+{
+	const int BYTES_PER_LINE = 8;
+	char hexbuf[5 * BYTES_PER_LINE + 1]; // "0x00 "... + null
+	char charbuf[BYTES_PER_LINE + 1];    // "xxxxxxxx" + null
+	int x;
+	BYTE b;
+
+	memset(charbuf, 0, sizeof(charbuf));
+
+	ktrace("memory dump @ 0x%08lx, len %d\n", addr,len);
+	x=0;
+	for(DWORD i=0; i<len; ++i)
+	{
+		b = addr[x];
+		wsprintf(&hexbuf[x*5], "0x%02x ", b);
+		charbuf[x] = (isalnum(b)||ispunct(b)) ? b : '.';
+
+		++x;
+		if(x>=BYTES_PER_LINE)
+		{
+			ktrace("  0x%08lx: %s %s\n", addr, hexbuf, charbuf);
+			addr+=BYTES_PER_LINE;
+			x=0;
+			memset(charbuf, 0, sizeof(charbuf));
+		}
+	}
+	if(x>0)
+		ktrace("  0x%08lx: %s %s\n", addr, hexbuf, charbuf);
+}
+#endif
 
 BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID p)
 {

@@ -259,11 +259,6 @@ Process* Process::StartFork(Process * pParent)
 	//Need COM
 	CoInitialize(NULL);//Ex(NULL, COINIT_MULTITHREADED);
 
-	//We run the debug loop at higher priority to hopefully receive and handle
-	//child system calls faster. The child is doing all the normal processing
-	//so this should not end up elevating it's priority and system impact
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-
 	//Start the stub
 	STARTUPINFO si;
 	GetStartupInfo(&si);
@@ -277,6 +272,11 @@ Process* Process::StartFork(Process * pParent)
 
 	//started now
 	SetEvent(P->m_hProcessStartEvent);
+
+	//We run the debug loop at higher priority to hopefully receive and handle
+	//child system calls faster. The child is doing all the normal processing
+	//so this should not end up elevating it's priority and system impact
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
 
 	//
@@ -361,6 +361,7 @@ void Process::DebuggerLoop()
 		case EXIT_PROCESS_DEBUG_EVENT:
 			m_dwExitCode = evt.u.ExitProcess.dwExitCode;
 			m_bStillRunning = false; //parent will clean up the process table entry
+			ktrace("process exit debug event\n");
 			return; //no longer debugging
 
 
@@ -432,7 +433,7 @@ void Process::ConvertProcessToKeow()
 	//The stub provides this via the loading of the KeowUserSysCalls dll
 	//The info is passed as a pointer in Eax and causing an initial breakpoint 
 
-	m_bInWin32Setup = false;
+	m_bInWin32Setup = true; //not done just yet
 
 	CONTEXT ctx;
 	ctx.ContextFlags = CONTEXT_FULL;
@@ -475,6 +476,7 @@ void Process::ConvertProcessToKeow()
 		Process * pParent = g_pKernelTable->FindProcess(m_ParentPid);
 		ForkCopyOtherProcess(*pParent);
 
+		m_bInWin32Setup = false; //done now
 		SetEvent(m_hForkDoneEvent);
 		return;
 	}
@@ -488,7 +490,7 @@ void Process::ConvertProcessToKeow()
 	//TODO: alloc dynamically within the contraints
 	DWORD size=1024*1024L;  //1MB will do?
 	ADDR stack_bottom = (ADDR)0x70000000 - size; //ok location?
-	m_KeowUserStackBase = MemoryHelper::AllocateMemAndProtect(stack_bottom, size, PAGE_EXECUTE_READWRITE);
+	m_KeowUserStackBase = MemoryHelper::AllocateMemAndProtect(stack_bottom, size, PAGE_EXECUTE_READWRITE);//we sometimes inject executable code into the stack
 	m_KeowUserStackTop = m_KeowUserStackBase + size;
 	//linux process start with a little bit of stack in use but overwritable?
 	ctx.Esp = (DWORD)m_KeowUserStackTop - 0x200;
@@ -496,6 +498,7 @@ void Process::ConvertProcessToKeow()
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
 	//not fork or exec, must be 'init', the very first process
+	ktrace("init/exec: load image: %s\n", m_ProcessFileImage.GetWin32Path().c_str());
 	LoadImage(m_ProcessFileImage, false);
 
 	//std in,out,err
@@ -505,6 +508,8 @@ void Process::ConvertProcessToKeow()
 	m_OpenFiles[0]->SetInheritable(true);
 	m_OpenFiles[1]->SetInheritable(true);
 	m_OpenFiles[2]->SetInheritable(true);
+
+	m_bInWin32Setup = false; //done now
 }
 
 
@@ -533,17 +538,68 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	{
 	case EXCEPTION_SINGLE_STEP:
 		DumpContext(ctx);
-		SetSingleStep(true, &ctx); //keep it up (DEbug only?)
+		SetSingleStep(true, &ctx); //keep it up (Debug only?)
+		break;
+
+	case EXCEPTION_FLT_DENORMAL_OPERAND:
+	case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+	case EXCEPTION_FLT_INEXACT_RESULT:
+	case EXCEPTION_FLT_INVALID_OPERATION:
+	case EXCEPTION_FLT_OVERFLOW:
+	case EXCEPTION_FLT_STACK_CHECK:
+	case EXCEPTION_FLT_UNDERFLOW:
+	case EXCEPTION_INT_DIVIDE_BY_ZERO:
+		ktrace("math exception\n");
+		SendSignal(SIGFPE);
+		break;
+
+	case EXCEPTION_INT_OVERFLOW:
+		{
+			//is this an INT 80 linux SYSCALL?
+			//--Actually is it the replacement instruction that we placed there?
+
+			WORD instruction;
+			ReadMemory(&instruction, (ADDR)(ctx.Eip-2), sizeof(instruction));
+			if(instruction == 0x04CD) //Int 4 - overflow exception - see InterceptInt80Calls()
+			{
+				//this exception is raised with EIP already pointing after the instruction
+				//no need to increment EIP
+
+				//handle int 80h
+				SysCalls::HandleInt80SysCall(ctx);
+			}
+			else
+			{
+				ReadMemory(&instruction, (ADDR)(ctx.Eip-1), sizeof(instruction));
+				if(instruction == 0x04CD) //Int 4 - overflow exception - see InterceptInt80Calls()
+				{
+					//this exception is raised with EIP already pointing after the instruction
+					ctx.Eip += 1;
+
+					//handle int 80h
+					SysCalls::HandleInt80SysCall(ctx);
+				}
+				else
+				{
+					//genuine exception
+					ktrace("math exception\n");
+					ktrace("(instruction = 0x%04lX)\n", instruction);
+					SendSignal(SIGFPE);
+				}
+			}
+		}
 		break;
 
 	case EXCEPTION_ACCESS_VIOLATION:
 		{
 			//is this an INT 80 linux SYSCALL?
+			//or a replacement instruction that we placed there?
 
 			WORD instruction;
 			ReadMemory(&instruction, (ADDR)evt.u.Exception.ExceptionRecord.ExceptionAddress, sizeof(instruction));
 
-			if(instruction == 0x80CD)
+			if(instruction == 0x80CD  //INT 80h
+			|| instruction == 0x04CD) //Int 4 - overflow exception - see InterceptInt80Calls()
 			{
 				//skip over the INT instruction
 				//so that the process resumes on the next instruction
@@ -555,6 +611,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 			else
 			{
 				ktrace("Access violation @ 0x%08lx\n", evt.u.Exception.ExceptionRecord.ExceptionAddress);
+				ktrace("instruction = 0x%04lX\n", instruction);
 
 				DumpContext(ctx);
 				DumpStackTrace(ctx);
@@ -562,19 +619,6 @@ void Process::HandleException(DEBUG_EVENT &evt)
 				SendSignal(SIGSEGV); //access violation
 			}
 		}
-		break;
-
-	case EXCEPTION_FLT_DENORMAL_OPERAND:
-	case EXCEPTION_FLT_DIVIDE_BY_ZERO:
-	case EXCEPTION_FLT_INEXACT_RESULT:
-	case EXCEPTION_FLT_INVALID_OPERATION:
-	case EXCEPTION_FLT_OVERFLOW:
-	case EXCEPTION_FLT_STACK_CHECK:
-	case EXCEPTION_FLT_UNDERFLOW:
-	case EXCEPTION_INT_DIVIDE_BY_ZERO:
-	case EXCEPTION_INT_OVERFLOW:
-		ktrace("math exception\n");
-		SendSignal(SIGFPE);
 		break;
 
 	case EXCEPTION_PRIV_INSTRUCTION:
@@ -712,7 +756,9 @@ DWORD Process::LoadImage(Path &img, bool LoadAsLibrary)
 	HANDLE hImg = CreateFile(m_ProcessFileImage.GetWin32Path().c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0);
 	if(hImg==INVALID_HANDLE_VALUE)
 	{
-		return GetLastError();
+		DWORD dwErr = GetLastError();
+		ktrace("image not found - err %d\n",dwErr);
+		return dwErr;
 	}
 
 	//Read the first chunk of the file
@@ -770,6 +816,7 @@ DWORD Process::LoadImage(Path &img, bool LoadAsLibrary)
 	else
 	{
 		//unhandled file format
+		ktrace("bad/unhandled image format\n");
 		rc = ERROR_BAD_FORMAT;
 	}
 
@@ -1126,8 +1173,8 @@ DWORD Process::StartNewImageRunning()
 	//point to the process
 	m_Environment = pEnv;
 	m_Arguments = pArgs;
-	ktrace("args @ 0x%08lx\n", m_Arguments);
-	ktrace("env @ 0x%08lx\n", m_Environment);
+	ktrace("%d args @ 0x%08lx\n", m_ArgCnt, m_Arguments);
+	ktrace("%d env @ 0x%08lx\n", m_EnvCnt, m_Environment);
 
 	//stack data needed
 	const int AUX_RESERVE = 2*sizeof(DWORD)*20; //heaps for what is below
@@ -1141,6 +1188,7 @@ DWORD Process::StartNewImageRunning()
 
 	//stack grows DOWN
 	ctx.Esp -= stack_needed;
+	ktrace("writing initial stack frame @ 0x%08lx, len %d\n", ctx.Esp, stack_needed);
 
 	//copy data to the stack
 	//write so that first written are popped first
@@ -1205,6 +1253,7 @@ DWORD Process::StartNewImageRunning()
 	//set
 	SetThreadContext(m_Win32PInfo.hThread, &ctx);
 
+	ktrace("Transfer to ELF code done\n");
 	return 0;
 }
 
@@ -1573,12 +1622,19 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	//Expect that the func is declared as _stdcall calling convention.
 	//(actually it ought to be from the SysCallDll::RemoteAddrInfo) 
 	//This means we place args on the stack so that param1 pops first
-	//Stack&register cleanup is irrelavent because HandleException() restores the correct state
+	//Stack&register cleanup is unnessesary because our caller will restore the correct state
 
-	//shouldn't need this, but...
+	//we need current state whilst in setup
+	// this is because we are using context in ConvertProcessToKeow()
+	// and StartNewImageRunning() and both those cause VirtualAlloc calls
+	// that on win95 cause an injection to occur.
+
 	CONTEXT OldCtx;
-	OldCtx.ContextFlags = CONTEXT_FULL | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
-	GetThreadContext(m_Win32PInfo.hThread, &OldCtx);
+	if(m_bInWin32Setup)
+	{
+		OldCtx.ContextFlags = CONTEXT_FULL;
+		GetThreadContext(m_Win32PInfo.hThread, &OldCtx);
+	}
 
 	//Injection uses the original Win32 context (& stack etc) from when
 	//the stub process started.
@@ -1586,17 +1642,20 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	ktrace("Injecting call to SysCallDll func @ 0x%08lx\n", func);
 
 	CONTEXT InjectCtx = m_BaseWin32Ctx;
+	//trying to get win95 memory written to correctly
+	//InjectCtx.Esp = OldCtx.Esp; //use stack WE allocated
 
 	InjectCtx.Eip = (DWORD)func;		//call this in the stub
 	InjectCtx.Esp -= sizeof(ADDR);	//the return address
 	InjectCtx.Esp -= nStackDataSize;	//the params
 
-	//SetSingleStep(true, &InjectCtx); //FOR DEBUG
+//	SetSingleStep(true, &InjectCtx); //FOR DEBUG
 
 	SetThreadContext(m_Win32PInfo.hThread, &InjectCtx);
 
 
 	ADDR addr = (ADDR)InjectCtx.Esp;
+	ktrace("inject data @ 0x%08lx\n", addr);
 
 	//return address - we don't actually need it (exit trapped below) 
 	DWORD dummy = 0;
@@ -1610,24 +1669,25 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 		//some pointers in the stack frame need updating to where a buffer will be in the remote process
 		for(int i=0; i<CountInjectInfo; ++i)
 		{
-			DWORD addr = (DWORD)ParamAddr + pInjectInfo[i].StackRelativeOffsetToBuffer;
+			DWORD a = (DWORD)ParamAddr + pInjectInfo[i].StackRelativeOffsetToBuffer;
 			int offset = pInjectInfo[i].StackParamToActAsPointer;
-			((DWORD*)pStackData)[offset] = addr;
+			((DWORD*)pStackData)[offset] = a;
 		}
 	}
 	WriteMemory(addr, nStackDataSize, pStackData);
 	addr += nStackDataSize;
-
+	//trying to get win95 memory written to correctly
+	//DumpMemory((ADDR)InjectCtx.Esp, nStackDataSize+4);
+	//DumpContext(InjectCtx);
 
 
 
 	//resume the process to let it run the function
-	//expect the stub to do a Break at the end
+	//expect the stub to do a Break (int 3) at the end
 	//we'll capture the break and then return
 
 	DEBUG_EVENT evt;
 	for(;;) {
-		//SetSingleStep(true); //debug
 
 		FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for our process modifications?
 		ContinueDebugEvent(m_Win32PInfo.dwProcessId, m_Win32PInfo.dwThreadId, DBG_CONTINUE);
@@ -1658,13 +1718,14 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 				ctx.ContextFlags = CONTEXT_FULL;
 				GetThreadContext(m_Win32PInfo.hThread, &ctx);
 				DumpContext(ctx);
-				HandleException(evt);
+				SendSignal(SIGSEGV); //terminate
 #endif
 			}
 		}
 
 		if(evt.dwDebugEventCode==EXIT_PROCESS_DEBUG_EVENT)
 		{
+			ktrace("process exit whilst in injected code\n");
 			m_dwExitCode = evt.u.ExitProcess.dwExitCode;
 			m_bStillRunning = false;
 			ExitThread(0); //no longer debugging
@@ -1700,9 +1761,10 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	DWORD dwRet = InjectCtx.Eax;
 	ktrace("Injection exit @ 0x%08lx\n", InjectCtx.Eip);
 
-
-	//No need to set keow context back. We'll be resetting the context when we return back to HandleException()
-	SetThreadContext(m_Win32PInfo.hThread, &OldCtx); //but we seem to need it when Win95 needs code injection before process fully running (VirtualAlloc etc)
+	if(m_bInWin32Setup)
+	{
+		SetThreadContext(m_Win32PInfo.hThread, &OldCtx);
+	}
 
 	return dwRet;
 }
@@ -1895,3 +1957,4 @@ bool Process::IsSuspended()
 		return suspended;
 	}
 }
+

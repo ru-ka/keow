@@ -52,6 +52,7 @@ DWORD _stdcall SysCallDll::VirtualFree(LPVOID lpAddress, DWORD dwSize, DWORD dwF
 	return P->InjectFunctionCall(P->SysCallAddr.VirtualFree, &stack, sizeof(stack));
 }
 
+/* left here as an example of how to call a function with a large structure/buffer to deal with
 DWORD _stdcall SysCallDll::VirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZE_T dwLength)
 {
 	struct {
@@ -70,7 +71,7 @@ DWORD _stdcall SysCallDll::VirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMA
 	DWORD ret = P->InjectFunctionCall(P->SysCallAddr.VirtualQuery, &stack, sizeof(stack), info, 1);
 	memcpy(lpBuffer, &stack.MemBuf, sizeof(stack.MemBuf));
 	return ret;
-}
+}*/
 
 
 DWORD _stdcall SysCallDll::GetLastError()
@@ -193,3 +194,4 @@ DWORD _stdcall SysCallDll::PeekAvailablePipe(HANDLE h)
 	};
 	return P->InjectFunctionCall(P->SysCallAddr.PeekAvailablePipe, &stack, sizeof(stack));
 }
+
