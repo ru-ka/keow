@@ -510,6 +510,9 @@ void Process::ConvertProcessToKeow()
 	m_OpenFiles[2]->SetInheritable(true);
 
 	m_bInWin32Setup = false; //done now
+
+	//make the stub execute the image
+	StartNewImageRunning();
 }
 
 
@@ -680,8 +683,6 @@ void Process::ForkCopyOtherProcess(Process &other)
 	m_ProcessFileImage = other.m_ProcessFileImage;
 	m_UnixPwd = other.m_UnixPwd;
 
-	m_CommandLine = other.m_CommandLine;
-
 	m_ElfLoadData = other.m_ElfLoadData;
 
 	//DO NOT copy the ptrace state on a fork
@@ -753,7 +754,7 @@ DWORD Process::LoadImage(Path &img, bool LoadAsLibrary)
 {
 	DWORD rc;
 
-	HANDLE hImg = CreateFile(m_ProcessFileImage.GetWin32Path().c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0);
+	HANDLE hImg = CreateFile(img.GetWin32Path().c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0);
 	if(hImg==INVALID_HANDLE_VALUE)
 	{
 		DWORD dwErr = GetLastError();
@@ -762,7 +763,7 @@ DWORD Process::LoadImage(Path &img, bool LoadAsLibrary)
 	}
 
 	//Read the first chunk of the file
-	int buflen=1024; //plenty enough to understand the file
+	int buflen=1024; //plenty enough to understand the file - enough for elf header and also the 128 chars allowed for a #! shell script
 	DWORD dwRead;
 	BYTE * buf = new BYTE[buflen];
 	memset(buf,0,buflen);
@@ -783,35 +784,45 @@ DWORD Process::LoadImage(Path &img, bool LoadAsLibrary)
 	&& buf[1]=='!')
 	{
 		//yes - it is a shell script with a header
-		// eg: #!/bin/sh
-		//Use that program as the process and give it the args we specified
-		char * space = strchr((char*)buf, ' ');
+		// eg: #! /bin/sh -x
+		//Use that program as the process and apppend our original args
+
 		char * nl = strchr((char*)buf, 0x0a);
 		if(nl==NULL)
+			nl = (char*)&buf[buflen-1]; //use end of buffer
+		*nl = NULL; //line ends here
+
+		//skip #! and any whitespace
+		char * interp = (char*)buf + 2;
+		while(*interp == ' ')
+			interp++;
+
+		//process the command and arguments
+		list<string> arglist;
+		ParseCommandLine(interp, arglist);
+
+		rc = LoadImage(Path(arglist[0]), false); //scripts are never libraries
+
+		//At this point the arguments are still in the kernel
+		//Prepend the interpreter arguments to the list
+
+		//TODO: this is a hack - think about it and make it better
+		//need list of pointers
+		const char **pTmpAddr = new const char*[m_ArgCnt+arglist.size()+1];
+		//copy new pointers
+		list<string>::iterator it;
+		int i;
+		for(i=0,it=arglist.begin(); it!=arglist.end(); ++i,++it)
 		{
-			buf[buflen-1] = NULL;
-			space = NULL;
+			pTmpAddr[i] = (*it).c_str();
 		}
-		else
-		{
-			*nl = NULL; //line ends here
-
-			char * args;
-			if(space==NULL || space>nl)
-				args = NULL;
-			else
-				args = space+1;
-
-			//skip #! and any whitespace
-			char * interp = (char*)buf + 2;
-			while(*interp == ' ')
-				interp++;
-
-			rc = LoadImage(Path(interp), LoadAsLibrary);
-
-			if(args)
-				m_CommandLine = args;
-		}
+		//original pointers plus the null
+		memcpy(&pTmpAddr[i], m_Arguments, sizeof(ADDR)*(m_ArgCnt+1));
+		//new copy
+		ADDR pOldArgs = m_Arguments;
+		m_Arguments = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), (ADDR)pTmpAddr, GetCurrentProcess(), NULL, &m_ArgCnt, NULL);
+		//free old kernel copy
+		//leak! VirtualFree(pOldArgs, dwArgsSize, MEM_DECOMMIT);
 	}
 	else
 	{
@@ -824,10 +835,6 @@ DWORD Process::LoadImage(Path &img, bool LoadAsLibrary)
 	//done with handles
 	delete buf;
 	CloseHandle(hImg);
-
-
-	//make the stub execute the image
-	StartNewImageRunning();
 
 	return rc;
 }

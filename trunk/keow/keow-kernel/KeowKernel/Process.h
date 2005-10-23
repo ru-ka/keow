@@ -119,8 +119,6 @@ public:
 	Path m_ProcessFileImage;
 	Path m_UnixPwd;
 
-	string m_CommandLine;
-
 	struct MemoryAlloc
 	{
 		ADDR addr;

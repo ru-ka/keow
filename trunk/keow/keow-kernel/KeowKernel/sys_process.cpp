@@ -214,9 +214,9 @@ void SysCalls::sys_execve(CONTEXT &ctx)
 {
 	string filename = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
 	//need a kernel copy of argv and envp  (we're about to remove the processes own memory)
-	DWORD dwCnt, dwMemSize;
-	ADDR argv = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx, GetCurrentProcess(), NULL, &dwCnt, &dwMemSize);
-	ADDR envp = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Edx, GetCurrentProcess(), NULL, &dwCnt, &dwMemSize);
+	DWORD dwArgCnt, dwEnvCnt, dwMemSize;
+	ADDR argv = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx, GetCurrentProcess(), NULL, &dwArgCnt, &dwMemSize);
+	ADDR envp = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Edx, GetCurrentProcess(), NULL, &dwEnvCnt, &dwMemSize);
 
 	ktrace("execve(%s,...,...)\n", filename.c_str());
 
@@ -226,6 +226,8 @@ void SysCalls::sys_execve(CONTEXT &ctx)
 	//new argv, and env (in the kernel - they are copied over later)
 	P->m_Arguments = argv;
 	P->m_Environment = envp;
+	P->m_ArgCnt = dwArgCnt;
+	P->m_EnvCnt = dwEnvCnt;
 
 	//reset the keow stack (AFTER resource free - it may have injected code and new stack)
 	//linux process start with a little bit of stack in use but overwritable?
@@ -234,7 +236,8 @@ void SysCalls::sys_execve(CONTEXT &ctx)
 
 	//load new image
 	P->m_ProcessFileImage.SetUnixPath(filename);
-	P->LoadImage(P->m_ProcessFileImage, false); //this runs it too
+	P->LoadImage(P->m_ProcessFileImage, false);
+	P->StartNewImageRunning(); //set up context at least
 
 	//participate in ptrace() 
 	if(P->m_ptrace.OwnerPid)
