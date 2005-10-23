@@ -35,6 +35,8 @@
 
 void ktrace(const char *format, ...);
 void halt();
+void ParseCommandLine(LPSTR lpCmdLine, list<string> &lst);
+
 
 const int SIZE4k = 4*1024;
 const int SIZE64k = 64*1024;

@@ -55,43 +55,7 @@ void KernelStartup::ProcessCommandLine(LPSTR lpCmdLine)
 	//some yucky code to process the command line
 
 	list<string> args;
-
-	char * pLineEnd = lpCmdLine + strlen(lpCmdLine);
-	char * pArg = lpCmdLine;
-	while(pArg<pLineEnd)
-	{
-		bool inQuote;
-		string a;
-		char *p;
-
-		//start of the name
-		while(isspace(*pArg))
-			++pArg;
-
-		//find end of argument, possibly double quoted
-		p = pArg;
-		inQuote = false;
-		while((inQuote || !isspace(*p)) && p<pLineEnd)
-		{
-			//something is quoted?
-			if(*p=='"')
-			{
-				inQuote = !inQuote;
-			}
-			else
-			{
-				a += *p;
-			}
-
-			++p;
-		}
-
-		//store
-		args.push_back(a);
-
-		//next arg
-		pArg = p+1;
-	}
+	ParseCommandLine(lpCmdLine, args);
 
 	//process the found args
 	list<string>::iterator it;
