@@ -62,6 +62,7 @@ public:
 	static Process* StartInit(PID pid, Path& path, char ** InitialArguments, char ** InitialEnvironment);
 	static Process* StartFork(Process * pParent);
 	DWORD LoadImage(Path &img, bool LoadAsLibrary);
+	static bool CanLoadImage(Path &img, bool LoadAsLibrary);
 
 	void DumpMemory(ADDR addr, DWORD len);
 	void DumpContext(CONTEXT &ctx);
@@ -160,6 +161,7 @@ public:
 		DWORD phdr_phnum;
 		DWORD phdr_phent;
 
+		ADDR image_base;
 		ADDR start_addr;
 		ADDR program_base, program_max;
 		ADDR interpreter_base;
@@ -183,6 +185,8 @@ public:
 
 	//info about what resources the stub can provide
 	SysCallDll::RemoteAddrInfo SysCallAddr;
+	DWORD m_LinuxGateDSO;
+	DWORD m_LinuxGateVSyscall;
 
 	DWORD m_ArgCnt, m_EnvCnt;
 	ADDR m_Environment;

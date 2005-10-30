@@ -51,9 +51,13 @@ public:
 	DWORD m_BogoMips;
 	DWORD m_ForksSinceBoot;
 
+	string m_KernelVersion;
+	string m_KernelCpuType;
+
 	int m_DebugLevel;
 	HANDLE m_hLogFile;
 
+	string m_KeowExeDir;
 	string m_FilesystemRoot;
 	MountPoint * m_pRootMountPoint;
 

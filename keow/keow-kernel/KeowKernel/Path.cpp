@@ -36,23 +36,27 @@ Path::Path(const Path& other)
 {
 	m_pFinalMountPoint=NULL;
 	m_FollowSymLinks = FollowSymLinks;
+	m_NeedCalculation = true;
 	*this = other;
 }
 Path::Path(bool FollowSymLinks)
 {
 	m_pFinalMountPoint=NULL;
 	m_FollowSymLinks = FollowSymLinks;
+	m_NeedCalculation = true;
 }
 Path::Path(string UnixPath, bool FollowSymLinks)
 {
 	m_FollowSymLinks = FollowSymLinks;
 	m_pFinalMountPoint=NULL;
+	m_NeedCalculation = true;
 	SetUnixPath(UnixPath);
 }
 Path::Path(LPCSTR UnixPath, bool FollowSymLinks)
 {
 	m_FollowSymLinks = FollowSymLinks;
 	m_pFinalMountPoint=NULL;
+	m_NeedCalculation = true;
 	SetUnixPath(UnixPath);
 }
 
@@ -68,6 +72,9 @@ Path& Path::operator=(const Path& other)
 	m_pFinalMountPoint = other.m_pFinalMountPoint;
 	m_strMountRealPath = other.m_strMountRealPath;
 	m_strPathInMountPoint = other.m_strPathInMountPoint;
+	m_strWin32Path = other.m_strWin32Path;
+	m_strActualUnixPath = other.m_strActualUnixPath;
+	m_NeedCalculation = other.m_NeedCalculation;
 	return *this;
 }
 
@@ -88,6 +95,8 @@ void Path::SetUnixPath(string path)
 
 	AppendUnixPath(path);
 
+	m_NeedCalculation = true;
+
 	ktrace("path: %s\n", path.c_str());
 	ktrace("  --> %s\n", GetUnixPath().c_str());
 	ktrace("  --> %s\n", GetWin32Path().c_str());
@@ -98,12 +107,14 @@ void Path::SetUnixPath(string path)
 void Path::FollowSymLinks(bool follow)
 {
 	m_FollowSymLinks = follow;
+	m_NeedCalculation = true;
 }
 
 
 void Path::AppendUnixPath(string unixp)
 {
 	AppendPath(m_PathStack, unixp);
+	m_NeedCalculation = true;
 }
 
 
@@ -211,7 +222,9 @@ string Path::GetUnixPathElement(int count)
 //
 string Path::GetUnixPath()
 {
-	TranverseMountPoints();
+	if(m_NeedCalculation)
+		TranverseMountPoints();
+
 	return m_strActualUnixPath;
 }
 
@@ -221,12 +234,17 @@ string Path::GetUnixPath()
 //
 string Path::GetWin32Path()
 {
-	TranverseMountPoints();
-	return GetFinalPath();
+	if(m_NeedCalculation)
+		TranverseMountPoints();
+
+	return m_strWin32Path;
 }
 
 string Path::GetPathInFilesystem()
 {
+	if(m_NeedCalculation)
+		TranverseMountPoints();
+
 	return m_strPathInMountPoint;
 }
 
@@ -319,6 +337,10 @@ void Path::TranverseMountPoints()
 	}
 
 	m_strActualUnixPath = string("/") + JoinList(FinalUnixPath, '/');
+	m_strWin32Path = GetFinalPath();
+
+	//calculated
+	m_NeedCalculation = false;
 }
 
 // tests to see if this path completely matches another path
@@ -357,7 +379,9 @@ bool Path::EqualsPartialPath(const Path& other, int otherLen) const
 
 bool Path::IsSymbolicLink()
 {
-	TranverseMountPoints();
+	if(m_NeedCalculation)
+		TranverseMountPoints();
+
 	return m_pFinalMountPoint->GetFilesystem()->IsSymbolicLink( GetFinalPath() );
 }
 
@@ -365,6 +389,9 @@ bool Path::IsSymbolicLink()
 //Returns filesystem that the path unlimately resolves to
 Filesystem * Path::GetFinalFilesystem()
 {
+	if(m_NeedCalculation)
+		TranverseMountPoints();
+
 	return m_pFinalMountPoint->GetFilesystem();
 }
 

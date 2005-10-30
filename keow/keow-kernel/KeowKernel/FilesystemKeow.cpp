@@ -44,11 +44,13 @@ FilesystemKeow::~FilesystemKeow()
 
 }
 
+
+
 //
 // If lpszLinkFile is a shortcut then return the target it points to
 // otherwise return the original path
 //
-string FilesystemKeow::GetShortCutTarget(string& path) 
+string FilesystemKeow::GetShortcutTarget(string& path) 
 { 
     HRESULT hres; 
     IShellLinkA* psl = 0; 
@@ -158,7 +160,7 @@ cleanup:
 // Returns the result of calling the member functions of the interfaces. 
 //
 
-HRESULT FilesystemKeow::CreateLink(const string& LinkPath, const string& DestPath, const string& Description)
+HRESULT FilesystemKeow::CreateShortcut(const string& LinkTo, const string& TheShortcut, const string& Description)
 { 
     HRESULT hres; 
     IShellLink* psl; 
@@ -171,7 +173,7 @@ HRESULT FilesystemKeow::CreateLink(const string& LinkPath, const string& DestPat
         IPersistFile* ppf; 
  
         // Set the path to the shortcut target and add the description. 
-        psl->SetPath(DestPath); 
+        psl->SetPath(LinkTo); 
         psl->SetDescription(Description); 
  
         // Query IShellLink for the IPersistFile interface for saving the 
@@ -183,7 +185,7 @@ HRESULT FilesystemKeow::CreateLink(const string& LinkPath, const string& DestPat
             string wsz;
  
             // Ensure that the string is Unicode. 
-            MultiByteToWideChar(CP_ACP, 0, LinkPath.c_str(), -1, (wchar_t*)wsz.GetBuffer(MAX_PATH), MAX_PATH); 
+            MultiByteToWideChar(CP_ACP, 0, TheShortcut.c_str(), -1, (wchar_t*)wsz.GetBuffer(MAX_PATH), MAX_PATH); 
 
             // TODO: Check return value from MultiByteWideChar to ensure success.
  
@@ -213,7 +215,7 @@ string FilesystemKeow::GetPathSeperator()
 
 bool FilesystemKeow::IsSymbolicLink(string& strPath)
 {
-	string Dest = GetShortCutTarget(strPath);
+	string Dest = GetShortcutTarget(strPath);
 	return !Dest.empty();
 }
 
@@ -223,7 +225,7 @@ string FilesystemKeow::GetLinkDestination(string& strPath)
 		return "";
 
 	//possibly a link, check it fully
-	return GetShortCutTarget(strPath);
+	return GetShortcutTarget(strPath);
 }
 
 bool FilesystemKeow::IsRelativePath(string& strPath)
@@ -234,4 +236,13 @@ bool FilesystemKeow::IsRelativePath(string& strPath)
 const char * FilesystemKeow::Name()
 {
 	return "keow";
+}
+
+
+bool FilesystemKeow::CreateSymbolicLink(string& OldPath, string& NewPath)
+{
+	Path shortcut;
+	shortcut.SetUnixPath(NewPath+".lnk");
+	HRESULT hr = CreateShortcut(OldPath, shortcut.GetWin32Path(), OldPath);
+	return SUCCEEDED(hr);
 }

@@ -27,5 +27,8 @@
 
 #include "../../keow-kernel/KeowKernel/linux_includes.h"
 #include "../../keow-kernel/KeowKernel/SysCallDll.h"
+#include "../../keow-kernel/KeowKernel/string.h"
+#include "../../keow-kernel/KeowKernel/list.h"
+#include "../../keow-kernel/KeowKernel/utils.h"
 
 void ktrace(const char * format, ...);

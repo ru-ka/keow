@@ -55,7 +55,7 @@ static void LoadAddressInfo()
 }
 
 
-static char g_TraceBuffer[1024];
+static char g_TraceBuffer[32768];
 
 void ktrace(const char * format, ...)
 {
@@ -101,6 +101,7 @@ void DumpMemory(BYTE * addr, DWORD len)
 }
 #endif
 
+
 BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID p)
 {
 	switch(dwReason)
@@ -117,13 +118,13 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID p)
 		//pass control to the kernel to re-develop us into a keow process
 		OutputDebugString("SysCallDll transfering to kernel\n");
 		__asm {
-			lea eax, AddrInfo
+			lea ebx, AddrInfo
 
 			//set single-step mode to tell kernel we are ready
 			pushfd
-			pop ebx
-			or ebx, 0x100   //trap bit
-			push ebx
+			pop eax
+			or eax, 0x100   //trap bit
+			push eax
 			popfd
 			//now we are single-stepping
 

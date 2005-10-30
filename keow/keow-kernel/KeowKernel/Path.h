@@ -82,6 +82,8 @@ protected:
 	string m_strMountRealPath, m_strPathInMountPoint;
 	string m_strActualUnixPath;
 	bool m_FollowSymLinks;
+	bool m_NeedCalculation;
+	string m_strWin32Path;
 };
 
 #endif // !defined(AFX_PATH_H__318FAE4B_1C88_435D_A35C_D1849ACD47AA__INCLUDED_)

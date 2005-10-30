@@ -25,6 +25,7 @@
 #include "SysCalls.h"
 
 #include "IOHPipe.h"
+#include "FilesystemKeow.h"
 
 
 // eax is the syscall number
@@ -925,18 +926,15 @@ void SysCalls::sys_pipe(CONTEXT &ctx)
  */
 void SysCalls::sys_link(CONTEXT &ctx)
 {
-	Unhandled(ctx);
-#if 0
 	Path OldP(false), NewP(false);
 
-	OldP.SetUnixPath((const char*)ctx.Ebx);
-	NewP.SetUnixPath((const char*)ctx.Ecx);
+	OldP.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
+	NewP.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx) );
 
-	if(CreateHardLink(NewP.Win32Path(), OldP.Win32Path(), NULL))
+	if(LegacyWindows::CreateHardLink(NewP.GetWin32Path(), OldP.GetWin32Path()))
 		ctx.Eax = 0;
 	else
 		ctx.Eax = -Win32ErrToUnixError(GetLastError());
-#endif
 }
 
 
@@ -949,6 +947,19 @@ void SysCalls::sys_unlink(CONTEXT &ctx)
 	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
 
 	ktrace("unlink(%s)\n", p.GetWin32Path().c_str() );
+
+	DWORD attr = GetFileAttributes(p.GetWin32Path());
+	if(attr==INVALID_FILE_ATTRIBUTES)
+	{
+		ctx.Eax = -ENOENT;
+		return;
+	}
+	if(attr & FILE_ATTRIBUTE_DIRECTORY)
+	{
+		ctx.Eax = -EISDIR;
+		return;
+	}
+
 
 	if(DeleteFile(p.GetWin32Path()))
 	{
@@ -977,6 +988,20 @@ void SysCalls::sys_unlink(CONTEXT &ctx)
 	return; //return the original error
 }
 
+
+/*
+ * int symlink(const char *oldpath, const char *newpath)
+ */
+void SysCalls::sys_symlink(CONTEXT &ctx)
+{
+	string OldP = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	string NewP = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx);
+
+	if(FilesystemKeow::CreateSymbolicLink(OldP, NewP))
+		ctx.Eax = 0;
+	else
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
+}
 
 /*****************************************************************************/
 
@@ -1270,5 +1295,37 @@ void SysCalls::sys_rename(CONTEXT &ctx)
 
 	if(p2)
 		delete p2;
+}
+
+
+/*
+ * int utime(const char *filename, struct utimbuf *buf)
+ */
+void SysCalls::sys_utime(CONTEXT &ctx)
+{
+	Path path;
+	path.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
+
+	linux::utimbuf times;
+	P->ReadMemory(&times, (ADDR)ctx.Ecx, sizeof(times));
+
+	HANDLE hTmp = CreateFile(path.GetWin32Path(), FILE_WRITE_ATTRIBUTES, 0, 0, OPEN_EXISTING, 0, 0);
+	if(hTmp==INVALID_HANDLE_VALUE)
+	{
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
+		return;
+	}
+
+
+	FILETIME access, modify;
+	TIME_T_TO_FILETIME(times.actime, access);
+	TIME_T_TO_FILETIME(times.modtime, modify);
+
+	if(SetFileTime(hTmp, NULL, &access, &modify))
+		ctx.Eax = 0;
+	else
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
+
+	CloseHandle(hTmp);
 }
 
