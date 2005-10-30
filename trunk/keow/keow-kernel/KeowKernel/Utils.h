@@ -44,8 +44,8 @@ const int SIZE64k = 64*1024;
 //unix time base
 extern ULARGE_INTEGER Time1Jan1970;
 //conversion (1sec <--> 100ns)
-#define SECOND_TO_100NS(sec)  (sec)*10000000L
-#define NS100_TO_SECOND(ns)  (ns)/10000000L
+#define SECOND_TO_100NS(sec)  (((unsigned __int64)sec)*10000000L)
+#define NS100_TO_SECOND(ns)  (((unsigned __int64)ns)/10000000L)
 #define FILETIME_TO_TIME_T(t) (unsigned long)(NS100_TO_SECOND( ((ULARGE_INTEGER*)&t)->QuadPart - Time1Jan1970.QuadPart ))
 #define TIME_T_TO_FILETIME(tt,ft) ((ULARGE_INTEGER*)&ft)->QuadPart = (Time1Jan1970.QuadPart + SECOND_TO_100NS(tt))
 
