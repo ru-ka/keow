@@ -1309,7 +1309,8 @@ void SysCalls::sys_utime(CONTEXT &ctx)
 	linux::utimbuf times;
 	P->ReadMemory(&times, (ADDR)ctx.Ecx, sizeof(times));
 
-	HANDLE hTmp = CreateFile(path.GetWin32Path(), FILE_WRITE_ATTRIBUTES, 0, 0, OPEN_EXISTING, 0, 0);
+	DWORD attr = GetFileAttributes(path.GetWin32Path());
+	HANDLE hTmp = CreateFile(path.GetWin32Path(), FILE_WRITE_ATTRIBUTES, 0, 0, OPEN_EXISTING, (attr&FILE_ATTRIBUTE_DIRECTORY)?FILE_FLAG_BACKUP_SEMANTICS:0, 0);
 	if(hTmp==INVALID_HANDLE_VALUE)
 	{
 		ctx.Eax = -Win32ErrToUnixError(GetLastError());
