@@ -48,9 +48,11 @@ public:
 	virtual string GetLinkDestination(string& strPath);
 	virtual bool IsRelativePath(string& strPath);
 
+	static bool CreateSymbolicLink(string& OldPath, string& NewPath);
+
 protected:
-	static string GetShortCutTarget(string& path);
-	static HRESULT CreateLink(const string& LinkPath, const string& DestPath, const string& Description);
+	static string GetShortcutTarget(string& path);
+	static HRESULT CreateShortcut(const string& LinkTo, const string& TheShortcut, const string& Description);
 
 };
 

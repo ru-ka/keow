@@ -391,17 +391,13 @@ void SysCalls::Unhandled(CONTEXT &ctx)
  * move them to their own files as coded
  */
 
-void SysCalls::sys_waitpid(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_creat(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_mknod(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_chmod(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_lchown(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_setuid(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_stime(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_alarm(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_oldfstat(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_pause(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_utime(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_stty(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_gtty(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_nice(CONTEXT &ctx)		{Unhandled(ctx);}
@@ -430,15 +426,12 @@ void SysCalls::sys_getrusage(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_settimeofday(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_getgroups(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_setgroups(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_symlink(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_oldlstat(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_uselib(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_swapon(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_readdir(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_truncate(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_ftruncate(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_fchmod(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_fchown(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_getpriority(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_setpriority(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_profil(CONTEXT &ctx)		{Unhandled(ctx);}
@@ -503,7 +496,6 @@ void SysCalls::sys_getresgid(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_prctl(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_pread(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_pwrite(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_chown(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_capget(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_capset(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_sigaltstack(CONTEXT &ctx)		{Unhandled(ctx);}
@@ -514,15 +506,12 @@ void SysCalls::sys_vfork(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_mmap2(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_truncate64(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_ftruncate64(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_lchown32(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_getgroups32(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_setgroups32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_fchown32(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_setresuid32(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_getresuid32(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_setresgid32(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_getresgid32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_chown32(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_setuid32(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_setgid32(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_setfsuid32(CONTEXT &ctx)		{Unhandled(ctx);}

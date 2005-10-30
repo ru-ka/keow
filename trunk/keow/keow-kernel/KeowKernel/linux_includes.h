@@ -91,6 +91,7 @@ struct mmap_arg_struct {
 #include <linux/wait.h>
 #include <asm-i386/ucontext.h>
 #include <linux/user.h>
+#include <linux/utime.h>
 
 };
 
@@ -157,6 +158,11 @@ do { \
 			"2" ((__kernel_fd_set *) (fdsetp)) : "memory"); \
 } while (0)
 */
+
+//should get a 2.6 header set for this:
+///usr/include/elf.h:
+#define AT_SYSINFO   32
+#define AT_SYSINFO_EHDR      33
 
 
 #pragma pack(pop)

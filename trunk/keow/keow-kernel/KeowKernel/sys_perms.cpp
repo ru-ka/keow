@@ -158,3 +158,75 @@ void SysCalls::sys_setregid32(CONTEXT &ctx)
 {
 	sys_setregid(ctx);
 }
+
+
+/*
+ * int chmod(const char *path, mode_t mode);
+ */
+void SysCalls::sys_chmod(CONTEXT &ctx)
+{
+	ktrace("IMPLEMENT proper permissions changes\n");
+
+	//pretent we worked
+	ctx.Eax = 0;
+}
+
+/*
+ * int fchmod(int fildes, mode_t mode);
+ */
+void SysCalls::sys_fchmod(CONTEXT &ctx)
+{
+	ktrace("IMPLEMENT proper permissions changes\n");
+
+	//pretent we worked
+	ctx.Eax = 0;
+}
+
+void SysCalls::sys_chown(CONTEXT &ctx)
+{
+	ktrace("IMPLEMENT proper permissions changes\n");
+
+	//pretent we worked
+	ctx.Eax = 0;
+}
+
+void SysCalls::sys_lchown(CONTEXT &ctx)
+{
+	ktrace("IMPLEMENT proper permissions changes\n");
+
+	//pretent we worked
+	ctx.Eax = 0;
+}
+
+void SysCalls::sys_fchown(CONTEXT &ctx)
+{
+	ktrace("IMPLEMENT proper permissions changes\n");
+
+	//pretent we worked
+	ctx.Eax = 0;
+}
+
+void SysCalls::sys_lchown32(CONTEXT &ctx)
+{
+	ktrace("IMPLEMENT proper permissions changes\n");
+
+	//pretent we worked
+	ctx.Eax = 0;
+}
+
+void SysCalls::sys_fchown32(CONTEXT &ctx)
+{
+	ktrace("IMPLEMENT proper permissions changes\n");
+
+	//pretent we worked
+	ctx.Eax = 0;
+}
+
+void SysCalls::sys_chown32(CONTEXT &ctx)
+{
+	ktrace("IMPLEMENT proper permissions changes\n");
+
+	//pretent we worked
+	ctx.Eax = 0;
+}
+

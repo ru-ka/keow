@@ -64,6 +64,7 @@ BOOL LegacyWindows::IsProcessorFeaturePresent(DWORD dwFeature)
 	}
 }
 
+
 BOOL LegacyWindows::GetFileAttributesEx(LPCTSTR lpFileName, GET_FILEEX_INFO_LEVELS fInfoLevelId, LPVOID lpFileInformation)
 {
 	HMODULE hlib = GetModuleHandle("KERNEL32");
@@ -190,4 +191,31 @@ DWORD LegacyWindows::VirtualQueryEx(HANDLE hProcess, LPCVOID lpAddress, PMEMORY_
 	//(all routines using VirtualXXX functions will be using this class)
 
 	return ::VirtualQueryEx(hProcess, lpAddress, lpBuffer, dwLength);
+}
+
+
+BOOL LegacyWindows::CreateHardLink(LPCSTR lpNewFile, LPCSTR lpOldFile)
+{
+	HMODULE hlib = GetModuleHandle("KERNEL32");
+	FARPROC fp = GetProcAddress(hlib, "CreateHardLinkA");
+#ifdef KEOW_FORCE_WIN95_VERSIONS
+	fp=0;
+#endif
+
+	if(fp)
+	{
+		//can use the real function
+
+		BOOL (CALLBACK *RealCreateHardLinkA)
+				 (LPCTSTR, LPCTSTR, LPSECURITY_ATTRIBUTES);
+        *(FARPROC *)&RealCreateHardLinkA = fp;
+		return RealCreateHardLinkA(lpNewFile, lpOldFile, NULL);
+	}
+	else
+	{
+		//can't do anything like this on win9x
+
+		SetLastError(ERROR_INVALID_FUNCTION);
+		return FALSE;
+	}
 }

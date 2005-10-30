@@ -50,6 +50,8 @@ Process::Process()
 	m_saved_uid = 0;
 	m_saved_gid = 0;
 
+	m_umask = 022; //octal - default from "man 2 umask"
+
 	m_Pid = 0;
 	m_ParentPid = 0;
 	m_Environment = NULL;
@@ -68,6 +70,7 @@ Process::Process()
 
 	memset(&m_ElfLoadData, 0, sizeof(m_ElfLoadData));
 	memset(&m_ptrace, 0, sizeof(m_ptrace));
+	m_LinuxGateDSO = m_LinuxGateVSyscall = NULL;
 
 	memset(&m_OpenFiles, 0, sizeof(m_OpenFiles));
 
@@ -446,8 +449,8 @@ void Process::ConvertProcessToKeow()
 	GetProcessTimes(P->m_Win32PInfo.hProcess, &P->m_BaseTimes.ftCreateTime, &P->m_BaseTimes.ftExitTime, &P->m_BaseTimes.ftKernelTime, &P->m_BaseTimes.ftUserTime);
 
 
-	//read syscall data from dll (pointer in eax)
-	ReadMemory(&SysCallAddr, (ADDR)ctx.Eax, sizeof(SysCallAddr));
+	//read syscall data from dll
+	ReadMemory(&SysCallAddr, (ADDR)ctx.Ebx, sizeof(SysCallAddr));
 
 #ifdef _DEBUG
 	//ensure correct coding - all functions are populated?
@@ -500,6 +503,22 @@ void Process::ConvertProcessToKeow()
 	//not fork or exec, must be 'init', the very first process
 	ktrace("init/exec: load image: %s\n", m_ProcessFileImage.GetWin32Path().c_str());
 	LoadImage(m_ProcessFileImage, false);
+
+	//what new kernel call mechanism
+	string dso(g_pKernelTable->m_KeowExeDir);
+	dso += "\\keow-gate.dso";
+	HANDLE hImg = CreateFile(dso, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0);
+	struct linux::elf32_hdr ehdr; //ELF header
+	Process::ElfLoadData LoadData;
+	LoadData = m_ElfLoadData;
+	DWORD dummy;
+	ReadFile(hImg, &ehdr, sizeof(ehdr), &dummy, NULL);
+	if( LoadElfImage(hImg, &ehdr, &LoadData, true) == 0)
+	{
+		m_LinuxGateDSO = (DWORD)LoadData.image_base;
+		m_LinuxGateVSyscall = (DWORD)LoadData.start_addr;
+	}
+	CloseHandle(hImg);
 
 	//std in,out,err
 	m_OpenFiles[0] = new IOHNtConsole(g_pKernelTable->m_pMainConsole);
@@ -559,7 +578,8 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	case EXCEPTION_INT_OVERFLOW:
 		{
 			//is this an INT 80 linux SYSCALL?
-			//--Actually is it the replacement instruction that we placed there?
+			//--Actually is it the replacement INT 4 instruction that we placed there?
+			//  Or is it a real overflow exception?
 
 			WORD instruction;
 			ReadMemory(&instruction, (ADDR)(ctx.Eip-2), sizeof(instruction));
@@ -840,6 +860,69 @@ DWORD Process::LoadImage(Path &img, bool LoadAsLibrary)
 }
 
 
+bool Process::CanLoadImage(Path &img, bool LoadAsLibrary)
+{
+	//can load it?
+	HANDLE hImg = CreateFile(img.GetWin32Path().c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0);
+	if(hImg==INVALID_HANDLE_VALUE)
+		return false;
+
+
+	//Read the first chunk of the file
+	int buflen=1024; //plenty enough to understand the file - enough for elf header and also the 128 chars allowed for a #! shell script
+	DWORD dwRead;
+	BYTE * buf = new BYTE[buflen];
+	memset(buf,0,buflen);
+	ReadFile(hImg, buf, buflen, &dwRead, 0);
+
+	CloseHandle(hImg);
+
+	//determine exe type
+	struct linux::elf32_hdr * pElf; //ELF header
+	pElf = (struct linux::elf32_hdr *)buf;
+	if(pElf->e_ident[EI_MAG0] == ELFMAG0
+	&& pElf->e_ident[EI_MAG1] == ELFMAG1
+	&& pElf->e_ident[EI_MAG2] == ELFMAG2
+	&& pElf->e_ident[EI_MAG3] == ELFMAG3)
+	{
+		return true; //loadable we think - should really test intepreter etc but we don't yet
+	}
+	else
+	if(buf[0]=='#'
+	&& buf[1]=='!')
+	{
+		//yes - it is a shell script with a header
+		// eg: #! /bin/sh -x
+		//Use that program as the process and append our original args
+
+		char * nl = strchr((char*)buf, 0x0a);
+		if(nl==NULL)
+			nl = (char*)&buf[buflen-1]; //use end of buffer
+		*nl = NULL; //line ends here
+
+		//skip #! and any whitespace
+		char * interp = (char*)buf + 2;
+		while(*interp == ' ')
+			interp++;
+
+		//process the command and arguments
+		list<string> arglist;
+		ParseCommandLine(interp, arglist);
+
+		return CanLoadImage(Path(arglist[0]), false); //can load interpreter?
+	}
+	else
+	{
+		//unhandled file format
+		SetLastError(ERROR_BAD_FORMAT);
+		return false;
+	}
+
+	//shouldn't get here
+	return false;
+}
+
+
 DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfLoadData * pElfLoadData, bool LoadAsLibrary)
 {
 	//Validate the ELF file
@@ -891,9 +974,9 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 	}
 	ktrace("using base address 0x%08lx\n", pBaseAddr);
 
-	
 	pElfLoadData->Interpreter[0] = 0;
 	pElfLoadData->start_addr = pElfHdr->e_entry + pBaseAddr;
+	pElfLoadData->image_base = pBaseAddr;	
 
 	loadok=1;
 
@@ -1234,6 +1317,8 @@ DWORD Process::StartNewImageRunning()
 	PUSH_AUX_VAL(AT_PHENT,	m_ElfLoadData.phdr_phent)
 	PUSH_AUX_VAL(AT_PHDR,	(DWORD)m_ElfLoadData.phdr_addr)
 	PUSH_AUX_VAL(AT_PAGESZ,	0x1000) //4K
+//	PUSH_AUX_VAL(AT_SYSINFO_EHDR, m_LinuxGateDSO)
+//	PUSH_AUX_VAL(AT_SYSINFO, m_LinuxGateVSyscall)
 	PUSH_AUX_VAL(AT_NULL,	0)
 
 #undef PUSH_AUX_VAL
@@ -1553,7 +1638,7 @@ void Process::HandleSignal(int sig)
 		DWORD NewEsp = ctx.Esp - sizeof(stack);
 
 		//put in the restorer code
-		*((DWORD*)&asm_code[1]) = NewEsp + ((DWORD)&stack.SavedState.ctx - (DWORD)&stack);
+		*((DWORD*)&asm_code[1]) = NewEsp + offset_of(stack, stack.SavedState.ctx);
 		memcpy(stack.Restorer, asm_code, sizeof(asm_code));
 
 		//populate extra items?
@@ -1575,11 +1660,11 @@ void Process::HandleSignal(int sig)
 			stack.SigInfo.si_errno = 0;
 			stack.SigInfo.si_code = SI_USER;
 
-			stack.Arg_pSigInfo = (void*)(NewEsp + ((DWORD)&stack.SigInfo - (DWORD)&stack));
+			stack.Arg_pSigInfo = (void*)(NewEsp + offset_of(stack, stack.SigInfo));
 			stack.Arg_pData = 0;
 		}
 
-		stack.ReturnAddress = NewEsp + ((DWORD)&stack.Restorer - (DWORD)&stack);
+		stack.ReturnAddress = NewEsp + offset_of(stack, stack.Restorer);
 		//use restorer
 		//in linux this is a call to sys_sigreturn ?
 		//to return to user-land?

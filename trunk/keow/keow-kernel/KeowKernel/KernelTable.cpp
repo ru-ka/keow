@@ -41,6 +41,16 @@ KernelTable::KernelTable()
 	m_pRootMountPoint = 0;
 	m_LastPID = 0;
 
+	m_KernelVersion = "2.4.20"; //specs we are using are this (Sep 2005)
+	m_KernelCpuType = "i386"; //use miniumum value for now?
+
+	char * dir = m_KeowExeDir.GetBuffer(MAX_PATH);
+	GetModuleFileName(NULL, dir, MAX_PATH);
+	char * slash = strrchr(dir, '\\');
+	if(slash)
+		*slash=NULL;
+	m_KeowExeDir.ReleaseBuffer();
+
 	GetSystemTime(&m_BootTime);
 	m_ForksSinceBoot=0;
 

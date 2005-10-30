@@ -37,10 +37,14 @@ class LegacyWindows
 {
 public:
 	static BOOL IsProcessorFeaturePresent(DWORD dwFeature);
+
 	static BOOL GetFileAttributesEx(LPCTSTR lpFileName, GET_FILEEX_INFO_LEVELS fInfoLevelId, LPVOID lpFileInformation);
+
 	static LPVOID VirtualAllocEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
 	static BOOL VirtualFreeEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType);
 	static DWORD VirtualQueryEx(HANDLE hProcess, LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZE_T dwLength);
+
+	static BOOL CreateHardLink(LPCSTR lpNewFile, LPCSTR lpOldFile);
 };
 
 #endif // !defined(AFX_LEGACYWINDOWS_H__E7DD2E50_8394_481B_95DE_6B192387DA06__INCLUDED_)

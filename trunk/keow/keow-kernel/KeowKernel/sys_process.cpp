@@ -220,6 +220,16 @@ void SysCalls::sys_execve(CONTEXT &ctx)
 
 	ktrace("execve(%s,...,...)\n", filename.c_str());
 
+	//we can load this, right?
+	Path img;
+	img.SetUnixPath(filename);
+	if(!P->CanLoadImage(img, false))
+	{
+		ctx.Eax = -Win32ErrToUnixError(GetLastError());
+		return; //can't exec it
+	}
+
+
 	//close files and dealloc mem
 	P->FreeResourcesBeforeExec();
 
@@ -474,4 +484,19 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 
 
 	ktrace("wait4(%d) returned %d [%s]\n", wait_pid, result, one_stopped?"stopped":"exited" );
+}
+
+
+/*
+ * pid_t waitpid(pid_t pid, int *status, int options)
+ */
+void SysCalls::sys_waitpid(CONTEXT &ctx)
+{
+	//reuse wait4(pid_t pid, int *status, int options, rusage *ru)
+	CONTEXT save = ctx;
+
+	ctx.Esi = 0; //rusage*
+	sys_wait4(ctx);
+
+	ctx.Esi = save.Esi;
 }

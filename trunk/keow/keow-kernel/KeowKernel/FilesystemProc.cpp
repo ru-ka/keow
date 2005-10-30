@@ -421,7 +421,7 @@ IOHandler* FilesystemProc::Get_Pid_Stat(Path& path, const char * pid)
 			"%d (%s) %c %d %d %d %d %d %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %ld 0 %ld %lu %lu %ld %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %d %d\x0a"
 			,pp->m_Pid
 			,pp->m_ProcessFileImage.GetUnixPath().c_str()
-			,'R'  //state, just using Running for now
+			,pp->IsSuspended()?'S':'R'  //state, just sleeping or running at present
 			,pp->m_ParentPid
 			,pp->m_ProcessGroupPID
 			,0    //session id
@@ -495,7 +495,32 @@ IOHandler* FilesystemProc::Get_Pid_Statm(Path& path, const char * pid)
 
 IOHandler* FilesystemProc::Get_Pid_Status(Path& path, const char * pid)
 {
-	return NULL;
+	Process * pp = PidStrToProcess(pid);
+	if(pp==0)
+		return NULL;
+
+	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
+
+
+	ioh->AddData( string::format("Name:   %s\x0a", pp->m_ProcessFileImage.GetUnixPathElement(pp->m_ProcessFileImage.GetElementCount()-1).c_str()) );
+	ioh->AddData( string::format("State:  %s\x0a", pp->IsSuspended()?"S (sleeping)":"R (runnable)") );
+	ioh->AddData( string::format("Tgid:   %ld\x0a", pp->m_pControllingTty) ); //TODO this is WRONG!
+	ioh->AddData( string::format("Pid:    %ld\x0a", pp->m_Pid) );
+	ioh->AddData( string::format("PPid:   %ld\x0a", pp->m_ParentPid) );
+	ioh->AddData( string::format("Uid:    %ld %ld %ld %ld\x0a", pp->m_uid, pp->m_euid, pp->m_saved_uid, 0) ); //TODO which ones?
+	ioh->AddData( string::format("Gid:    %ld %ld %ld %ld\x0a", pp->m_gid, pp->m_egid, pp->m_saved_gid, 0) ); //TODO which ones?
+	ioh->AddData( string::format("VmSize: %8ld kB\x0a", 1) );
+	ioh->AddData( string::format("VmLck:  %8ld kB\x0a", 0) );
+	ioh->AddData( string::format("VmRSS:  %8ld kB\x0a", 1) );
+	ioh->AddData( string::format("VmData: %8ld kB\x0a", 1) );
+	ioh->AddData( string::format("VmStk:  %8ld kB\x0a", 1) );
+	ioh->AddData( string::format("VmExe:  %8ld kB\x0a", 1) );
+	ioh->AddData( string::format("VmLib:  %8ld kB\x0a", 1) );
+	ioh->AddData( string::format("SigPnd: 0000000000000000\x0a") );
+	ioh->AddData( string::format("SigBlk: 0000000000000000\x0a") );
+	ioh->AddData( string::format("SigIgn: 0000000000000000\x0a") );
+
+	return ioh;
 }
 
 
