@@ -45,6 +45,8 @@ protected: //handlers
 	static IOHandler* GetConsoleHandler(Path& path);
 	static IOHandler* GetTtyHandler(Path& path);
 	static IOHandler* GetNullHandler(Path& path);
+	static IOHandler* GetRandomHandler(Path& path);
+	static IOHandler* GetURandomHandler(Path& path);
 };
 
 #endif // !defined(AFX_FilesystemDev_H__04DF9EB5_9771_4497_B1FF_89F772093E50__INCLUDED_)

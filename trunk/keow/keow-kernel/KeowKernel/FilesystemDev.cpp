@@ -30,6 +30,7 @@
 
 #include "IOHNull.h"
 #include "IOHNtConsole.h"
+#include "IOHRandom.h"
 
 //////////////////////////////////////////////////////////////////////
 
@@ -39,6 +40,8 @@ FilesystemDev::FilesystemDev()
 	AddFile("/console", GetConsoleHandler);
 	AddFile("/tty", GetTtyHandler);
 	AddFile("/null", GetNullHandler);
+	AddFile("/random", GetRandomHandler);
+	AddFile("/urandom", GetURandomHandler);
 }
 
 FilesystemDev::~FilesystemDev()
@@ -60,4 +63,13 @@ IOHandler* FilesystemDev::GetTtyHandler(Path& path)
 IOHandler* FilesystemDev::GetNullHandler(Path& path)
 {
 	return new IOHNull();
+}
+
+IOHandler* FilesystemDev::GetRandomHandler(Path& path)
+{
+	return new IOHRandom(false);
+}
+IOHandler* FilesystemDev::GetURandomHandler(Path& path)
+{
+	return new IOHRandom(true);
 }

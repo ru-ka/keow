@@ -155,6 +155,10 @@ SOURCE=.\IOHPipe.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\IOHRandom.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\IOHStaticData.cpp
 # End Source File
 # Begin Source File
@@ -296,6 +300,10 @@ SOURCE=.\IOHNull.h
 # Begin Source File
 
 SOURCE=.\IOHPipe.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\IOHRandom.h
 # End Source File
 # Begin Source File
 

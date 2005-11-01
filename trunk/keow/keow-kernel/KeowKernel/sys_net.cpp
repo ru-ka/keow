@@ -36,6 +36,7 @@
 void SysCalls::sys_socketcall(CONTEXT &ctx)
 {
 	ktrace("IMPLEMENT sys_socketcall (unix domain socket?, not inet?)\n");
+	P->DumpContext(ctx);
 	ctx.Eax = -ENOSYS;
 }
 
