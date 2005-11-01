@@ -168,6 +168,8 @@ DWORD _stdcall SysCallDll::WriteFile(HANDLE h, LPVOID buf, DWORD len)
 	DWORD dw;
 	SetLastError(0); //because we need to check it always and the call will not update it on success
 	BOOL ok = ::WriteFile(h, buf, len, &dw, NULL);
+	if(!ok)
+		dw=0;
 	RET(dw);
 }
 
@@ -176,6 +178,8 @@ DWORD _stdcall SysCallDll::ReadFile(HANDLE h, LPVOID buf, DWORD len)
 	DWORD dw;
 	SetLastError(0); //because we need to check it always and the call will not update it on success
 	BOOL ok = ::ReadFile(h, buf, len, &dw, NULL);
+	if(!ok)
+		dw=0;
 	RET(dw);
 }
 

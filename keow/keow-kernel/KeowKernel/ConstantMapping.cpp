@@ -95,6 +95,8 @@ int Win32ErrToUnixError(DWORD err)
 		return ENOSYS;
 
 	case ERROR_BROKEN_PIPE:
+	case ERROR_NO_DATA:
+	case ERROR_PIPE_NOT_CONNECTED:
 		return EIO;
 
 	case ERROR_BAD_FORMAT:

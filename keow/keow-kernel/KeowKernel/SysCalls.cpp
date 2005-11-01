@@ -447,7 +447,6 @@ void SysCalls::sys_vhangup(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_idle(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_vm86old(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_swapoff(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sysinfo(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_ipc(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_fsync(CONTEXT &ctx)		{Unhandled(ctx);}
 void SysCalls::sys_clone(CONTEXT &ctx)		{Unhandled(ctx);}
