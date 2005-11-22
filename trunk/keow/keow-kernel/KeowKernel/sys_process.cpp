@@ -55,7 +55,7 @@ void SysCalls::sys_sigaction(CONTEXT &ctx)
 
 	if(signum > MAX_SIGNALS)
 	{
-		ctx.Eax = -EINVAL;
+		ctx.Eax = -linux::EINVAL;
 		return;
 	}
 
@@ -111,25 +111,25 @@ void SysCalls::sys_sigprocmask(CONTEXT &ctx)
 		linux::sigset_t set;
 		P->ReadMemory(&set, (ADDR)pSet, sizeof(set));
 
-		for(int i=0; i<_NSIG_WORDS; ++i)
+		for(int i=0; i<linux::_NSIG_WORDS; ++i)
 		{
 			switch(ctx.Ebx)
 			{
-			case SIG_BLOCK:
+			case linux::SIG_BLOCK:
 				pCurrSigset->sig[i] |= set.sig[i];
 				ctx.Eax = 0;
 				break;
-			case SIG_UNBLOCK:
+			case linux::SIG_UNBLOCK:
 				pCurrSigset->sig[i] &= ~(set.sig[i]);
 				ctx.Eax = 0;
 				break;
-			case SIG_SETMASK:
+			case linux::SIG_SETMASK:
 				pCurrSigset->sig[i] = set.sig[i];
 				ctx.Eax = 0;
 				break;
 
 			default:
-				ctx.Eax = -EINVAL;
+				ctx.Eax = -linux::EINVAL;
 				return;
 			}
 		}
@@ -165,7 +165,7 @@ void SysCalls::sys_getpgid(CONTEXT &ctx)
 	Process * p2 = g_pKernelTable->FindProcess(pid);
 	if(p2==NULL)
 	{
-		ctx.Eax = -ESRCH;
+		ctx.Eax = -linux::ESRCH;
 		return;
 	}
 
@@ -202,7 +202,7 @@ void SysCalls::sys_fork(CONTEXT &ctx)
 	Process * NewP = Process::StartFork(P);
 
 	if(NewP==NULL)
-		ctx.Eax = -EAGAIN;
+		ctx.Eax = -linux::EAGAIN;
 	else
 		ctx.Eax = NewP->m_Pid; //the new process (our fork processing has only the parent reaching this stage)
 }
@@ -257,9 +257,9 @@ void SysCalls::sys_execve(CONTEXT &ctx)
 		//need dummy context for this - fake a successfull execve return
 		P->m_ptrace.ctx = ctx;
 		P->m_ptrace.ctx.Eax = 0;//success
-		P->m_ptrace.Saved_Eax = __NR_execve; //syscall
+		P->m_ptrace.Saved_Eax = linux::__NR_execve; //syscall
 		P->m_ptrace.ctx_valid = true;
-		P->SendSignal(SIGTRAP);
+		P->SendSignal(linux::SIGTRAP);
 	}
 
 	//when we get here the execution point has changed - it's a brand new process
@@ -278,7 +278,7 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 	int* pStatus = (int*)ctx.Ecx;
 	DWORD options = ctx.Edx;
 	linux::rusage* pRU = (linux::rusage*)ctx.Esi;
-	int result = -ECHILD;
+	int result = -linux::ECHILD;
 	bool one_stopped = false;
 
 	//there can be multiple handles to wait on 
@@ -334,7 +334,7 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 	if(NumHandles==0)
 	{
 		//no such child
-		result = -ECHILD;
+		result = -linux::ECHILD;
 	}
 	else
 	{
@@ -345,13 +345,13 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 		//wait until interrupted or child terminates
 		while(result < 0)
 		{
-			DWORD dwRet = WaitForMultipleObjects(NumHandles+1, pProcessHandles, FALSE, options&WNOHANG?0:50);
+			DWORD dwRet = WaitForMultipleObjects(NumHandles+1, pProcessHandles, FALSE, options&linux::WNOHANG?0:50);
 			if(dwRet>=WAIT_OBJECT_0 && dwRet<=WAIT_OBJECT_0+NumHandles)
 			{
 				if(dwRet==WAIT_OBJECT_0+NumHandles) //(NumHandles+1)-1
 				{
 					//received a signal that stops wait()
-					result = -EINTR;
+					result = -linux::EINTR;
 					break;
 				}
 
@@ -381,11 +381,11 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 			else
 			if(dwRet==WAIT_FAILED)
 			{
-				result = -EINVAL;
+				result = -linux::EINVAL;
 				break;
 			}
 
-			if(options & WNOHANG)
+			if(options & linux::WNOHANG)
 				break;
 
 			//check for stopped children
@@ -395,7 +395,7 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 				Process * pChild = g_pKernelTable->FindProcess(pid);
 
 				//does caller want stopped children?
-				if((options & WUNTRACED)
+				if((options & linux::WUNTRACED)
 				|| pChild->m_ptrace.OwnerPid == P->m_Pid)
 				{
 					if(pChild->m_bInWin32Setup)
@@ -437,7 +437,7 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 
 				//signal that stopped it
 				if(pChild->m_ptrace.OwnerPid==P->m_Pid && pChild->m_ptrace.Request!=0)
-					TmpStatus |= SIGTRAP << 8; //man ptrace says parent thinks child is in this state
+					TmpStatus |= linux::SIGTRAP << 8; //man ptrace says parent thinks child is in this state
 				else
 					TmpStatus |= (pChild->m_CurrentSignal&0xFF) << 8;
 			}

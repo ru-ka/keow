@@ -134,12 +134,12 @@ bool IOHFile::Stat64(linux::stat64 * s)
 		s->st_mode = 0755;  // rwxr-xr-x
 
 	if(m_Path.IsSymbolicLink())
-		s->st_mode |= S_IFLNK;
+		s->st_mode |= linux::S_IFLNK;
 	else
 	if(fi.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		s->st_mode |= S_IFDIR;
+		s->st_mode |= linux::S_IFDIR;
 	else
-		s->st_mode |= S_IFREG; //regular file
+		s->st_mode |= linux::S_IFREG; //regular file
 		/*
 	#define S_IFMT  00170000
 	#define S_IFSOCK 0140000
@@ -225,7 +225,7 @@ DWORD IOHFile::ioctl(DWORD request, DWORD data)
 	case 0:
 	default:
 		ktrace("IMPLEMENT sys_ioctl 0x%lx for IOHFile\n", request);
-		return -ENOSYS;
+		return -linux::ENOSYS;
 	}
 }
 

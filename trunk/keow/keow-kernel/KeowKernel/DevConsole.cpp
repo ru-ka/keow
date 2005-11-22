@@ -59,12 +59,20 @@ DevConsole::DevConsole(int tty)
 	m_hConsoleRead = m_hConsoleWrite = NULL;
 
 	//default stty info
-	m_TermIOs.c_iflag = IGNBRK|IGNPAR|IXOFF|ISIG;
+	m_TermIOs.c_iflag = linux::IGNBRK|linux::IGNPAR|linux::IXOFF|linux::ISIG;
 	m_TermIOs.c_oflag = 0;
-	m_TermIOs.c_cflag = CS8;
-	m_TermIOs.c_lflag = ECHO;
-	m_TermIOs.c_line = N_TTY;
+	m_TermIOs.c_cflag = linux::CS8;
+	m_TermIOs.c_lflag = linux::ECHO;
+	m_TermIOs.c_line = linux::N_TTY;
 	memset(m_TermIOs.c_cc, 0, sizeof(m_TermIOs.c_cc));
+
+/*      intr=^C         quit=^\         erase=del       kill=^U
+        eof=^D          vtime=\0        vmin=\1         sxtc=\0
+        start=^Q        stop=^S         susp=^Z         eol=\0
+        reprint=^R      discard=^U      werase=^W       lnext=^V
+        eol2=\0
+*/
+#define INIT_C_CC "\003\034\177\025\004\0\1\0\021\023\032\0\022\017\027\026\0"
 	StringCbCopy((char*)m_TermIOs.c_cc, sizeof(m_TermIOs.c_cc), INIT_C_CC); //default special chars from kernel files
 
 
@@ -167,10 +175,10 @@ DWORD DevConsole::ConsoleHandlerMain()
 			//#define IXANY	0004000
 			//#define IXOFF	0010000
 			//#define IMAXBEL	0020000
-			if((m_TermIOs.c_iflag & ISTRIP))
+			if((m_TermIOs.c_iflag & linux::ISTRIP))
 				*p &= 0x3F; //make 7-bit
 
-			if((m_TermIOs.c_iflag & IGNCR) && *p==CR)
+			if((m_TermIOs.c_iflag & linux::IGNCR) && *p==CR)
 			{
 				//discard from buffer
 				for(DWORD j=i+1; j<dwRead; ++j)
@@ -178,7 +186,7 @@ DWORD DevConsole::ConsoleHandlerMain()
 				--dwRead;
 			}
 
-			if((m_TermIOs.c_iflag & INLCR) && *p==NL)
+			if((m_TermIOs.c_iflag & linux::INLCR) && *p==NL)
 			{
 				//insert char
 				for(DWORD j=dwRead-1; j>i; --j)
@@ -188,7 +196,7 @@ DWORD DevConsole::ConsoleHandlerMain()
 				++dwRead;
 			}
 			else
-			if((m_TermIOs.c_iflag & ICRNL) && *p==CR)
+			if((m_TermIOs.c_iflag & linux::ICRNL) && *p==CR)
 			{
 				for(DWORD j=dwRead-1; j>i; --j)
 					buf[j]=buf[j-1];
@@ -197,7 +205,7 @@ DWORD DevConsole::ConsoleHandlerMain()
 				++dwRead;
 			}
 
-			if((m_TermIOs.c_iflag & IUCLC))
+			if((m_TermIOs.c_iflag & linux::IUCLC))
 				*p = tolower(*p);
 
 
@@ -218,9 +226,9 @@ DWORD DevConsole::ConsoleHandlerMain()
 			//#define PENDIN	0040000
 			//#define IEXTEN	0100000
 			bool bSigSent = false;
-			if(m_TermIOs.c_lflag & ISIG)
+			if(m_TermIOs.c_lflag & linux::ISIG)
 			{
-				if(*p==m_TermIOs.c_cc[VINTR])
+				if(*p==m_TermIOs.c_cc[linux::VINTR])
 				{
 					//send to all foreground processes in the process group on this terminal
 					KernelTable::ProcessList::iterator it;
@@ -232,7 +240,7 @@ DWORD DevConsole::ConsoleHandlerMain()
 						if(p2->m_ProcessGroupPID == m_ProcessGroup
 						&& p2->m_bIsInForeground)
 						{
-							p2->SendSignal(SIGINT);
+							p2->SendSignal(linux::SIGINT);
 							bSigSent = true;
 						}
 					}
@@ -255,11 +263,11 @@ DWORD DevConsole::ConsoleHandlerMain()
 				//VLNEXT
 				//VEOL2 
 			}
-			if(m_TermIOs.c_lflag & ECHO)
+			if(m_TermIOs.c_lflag & linux::ECHO)
 			{
 				if(!bSigSent)
 				{
-					if(m_TermIOs.c_lflag & ECHOE)
+					if(m_TermIOs.c_lflag & linux::ECHOE)
 						WriteFile(m_hConsoleWrite, "\b \b", 3, &dwWritten, NULL); //backspace-space-backspace
 					else
 						WriteFile(m_hConsoleWrite, p, 1, &dwWritten, NULL); //echo char
@@ -289,20 +297,20 @@ DWORD DevConsole::ioctl(DWORD request, DWORD data)
 
 	switch(request)
 	{
-	case TCGETS: //get stty stuff
+	case linux::TCGETS: //get stty stuff
 		//send to process
 		P->WriteMemory((ADDR)data, sizeof(m_TermIOs), &m_TermIOs);
 		break;
 
-	case TCSETSW:
+	case linux::TCSETSW:
 		//flush output
 		//console io never buffered, so not required
 		//...fall through...
-	case TCSETSF:
+	case linux::TCSETSF:
 		//flush input & output
 		//(done in console process)
 		//...fall through...
-	case TCSETS: //set stty stuff
+	case linux::TCSETS: //set stty stuff
 		{
 			//do this in kernel
 			P->ReadMemory(&m_TermIOs, (ADDR)data, sizeof(m_TermIOs));
@@ -312,28 +320,28 @@ DWORD DevConsole::ioctl(DWORD request, DWORD data)
 		}
 		break;
 
-	case TIOCGPGRP: //get process group
+	case linux::TIOCGPGRP: //get process group
 		{
 			if(!data)
 			{
-				dwRet = -EFAULT;
+				dwRet = -linux::EFAULT;
 				break;
 			}
 			P->WriteMemory((ADDR)data, sizeof(linux::pid_t), &m_ProcessGroup);
 		}
 		break;
-	case TIOCSPGRP: //set process group
+	case linux::TIOCSPGRP: //set process group
 		{
 			if(!data)
 			{
-				dwRet = -EFAULT;
+				dwRet = -linux::EFAULT;
 				break;
 			}
 			P->ReadMemory(&m_ProcessGroup, (ADDR)data, sizeof(linux::pid_t));
 		}
 		break;
 
-	case TIOCGWINSZ: //get window size
+	case linux::TIOCGWINSZ: //get window size
 		{
 			linux::winsize rec;
 			WriteFile(m_hIoctlWrite, &request, sizeof(DWORD), &dwDone,0);
@@ -343,7 +351,7 @@ DWORD DevConsole::ioctl(DWORD request, DWORD data)
 			P->WriteMemory((ADDR)data, sizeof(rec), &rec);
 		}
 		break;
-	case TIOCSWINSZ: //set window size
+	case linux::TIOCSWINSZ: //set window size
 		{
 			linux::winsize rec;
 
@@ -354,13 +362,13 @@ DWORD DevConsole::ioctl(DWORD request, DWORD data)
 		}
 		break;
 
-	case TCXONC: //TODO:
+	case linux::TCXONC: //TODO:
 		dwRet = 0;
 		break;
 
 	default:
 		ktrace("IMPLEMENT sys_ioctl 0x%lx for DevConsole\n", request);
-		dwRet = -ENOSYS;
+		dwRet = -linux::ENOSYS;
 		break;
 	}
 

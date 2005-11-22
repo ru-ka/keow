@@ -85,7 +85,7 @@ bool IOHNtConsole::Stat64(linux::stat64 * s)
 	if(!s)
 		return false;
 
-	IOHandler::BasicStat64(s, S_IFCHR); //console is a character device
+	IOHandler::BasicStat64(s, linux::S_IFCHR); //console is a character device
 
 	return true;
 }
@@ -98,7 +98,7 @@ DWORD IOHNtConsole::ioctl(DWORD request, DWORD data)
 
 bool IOHNtConsole::Read(void* address, DWORD size, DWORD *pRead)
 {
-	if(m_Flags&O_NONBLOCK)
+	if(m_Flags&linux::O_NONBLOCK)
 	{
 		//non-blocking - ensure we can do the read before doing it
 		DWORD dwBytes;

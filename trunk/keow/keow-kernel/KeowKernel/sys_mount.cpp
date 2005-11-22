@@ -50,7 +50,7 @@ void SysCalls::sys_mount(CONTEXT &ctx)
 	if(target.length()==0
 	|| filesystemtype.length()==0)
 	{
-		ctx.Eax = EINVAL;
+		ctx.Eax = -linux::EINVAL;
 		return;
 	}
 	ktrace("mount request: '%s' on '%s' - type %s\n", source.c_str(),target.c_str(),filesystemtype.c_str());
@@ -62,12 +62,12 @@ void SysCalls::sys_mount(CONTEXT &ctx)
 	DWORD attr = GetFileAttributes(p.GetWin32Path());
 	if(attr==INVALID_FILE_ATTRIBUTES)
 	{
-		ctx.Eax = ENOTDIR;
+		ctx.Eax = -linux::ENOTDIR;
 		return;
 	}
 	if((attr&FILE_ATTRIBUTE_DIRECTORY)==0)
 	{
-		ctx.Eax = ENOTDIR;
+		ctx.Eax = -linux::ENOTDIR;
 		return;
 	}
 
@@ -79,18 +79,18 @@ void SysCalls::sys_mount(CONTEXT &ctx)
 		//and we also need it to end in a backslash if it is just a drive letter
 		if(source.length()==0 || source[1]==':' && source[2]==0) {
 			//just drive letter, need path:  eg. C: bad,  C:\ is ok
-			ctx.Eax = ENOTDIR;
+			ctx.Eax = -linux::ENOTDIR;
 			return;
 		}
 		attr = GetFileAttributes(source);
 		if(attr==INVALID_FILE_ATTRIBUTES)
 		{
-			ctx.Eax = ENOTDIR;
+			ctx.Eax = -linux::ENOTDIR;
 			return;
 		}
 		if((attr&FILE_ATTRIBUTE_DIRECTORY)==0)
 		{
-			ctx.Eax = ENOTDIR;
+			ctx.Eax = -linux::ENOTDIR;
 			return;
 		}
 
@@ -122,7 +122,7 @@ void SysCalls::sys_mount(CONTEXT &ctx)
 	}
 	else
 	{
-		ctx.Eax = ENODEV; //filesystem type not supported
+		ctx.Eax = -linux::ENODEV; //filesystem type not supported
 		return;
 	}
 }
@@ -138,7 +138,7 @@ void SysCalls::sys_umount(CONTEXT &ctx)
 
 	if(target.length()==0)
 	{
-		ctx.Eax = -EINVAL;
+		ctx.Eax = -linux::EINVAL;
 		return;
 	}
 
@@ -166,6 +166,6 @@ void SysCalls::sys_umount(CONTEXT &ctx)
 	}
 
 	//nothing found
-	ctx.Eax = -EINVAL;
+	ctx.Eax = -linux::EINVAL;
 }
 

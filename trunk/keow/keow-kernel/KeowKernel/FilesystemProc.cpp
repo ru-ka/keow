@@ -456,7 +456,7 @@ IOHandler* FilesystemProc::Get_Pid_Stat(Path& path, const char * pid)
 			,0	//wchan %lu\x0a,
 			,0	//nswap %lu\x0a,
 			,0	//cnswap %lu\x0a,
-			,SIGCHLD	//exit_signal %d\x0a,
+			,linux::SIGCHLD	//exit_signal %d\x0a,
 			,0	//processor %d\x0a,
 			) );
 

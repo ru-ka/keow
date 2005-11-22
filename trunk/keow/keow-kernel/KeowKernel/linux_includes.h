@@ -24,82 +24,15 @@
 #ifndef LINUX_INCLUDES_H
 #define LINUX_INCLUDES_H
 
-#pragma pack(push,1)
 
-
-//all vars in own namespace to ease co-existence with windows ones
-namespace linux {
-
-//get kernel stuff
-#define __KERNEL__
-
-//for use to skip things we don't want
-#define __KERNEL_EMULATION_ON_WINDOWS__
-
-
-//gcc specific stuff to alter
-#define __signed__ signed
-#define __inline__ inline
-#define __const__ const
-
-#define __extension__
-#define __attribute__
-#define __aligned__
-
-
-#define __WORDSIZE 32
-
-//usr/include/fcntl.h
-/* Values for the second argument to access.
-   These may be OR'd together.  */
-#  define R_OK	4		/* Test for read permission.  */
-#  define W_OK	2		/* Test for write permission.  */
-#  define X_OK	1		/* Test for execute permission.  */
-#  define F_OK	0		/* Test for existence.  */
-
-
-typedef __int64 __s64;
-typedef unsigned __int64 __u64;
-typedef __int64	__kernel_loff_t;
-typedef __kernel_loff_t loff_t;
-
-struct mmap_arg_struct {
-	unsigned long addr;
-	unsigned long len;
-	unsigned long prot;
-	unsigned long flags;
-	unsigned long fd;
-	unsigned long offset;
-};
-
-
-#include <linux/types.h>
-#include <linux/unistd.h>
-#include <linux/errno.h>
-#include <linux/ioctl.h>
-#include <linux/signal.h>
-#include <linux/stat.h>
-#include <linux/elf.h>
-#include <linux/fcntl.h>
-#include <linux/uio.h>
-#include <linux/mman.h>
-#include <linux/termios.h>
-#include <linux/resource.h>
-#include <linux/reboot.h>
-#include <linux/sys.h>
-#include <linux/dirent.h>
-#include <linux/wait.h>
-#include <asm-i386/ucontext.h>
-#include <linux/user.h>
-#include <linux/utime.h>
-
-};
+#include "linux/defines.h"
+#include "linux/types.h"
 
 
 
 //bit manipulation helpers for fd_set etc
 //based on linux kernel versions
-inline void LINUX_FD_SET(int fd, linux::fd_set * pSet) {
+inline void KEOW_FD_SET(int fd, linux::fd_set * pSet) {
 	__asm {
 		push ebx
 		mov eax,fd
@@ -108,7 +41,7 @@ inline void LINUX_FD_SET(int fd, linux::fd_set * pSet) {
 		pop ebx
 	}
 }
-inline void LINUX_FD_CLR(int fd, linux::fd_set * pSet) {
+inline void KEOW_FD_CLR(int fd, linux::fd_set * pSet) {
 	__asm {
 		push ebx
 		mov eax,fd
@@ -117,7 +50,7 @@ inline void LINUX_FD_CLR(int fd, linux::fd_set * pSet) {
 		pop ebx
 	}
 }
-inline BYTE LINUX_FD_ISSET(int fd, linux::fd_set * pSet) {
+inline BYTE KEOW_FD_ISSET(int fd, linux::fd_set * pSet) {
 	BYTE result;
 	__asm {
 		push ebx
@@ -129,8 +62,8 @@ inline BYTE LINUX_FD_ISSET(int fd, linux::fd_set * pSet) {
 	}
 	return result;
 }
-inline void LINUX_FD_ZERO(linux::fd_set * pSet) {
-	memset(pSet, 0, __FDSET_LONGS);
+inline void KEOW_FD_ZERO(linux::fd_set * pSet) {
+	memset(pSet, 0, linux::__FDSET_LONGS);
 }
 /*
 #define __FD_SET(fd,fdsetp) \
@@ -159,12 +92,5 @@ do { \
 } while (0)
 */
 
-//should get a 2.6 header set for this:
-///usr/include/elf.h:
-#define AT_SYSINFO   32
-#define AT_SYSINFO_EHDR      33
-
-
-#pragma pack(pop)
 
 #endif // LINUX_INCLUDES_H

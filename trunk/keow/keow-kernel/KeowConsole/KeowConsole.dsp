@@ -42,7 +42,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"stdafx.h" /FD /c
-# ADD CPP /nologo /W3 /GX /Zi /O2 /I "..\kernel-headers-2.4.24-1\include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX"sdxafx.h" /FD /c
+# ADD CPP /nologo /W3 /GX /Zi /O2 /I "..\KeowKernel\linux-abi" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX"sdxafx.h" /FD /c
 # ADD BASE RSC /l 0x1409 /d "NDEBUG"
 # ADD RSC /l 0x1409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -66,7 +66,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"stdafx.h" /FD /GZ /c
-# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "..\kernel-headers-2.4.24-1\include" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX"sdxafx.h" /FD /GZ /c
+# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "..\KeowKernel\linux-abi" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX"sdxafx.h" /FD /GZ /c
 # ADD BASE RSC /l 0x1409 /d "_DEBUG"
 # ADD RSC /l 0x1409 /d "_DEBUG"
 BSC32=bscmake.exe

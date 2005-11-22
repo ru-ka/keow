@@ -77,7 +77,7 @@ Process::Process()
 	InitSignalHandling();
 
 	m_bStillRunning = true;
-	m_dwExitCode = -SIGABRT; //in case not set later
+	m_dwExitCode = -linux::SIGABRT; //in case not set later
 	m_bCoreDumped = false;
 
 	m_hWaitTerminatingEvent = CreateEvent(NULL,FALSE,FALSE,NULL);
@@ -294,7 +294,7 @@ Process* Process::StartFork(Process * pParent)
 	{
 		Process * pParent = g_pKernelTable->FindProcess(P->m_ParentPid);
 		if(pParent)
-			pParent->SendSignal(SIGCHLD);
+			pParent->SendSignal(linux::SIGCHLD);
 	}
 
 	//any children get inherited by init
@@ -332,7 +332,7 @@ void Process::DebuggerLoop()
 		WaitForDebugEvent(&evt, INFINITE);
 
 		//any signals to dispatch first?
-		for(int sig=0; sig<_NSIG; ++sig)
+		for(int sig=0; sig<linux::_NSIG; ++sig)
 		{
 			if(m_PendingSignals[sig])
 			{
@@ -340,7 +340,7 @@ void Process::DebuggerLoop()
 				break;
 			}
 		}
-		if(sig<_NSIG) //found a pending signal
+		if(sig<linux::_NSIG) //found a pending signal
 		{
 			m_CurrentSignal = sig;
 			HandleSignal(sig);
@@ -572,7 +572,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	case EXCEPTION_FLT_UNDERFLOW:
 	case EXCEPTION_INT_DIVIDE_BY_ZERO:
 		ktrace("math exception\n");
-		SendSignal(SIGFPE);
+		SendSignal(linux::SIGFPE);
 		break;
 
 	case EXCEPTION_INT_OVERFLOW:
@@ -607,7 +607,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 					//genuine exception
 					ktrace("math exception\n");
 					ktrace("(instruction = 0x%04lX)\n", instruction);
-					SendSignal(SIGFPE);
+					SendSignal(linux::SIGFPE);
 				}
 			}
 		}
@@ -639,7 +639,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 				DumpContext(ctx);
 				DumpStackTrace(ctx);
 
-				SendSignal(SIGSEGV); //access violation
+				SendSignal(linux::SIGSEGV); //access violation
 			}
 		}
 		break;
@@ -647,7 +647,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	case EXCEPTION_PRIV_INSTRUCTION:
 	case EXCEPTION_ILLEGAL_INSTRUCTION:
 		ktrace("instruction exception\n");
-		SendSignal(SIGILL);
+		SendSignal(linux::SIGILL);
 		break;
 
 	case EXCEPTION_NONCONTINUABLE_EXCEPTION:
@@ -655,7 +655,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	case EXCEPTION_STACK_OVERFLOW:
 	case EXCEPTION_GUARD_PAGE:
 		ktrace("page access exception\n");
-		SendSignal(SIGSEGV);
+		SendSignal(linux::SIGSEGV);
 		break;
 
 	case EXCEPTION_BREAKPOINT:
@@ -665,7 +665,7 @@ void Process::HandleException(DEBUG_EVENT &evt)
 
 	default:
 		ktrace("Unhandled exception type 0x%08lx @ 0x%08lx\n", evt.u.Exception.ExceptionRecord.ExceptionCode, evt.u.Exception.ExceptionRecord.ExceptionAddress);
-		SendSignal(SIGSEGV);
+		SendSignal(linux::SIGSEGV);
 		break;
 	}
 
@@ -792,10 +792,10 @@ DWORD Process::LoadImage(Path &img, bool LoadAsLibrary)
 	//determine exe type
 	struct linux::elf32_hdr * pElf; //ELF header
 	pElf = (struct linux::elf32_hdr *)buf;
-	if(pElf->e_ident[EI_MAG0] == ELFMAG0
-	&& pElf->e_ident[EI_MAG1] == ELFMAG1
-	&& pElf->e_ident[EI_MAG2] == ELFMAG2
-	&& pElf->e_ident[EI_MAG3] == ELFMAG3)
+	if(pElf->e_ident[linux::EI_MAG0] == linux::ELFMAG0
+	&& pElf->e_ident[linux::EI_MAG1] == linux::ELFMAG1
+	&& pElf->e_ident[linux::EI_MAG2] == linux::ELFMAG2
+	&& pElf->e_ident[linux::EI_MAG3] == linux::ELFMAG3)
 	{
 		rc = LoadElfImage(hImg, pElf, &m_ElfLoadData, LoadAsLibrary);
 	}
@@ -880,10 +880,10 @@ bool Process::CanLoadImage(Path &img, bool LoadAsLibrary)
 	//determine exe type
 	struct linux::elf32_hdr * pElf; //ELF header
 	pElf = (struct linux::elf32_hdr *)buf;
-	if(pElf->e_ident[EI_MAG0] == ELFMAG0
-	&& pElf->e_ident[EI_MAG1] == ELFMAG1
-	&& pElf->e_ident[EI_MAG2] == ELFMAG2
-	&& pElf->e_ident[EI_MAG3] == ELFMAG3)
+	if(pElf->e_ident[linux::EI_MAG0] == linux::ELFMAG0
+	&& pElf->e_ident[linux::EI_MAG1] == linux::ELFMAG1
+	&& pElf->e_ident[linux::EI_MAG2] == linux::ELFMAG2
+	&& pElf->e_ident[linux::EI_MAG3] == linux::ELFMAG3)
 	{
 		return true; //loadable we think - should really test intepreter etc but we don't yet
 	}
@@ -928,21 +928,21 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 	//Validate the ELF file
 	//
 
-	if(pElfHdr->e_type != ET_EXEC
-	&& pElfHdr->e_type != ET_DYN)
+	if(pElfHdr->e_type != linux::ET_EXEC
+	&& pElfHdr->e_type != linux::ET_DYN)
 	{
 		ktrace("not an ELF executable type\n");
 		return ERROR_BAD_FORMAT;
 	} 
-	if(pElfHdr->e_machine != EM_386)
+	if(pElfHdr->e_machine != linux::EM_386)
 	{
 		ktrace("not for Intel 386 architecture (needed for syscall interception)\n");
 		return ERROR_BAD_FORMAT;
 	}
-	if(pElfHdr->e_version != EV_CURRENT
-	|| pElfHdr->e_ident[EI_VERSION] != EV_CURRENT )
+	if(pElfHdr->e_version != linux::EV_CURRENT
+	|| pElfHdr->e_ident[linux::EI_VERSION] != linux::EV_CURRENT )
 	{
-		ktrace("not version %d\n", EV_CURRENT);
+		ktrace("not version %d\n", linux::EV_CURRENT);
 		return ERROR_BAD_FORMAT;
 	}
 
@@ -962,7 +962,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 		return -1; //no header
 
 	//what about these??
-	if(LoadAsLibrary || pElfHdr->e_type==ET_DYN)
+	if(LoadAsLibrary || pElfHdr->e_type==linux::ET_DYN)
 	{
 		if(pElfLoadData->last_lib_addr == 0)
 			pBaseAddr = (ADDR)0x40000000L; //linux 2.4 x86 uses this for start of libs?
@@ -992,7 +992,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 		SetFilePointer(hImg, pElfHdr->e_phoff + (i*pElfHdr->e_phentsize), 0, FILE_BEGIN);
 		ReadFile(hImg, phdr, pElfHdr->e_phentsize, &dwRead, 0);
 
-		if(phdr->p_type == PT_LOAD)
+		if(phdr->p_type == linux::PT_LOAD)
 		{
 			//load segment into memory
 			protection = ElfProtectionToWin32Protection(phdr->p_flags);
@@ -1072,7 +1072,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 
 		}
 		else
-		if(phdr->p_type == PT_PHDR)
+		if(phdr->p_type == linux::PT_PHDR)
 		{
 			//will be loaded later in a PT_LOAD
 			pElfLoadData->phdr_addr = phdr->p_vaddr + pBaseAddr;
@@ -1081,7 +1081,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 			pElfLoadData->phdr_phent = pElfHdr->e_phentsize;
 		}
 		else
-		if(phdr->p_type == PT_INTERP)
+		if(phdr->p_type == linux::PT_INTERP)
 		{
 			SetFilePointer(hImg, phdr->p_offset, 0, FILE_BEGIN);
 			ReadFile(hImg, pElfLoadData->Interpreter, phdr->p_filesz, &dwRead, 0);
@@ -1304,7 +1304,7 @@ DWORD Process::StartNewImageRunning()
 	} Aux;
 
 #define PUSH_AUX_VAL(t,v) \
-		Aux.type = t; \
+		Aux.type = linux::t; \
 		Aux.val = v; \
 		WriteMemory(addr, sizeof(Aux), &Aux); \
 		addr += sizeof(Aux);
@@ -1431,7 +1431,7 @@ void Process::HandleSignal(int sig)
 	{
 		ktrace("stopping for ptrace in HandleSignal\n");
 		m_ptrace.new_signal = sig;
-		g_pKernelTable->FindProcess(m_ptrace.OwnerPid)->SendSignal(SIGCHLD);
+		g_pKernelTable->FindProcess(m_ptrace.OwnerPid)->SendSignal(linux::SIGCHLD);
 		SuspendThread(GetCurrentThread()); //the debugger stops here while parent is ptracing
 
 		ktrace("resumed from ptrace stop in HandleSignal\n");
@@ -1449,12 +1449,12 @@ void Process::HandleSignal(int sig)
 	//some signals cannot be caught
 	switch(sig)
 	{
-	case SIGKILL:
+	case linux::SIGKILL:
 		ktrace("killed - sigkill\n");
 		m_KilledBySig=sig;
 		SysCallDll::exit(-sig);
 		return;
-	case SIGSTOP:
+	case linux::SIGSTOP:
 		ktrace("stopping on sigstop\n");
 		SuspendThread(m_Win32PInfo.hThread);
 		return;
@@ -1472,7 +1472,7 @@ void Process::HandleSignal(int sig)
 	//}
 
 	//is this process ignoring this signal?
-	if( (m_SignalMask.sig[(sig-1)/_NSIG_BPW]) & (1 << (sig-1)%_NSIG_BPW) )
+	if( (m_SignalMask.sig[(sig-1)/linux::_NSIG_BPW]) & (1 << (sig-1)%linux::_NSIG_BPW) )
 	{
 		ktrace("signal not delivered - currently masked\n");
 		return;
@@ -1491,51 +1491,51 @@ void Process::HandleSignal(int sig)
 		switch(sig)
 		{
 		//ignore
-		case SIGCHLD:
-		case SIGURG:
+		case linux::SIGCHLD:
+		case linux::SIGURG:
 			break;
 
-		case SIGCONT: 
+		case linux::SIGCONT: 
 			ResumeThread(m_Win32PInfo.hThread);
 			break;
 
 		//stop
-		case SIGSTOP:
-		case SIGTSTP:
-		case SIGTTIN:
-		case SIGTTOU:
+		case linux::SIGSTOP:
+		case linux::SIGTSTP:
+		case linux::SIGTTIN:
+		case linux::SIGTTOU:
 			SuspendThread(m_Win32PInfo.hThread);
 			break;
 
 		//terminate
-		case SIGHUP:
-		case SIGINT:
-		case SIGPIPE:
-		case SIGALRM:
-		case SIGTERM:
-		case SIGUSR1:
-		case SIGUSR2:
-		case SIGPOLL:
-		case SIGPROF:
+		case linux::SIGHUP:
+		case linux::SIGINT:
+		case linux::SIGPIPE:
+		case linux::SIGALRM:
+		case linux::SIGTERM:
+		case linux::SIGUSR1:
+		case linux::SIGUSR2:
+		case linux::SIGPOLL:
+		case linux::SIGPROF:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			m_KilledBySig=sig;
 			SysCallDll::exit(-sig);
 			break;
 
 		//ptrace
-		case SIGTRAP:
+		case linux::SIGTRAP:
 			if(m_ptrace.OwnerPid)
 				break; //ignore when being ptraced
 			//else drop thru to core dump
 
 		//core dump
-		case SIGQUIT:
-		case SIGILL:
-		case SIGABRT:
-		case SIGFPE:
-		case SIGSEGV:
-		case SIGBUS:
-		case SIGSYS:
+		case linux::SIGQUIT:
+		case linux::SIGILL:
+		case linux::SIGABRT:
+		case linux::SIGFPE:
+		case linux::SIGSEGV:
+		case linux::SIGBUS:
+		case linux::SIGSYS:
 			ktrace("Exiting using SIG_DFL for sig %d\n",sig);
 			GenerateCoreDump();
 			m_KilledBySig=sig;
@@ -1565,8 +1565,8 @@ void Process::HandleSignal(int sig)
 		linux::__sighandler_t handler = m_SignalAction[sig].sa_handler;
 
 		//restore handler?
-		if((m_SignalAction[sig].sa_flags & SA_ONESHOT)
-		|| (m_SignalAction[sig].sa_flags & SA_RESETHAND) )
+		if((m_SignalAction[sig].sa_flags & linux::SA_ONESHOT)
+		|| (m_SignalAction[sig].sa_flags & linux::SA_RESETHAND) )
 			m_SignalAction[sig].sa_handler = SIG_DFL;
 
 
@@ -1595,7 +1595,7 @@ void Process::HandleSignal(int sig)
 		linux::siginfo si;
 		si.si_signo = sig;
 		si.si_errno = 0;
-		si.si_code = SI_USER;
+		si.si_code = linux::SI_USER;
 
 		BYTE asm_code[] = {
 			//the code we want
@@ -1610,8 +1610,8 @@ void Process::HandleSignal(int sig)
 			0xcd, 0x80,			// int 80
 		};
 		*((DWORD*)&asm_code[1]) = 0x0; //context_addr
-		*((DWORD*)&asm_code[6]) = __NR_sigreturn;
-		*((DWORD*)&asm_code[14]) = __NR_sigreturn;
+		*((DWORD*)&asm_code[6]) = linux::__NR_sigreturn;
+		*((DWORD*)&asm_code[14]) = linux::__NR_sigreturn;
 
 		//add new items to write onto the stack
 		struct {
@@ -1642,7 +1642,7 @@ void Process::HandleSignal(int sig)
 		memcpy(stack.Restorer, asm_code, sizeof(asm_code));
 
 		//populate extra items?
-		if(m_SignalAction[sig].sa_flags & SA_SIGINFO)
+		if(m_SignalAction[sig].sa_flags & linux::SA_SIGINFO)
 		{
 			ktrace("IMPLEMENT correct signal sa_action siginfo stuff\n");
 
@@ -1658,7 +1658,7 @@ void Process::HandleSignal(int sig)
 
 			stack.SigInfo.si_signo = sig;
 			stack.SigInfo.si_errno = 0;
-			stack.SigInfo.si_code = SI_USER;
+			stack.SigInfo.si_code = linux::SI_USER;
 
 			stack.Arg_pSigInfo = (void*)(NewEsp + offset_of(stack, stack.SigInfo));
 			stack.Arg_pData = 0;
@@ -1677,11 +1677,11 @@ void Process::HandleSignal(int sig)
 
 		//move to new masks
 		m_SignalMask = m_SignalAction[sig].sa_mask;
-		if((m_SignalAction[sig].sa_flags & SA_NODEFER)==0
-		|| (m_SignalAction[sig].sa_flags & SA_NOMASK)==0 )
+		if((m_SignalAction[sig].sa_flags & linux::SA_NODEFER)==0
+		|| (m_SignalAction[sig].sa_flags & linux::SA_NOMASK)==0 )
 		{
 			//mask current signal too
-			m_SignalMask.sig[(sig-1)/_NSIG_BPW] |= (1 << (sig-1)%_NSIG_BPW);
+			m_SignalMask.sig[(sig-1)/linux::_NSIG_BPW] |= (1 << (sig-1)%linux::_NSIG_BPW);
 		}
 
 		//kernel arch/i386/kernel/signal.c seems to set up registers too
@@ -1810,7 +1810,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 				ctx.ContextFlags = CONTEXT_FULL;
 				GetThreadContext(m_Win32PInfo.hThread, &ctx);
 				DumpContext(ctx);
-				SendSignal(SIGSEGV); //terminate
+				SendSignal(linux::SIGSEGV); //terminate
 #endif
 			}
 		}
@@ -2019,7 +2019,7 @@ void Process::InitSignalHandling()
 	memset(&m_SignalMask, 0, sizeof(m_SignalMask));
 
 	//default signal handling
-	for(i=0; i<_NSIG; ++i) {
+	for(i=0; i<linux::_NSIG; ++i) {
 		m_SignalAction[i].sa_handler = SIG_DFL;
 		m_SignalAction[i].sa_flags = NULL;
 		m_SignalAction[i].sa_restorer = NULL;

@@ -32,6 +32,7 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+
 class SysCalls  
 {
 public:
@@ -41,8 +42,8 @@ public:
 protected:
 	typedef void (*SYSCALL_HANDLER)(CONTEXT& ctx);
 
-	static SYSCALL_HANDLER syscall_handlers[NR_syscalls];
-	static const char* syscall_names[NR_syscalls];
+	static SYSCALL_HANDLER syscall_handlers[linux::NR_syscalls];
+	static const char* syscall_names[linux::NR_syscalls];
 
 private:
 	SysCalls() {}

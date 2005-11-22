@@ -74,7 +74,7 @@ bool IOHNull::Stat64(linux::stat64 * s)
 	if(!s)
 		return false;
 
-	IOHandler::BasicStat64(s, S_IFCHR);
+	IOHandler::BasicStat64(s, linux::S_IFCHR);
 
 	return true;
 }

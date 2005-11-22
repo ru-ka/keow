@@ -81,7 +81,7 @@ void SysCalls::sys_setreuid(CONTEXT &ctx)
 	int ruid = ctx.Ebx;
 	int euid = ctx.Ecx;
 
-	ctx.Eax = -EPERM;
+	ctx.Eax = -linux::EPERM;
 
 	if(ruid != -1)
 	{
@@ -119,7 +119,7 @@ void SysCalls::sys_setregid(CONTEXT &ctx)
 	int rgid = ctx.Ebx;
 	int egid = ctx.Ecx;
 
-	ctx.Eax = -EPERM;
+	ctx.Eax = -linux::EPERM;
 
 	if(rgid != -1)
 	{
