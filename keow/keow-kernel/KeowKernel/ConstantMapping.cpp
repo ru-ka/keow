@@ -34,22 +34,22 @@ DWORD ElfProtectionToWin32Protection(linux::Elf32_Word prot)
 {
 	DWORD win32prot;
 	win32prot = 0;
-	if(prot == (PF_R) )
+	if(prot == (linux::PF_R) )
 		win32prot = PAGE_READONLY;
 	else
-	if(prot == (PF_W)
-	|| prot == (PF_W|PF_R) )
+	if(prot == (linux::PF_W)
+	|| prot == (linux::PF_W|linux::PF_R) )
 		win32prot = PAGE_READWRITE;
 	else
-	if(prot == (PF_X) )
+	if(prot == (linux::PF_X) )
 		//NOT honoring this competely, should be PAGE_EXECUTE but this is better for debug
 		win32prot = PAGE_EXECUTE_READ; 
 	else
-	if(prot == (PF_X|PF_R) )
+	if(prot == (linux::PF_X|linux::PF_R) )
 		win32prot = PAGE_EXECUTE_READ;
 	else
-	if(prot == (PF_W|PF_X)
-	|| prot == (PF_W|PF_X|PF_R) )
+	if(prot == (linux::PF_W|linux::PF_X)
+	|| prot == (linux::PF_W|linux::PF_X|linux::PF_R) )
 		win32prot = PAGE_EXECUTE_READWRITE;
 	else
 	{
@@ -72,38 +72,38 @@ int Win32ErrToUnixError(DWORD err)
 
 	case ERROR_FILE_NOT_FOUND:
 	case ERROR_PATH_NOT_FOUND:
-		return ENOENT;
+		return linux::ENOENT;
 
 	case ERROR_TOO_MANY_OPEN_FILES:
-		return EMFILE;
+		return linux::EMFILE;
 
 	case ERROR_ACCESS_DENIED:
-		return EACCES;
+		return linux::EACCES;
 
 	case ERROR_INVALID_HANDLE:
-		return EBADF;
+		return linux::EBADF;
 
 	case ERROR_ARENA_TRASHED:
 	case ERROR_INVALID_BLOCK:
-		return EFAULT;
+		return linux::EFAULT;
 
 	case ERROR_NOT_ENOUGH_MEMORY:
 	case ERROR_OUTOFMEMORY:
-		return ENOMEM;
+		return linux::ENOMEM;
 
 	case ERROR_INVALID_FUNCTION:
-		return ENOSYS;
+		return linux::ENOSYS;
 
 	case ERROR_BROKEN_PIPE:
 	case ERROR_NO_DATA:
 	case ERROR_PIPE_NOT_CONNECTED:
-		return EIO;
+		return linux::EIO;
 
 	case ERROR_BAD_FORMAT:
-		return ENOEXEC;
+		return linux::ENOEXEC;
 
 	default:
 		ktrace("Unhandled Win32 Error code %ld\n", err);
-		return EPERM; //generic
+		return linux::EPERM; //generic
 	}
 }

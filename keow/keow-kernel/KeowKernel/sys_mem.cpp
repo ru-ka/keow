@@ -92,7 +92,7 @@ void SysCalls::sys_brk(CONTEXT &ctx)
 void SysCalls::sys_mmap(CONTEXT &ctx)
 {
 	linux::mmap_arg_struct args;
-	DWORD err = -EINVAL;
+	DWORD err = -linux::EINVAL;
 	HANDLE hMap, hFile;
 	DWORD ProtOpen, ProtMap;
 	void *p;
@@ -102,13 +102,13 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	P->ReadMemory(&args, (ADDR)ctx.Ebx, sizeof(args));
 	ktrace("mmap(fd %d, offset 0x%08lx, len 0x%08lx, addr 0x%08lx)\n", args.fd, args.offset, args.len, args.addr);
 
-	if(args.flags & MAP_ANONYMOUS)
+	if(args.flags & linux::MAP_ANONYMOUS)
 		args.fd = -1; //swap
 
 	//addr must be aligned
 	if((args.addr & ~(SIZE4k-1)) != args.addr)
 	{
-		ctx.Eax = -EINVAL;
+		ctx.Eax = -linux::EINVAL;
 		return;
 	}
 
@@ -116,19 +116,19 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	{
 		if(args.fd<0 || args.fd>MAX_OPEN_FILES)
 		{
-			ctx.Eax = -EBADF;
+			ctx.Eax = -linux::EBADF;
 			return;
 		}
 		ioh = dynamic_cast<IOHFile*>(P->m_OpenFiles[args.fd]);
 		if(ioh==NULL)
 		{
-			ctx.Eax = -EACCES; //not a simple file - can't handle that
+			ctx.Eax = -linux::EACCES; //not a simple file - can't handle that
 			return;
 		}
 
 		__int64 len = ioh->Length();
-		if(len>LONG_MAX)
-			dwFileSize = LONG_MAX;
+		if(len>0x7fffffffL)
+			dwFileSize = 0x7fffffffL;
 		else
 			dwFileSize = (DWORD)len;
 	}
@@ -171,27 +171,27 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	if((args.addr & 0xFFFF00000) != args.addr	    /*64k test*/
 	|| (args.offset & 0xFFFF0000) != args.offset  /*64k test*/
 	|| ((args.fd != -1) && (args.offset+args.len) > dwFileSize)  /*mmap larger than file*/
-	|| ((args.prot & PROT_WRITE)==0 || (args.flags & MAP_SHARED)==0)  /* ReadOnly or private map (not write shared) */
+	|| ((args.prot & linux::PROT_WRITE)==0 || (args.flags & linux::MAP_SHARED)==0)  /* ReadOnly or private map (not write shared) */
 	) {
 
 		//can't handle shared write access in these scenarios
-		if((args.prot & PROT_WRITE) && (args.flags & MAP_SHARED))
+		if((args.prot & linux::PROT_WRITE) && (args.flags & linux::MAP_SHARED))
 		{
-			ctx.Eax = -EINVAL; //invalid arguments
+			ctx.Eax = -linux::EINVAL; //invalid arguments
 			return;
 		}
 
 		ktrace("fake mmap, len 0x%08lx\n", len4k);
 
 		//allocate the requested mem size
-		if(args.prot & PROT_WRITE)
+		if(args.prot & linux::PROT_WRITE)
 			ProtMap = PAGE_READWRITE;
 		else
 			ProtMap = PAGE_READONLY;
 		p = MemoryHelper::AllocateMemAndProtect((ADDR)args.addr, len4k, PAGE_EXECUTE_READWRITE); //correct prot after we write mem
 		if(p==(void*)-1)
 		{
-			ctx.Eax = -ENOMEM;
+			ctx.Eax = -linux::ENOMEM;
 			return;
 		}
 
@@ -221,7 +221,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 
 //can't change protection within the 64k once set?
 //		LegacyWindows::VirtualProtect(p, args.len, ProtMap, &ProtOpen);
-		if(args.flags & MAP_GROWSDOWN)
+		if(args.flags & linux::MAP_GROWSDOWN)
 			p = (LPBYTE)p + args.len;
 		ktrace("mmap'ed to 0x%08lx - 0x%08lx\n", p, (DWORD)p+len4k-1);
 		ctx.Eax = (DWORD)p;
@@ -237,9 +237,9 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	// we don't get any future updates 
 	// mapping 
 	//protection needed
-	if(args.prot & PROT_WRITE)
+	if(args.prot & linux::PROT_WRITE)
 	{
-		if(args.flags & MAP_PRIVATE)
+		if(args.flags & linux::MAP_PRIVATE)
 		{
 			ProtOpen = PAGE_WRITECOPY;
 			ProtMap = FILE_MAP_COPY;
@@ -281,7 +281,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 	//leave open - CloseHandle(hMap); -its on the other process anyway
 
 	//opened - return actual addr
-	if(args.flags & MAP_GROWSDOWN)
+	if(args.flags & linux::MAP_GROWSDOWN)
 		p = (LPBYTE)p + args.len;
 	ktrace("mmap'ed to 0x%08lx - 0x%08lx\n", p, (DWORD)p+args.len-1);
 	ctx.Eax = (DWORD)p;

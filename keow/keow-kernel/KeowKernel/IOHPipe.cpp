@@ -74,7 +74,7 @@ bool IOHPipe::Stat64(linux::stat64 * s)
 	if(!s)
 		return false;
 
-	IOHandler::BasicStat64(s, S_IFIFO); //fifo - aha pipe
+	IOHandler::BasicStat64(s, linux::S_IFIFO); //fifo - aha pipe
 
 	return true;
 }
@@ -89,7 +89,7 @@ DWORD IOHPipe::ioctl(DWORD request, DWORD data)
 	case 0:
 	default:
 		ktrace("IMPLEMENT sys_ioctl 0x%lx for IOHPipe\n", request);
-		dwRet = -ENOSYS;
+		dwRet = -linux::ENOSYS;
 		break;
 	}
 
@@ -98,7 +98,7 @@ DWORD IOHPipe::ioctl(DWORD request, DWORD data)
 
 bool IOHPipe::Read(void* address, DWORD size, DWORD *pRead)
 {
-	if(m_Flags&O_NONBLOCK)
+	if(m_Flags&linux::O_NONBLOCK)
 	{
 		//non-blocking - ensure we can do the read before doing it
 		DWORD dwBytes;

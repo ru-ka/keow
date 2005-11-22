@@ -46,19 +46,30 @@ void SysCalls::sys_write(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	if(!ioh->Write((void*)ctx.Ecx, ctx.Edx, &ctx.Eax))
+	{
+		DWORD err = SysCallDll::GetLastError();
 		ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
+		switch(err)
+		{
+		case ERROR_BROKEN_PIPE:
+		case ERROR_NO_DATA: //pipe is being closed
+		case ERROR_PIPE_NOT_CONNECTED:
+			P->SendSignal(linux::SIGPIPE);
+			break;
+		}
+	}
 }
 
 /*
@@ -76,14 +87,14 @@ void SysCalls::sys_writev(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -95,7 +106,16 @@ void SysCalls::sys_writev(CONTEXT &ctx)
 
 		if(!ioh->Write(iov.iov_base, iov.iov_len, &done))
 		{
+			DWORD err = SysCallDll::GetLastError();
 			ctx.Eax = -Win32ErrToUnixError(SysCallDll::GetLastError());
+			switch(err)
+			{
+			case ERROR_BROKEN_PIPE:
+			case ERROR_NO_DATA: //pipe is being closed
+			case ERROR_PIPE_NOT_CONNECTED:
+				P->SendSignal(linux::SIGPIPE);
+				break;
+			}
 			return;
 		}
 
@@ -121,14 +141,14 @@ void SysCalls::sys_read(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -159,13 +179,13 @@ void SysCalls::sys_access(CONTEXT &ctx)
 
 	//read is ok if access already succeeded
 
-	if( (check & W_OK) && (attr&FILE_ATTRIBUTE_READONLY) )
+	if( (check & linux::W_OK) && (attr&FILE_ATTRIBUTE_READONLY) )
 		ok = 0;
 
 	if(ok)
 		ctx.Eax = 0;
 	else
-		ctx.Eax = -EACCES;
+		ctx.Eax = -linux::EACCES;
 }
 
 /*****************************************************************************/
@@ -192,24 +212,24 @@ void SysCalls::sys_open(CONTEXT &ctx)
 	fd = P->FindFreeFD();
 	if(fd==-1)
 	{
-		ctx.Eax = -EMFILE; //too many open files
+		ctx.Eax = -linux::EMFILE; //too many open files
 		return;
 	}
 
 	//calc flags
-	if((access&O_ACCMODE) == O_WRONLY)
+	if((access&linux::O_ACCMODE) == linux::O_WRONLY)
 		win32access = GENERIC_WRITE;
 	else
-		if((access&O_ACCMODE) == O_RDONLY)
+		if((access&linux::O_ACCMODE) == linux::O_RDONLY)
 			win32access = GENERIC_READ;
 		else
 			win32access = GENERIC_READ|GENERIC_WRITE;
-	if(access & O_EXCL)
+	if(access & linux::O_EXCL)
 		win32share = 0;
 	else
 		win32share = FILE_SHARE_READ|FILE_SHARE_WRITE;
 	disposition = OPEN_EXISTING;
-	if(access & O_CREAT)
+	if(access & linux::O_CREAT)
 		disposition = OPEN_ALWAYS;
 	flags = 0;
 
@@ -218,7 +238,7 @@ void SysCalls::sys_open(CONTEXT &ctx)
 	ioh = IOHandler::CreateForPath(p);
 	if(ioh==NULL)
 	{
-		ctx.Eax = -ENXIO; //no device available?
+		ctx.Eax = -linux::ENXIO; //no device available?
 		return;
 	}
 
@@ -235,12 +255,12 @@ void SysCalls::sys_open(CONTEXT &ctx)
 	ctx.Eax = fd;
 
 	//more flags
-	if(access & O_TRUNC) 
+	if(access & linux::O_TRUNC) 
 	{
 		ioh->Seek(0, FILE_BEGIN);
 		ioh->Truncate();
 	}
-	if(access & O_APPEND)
+	if(access & linux::O_APPEND)
 	{
 		ioh->Seek(0, FILE_END);
 	}
@@ -262,14 +282,14 @@ void SysCalls::sys_close(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -307,14 +327,14 @@ void SysCalls::sys_ioctl(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -364,7 +384,7 @@ void SysCalls::sys_chdir(CONTEXT &ctx)
 	}
 	if((attr&FILE_ATTRIBUTE_DIRECTORY) == 0)
 	{
-		ctx.Eax = -ENOTDIR;
+		ctx.Eax = -linux::ENOTDIR;
 		return;
 	}
 
@@ -387,7 +407,7 @@ void SysCalls::sys_fchdir(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -395,7 +415,7 @@ void SysCalls::sys_fchdir(CONTEXT &ctx)
 	if(ioh == NULL
 	|| !instanceof(ioh,IOHFile))
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -410,7 +430,7 @@ void SysCalls::sys_fchdir(CONTEXT &ctx)
 	}
 	if((attr&FILE_ATTRIBUTE_DIRECTORY) == 0)
 	{
-		ctx.Eax = -ENOTDIR;
+		ctx.Eax = -linux::ENOTDIR;
 		return;
 	}
 
@@ -437,40 +457,40 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
-	ctx.Eax = -EINVAL;
+	ctx.Eax = -linux::EINVAL;
 
 	switch(ctx.Ecx)
 	{
-	case F_GETFD:	/* get close_on_exec */
+	case linux::F_GETFD:	/* get close_on_exec */
 		ctx.Eax = ioh->GetInheritable() ? 0 : 1;
 		break;
 
-	case F_SETFD:   /* set/clear close_on_exec */
+	case linux::F_SETFD:   /* set/clear close_on_exec */
 		ioh->SetInheritable(ctx.Edx==0);
 		ctx.Eax = 0;
 		break;
 
-	case F_GETFL:	/* get file->f_flags */
+	case linux::F_GETFL:	/* get file->f_flags */
 		ctx.Eax = ioh->GetFlags();
 		break;
 
-	case F_SETFL:	/* set file->f_flags */
+	case linux::F_SETFL:	/* set file->f_flags */
 		ioh->SetFlags(ctx.Edx);
 		ctx.Eax = 0;
 		break;
 
-	case F_DUPFD:	/* like dup2() but use any fd<=arg and close-on-exec flag of copy is off */
+	case linux::F_DUPFD:	/* like dup2() but use any fd<=arg and close-on-exec flag of copy is off */
 		{
 			int maxfd = ctx.Edx;
 			int fdnew;
@@ -480,12 +500,12 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
 			fdnew = P->FindFreeFD();
 			if(fdnew==-1)
 			{
-				ctx.Eax = -EMFILE; //too many open files
+				ctx.Eax = -linux::EMFILE; //too many open files
 				return;
 			}
 			if(fdnew > maxfd)
 			{
-				ctx.Eax = EINVAL;
+				ctx.Eax = linux::EINVAL;
 				return;
 			}
 
@@ -501,7 +521,7 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
 
 	default:
 		ktrace("IMPLEMENT sys_fcntl 0x%lx\n", ctx.Ecx);
-		ctx.Eax = -ENOSYS;
+		ctx.Eax = -linux::ENOSYS;
 		break;
 	}
 }
@@ -522,7 +542,7 @@ void SysCalls::sys_dup(CONTEXT &ctx)
 	fdnew = P->FindFreeFD();
 	if(fdnew==-1)
 	{
-		ctx.Eax = -EMFILE; //too many open files
+		ctx.Eax = -linux::EMFILE; //too many open files
 		return;
 	}
 
@@ -549,14 +569,14 @@ void SysCalls::sys_dup2(CONTEXT &ctx)
 	fdold = ctx.Ebx;
 	if(fdold<0 || fdold>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh_old = P->m_OpenFiles[fdold];
 	if(ioh_old == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -564,7 +584,7 @@ void SysCalls::sys_dup2(CONTEXT &ctx)
 	fdnew = ctx.Ecx;
 	if(fdnew<0 || fdnew>MAX_OPEN_FILES || fdnew==fdold)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -604,7 +624,7 @@ void SysCalls::sys_getdents64(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -613,7 +633,7 @@ void SysCalls::sys_getdents64(CONTEXT &ctx)
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -655,7 +675,7 @@ void SysCalls::sys_stat(CONTEXT &ctx)
 	IOHandler * ioh = IOHandler::CreateForPath(p);
 	if(ioh==NULL)
 	{
-		ctx.Eax = -ENOMEM;
+		ctx.Eax = -linux::ENOMEM;
 		return;
 	}
 
@@ -689,7 +709,7 @@ void SysCalls::sys_lstat(CONTEXT &ctx)
 	IOHandler * ioh = IOHandler::CreateForPath(p);
 	if(ioh==NULL)
 	{
-		ctx.Eax = -ENOMEM;
+		ctx.Eax = -linux::ENOMEM;
 		return;
 	}
 
@@ -720,14 +740,14 @@ void SysCalls::sys_fstat(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -762,7 +782,7 @@ void SysCalls::sys_stat64(CONTEXT &ctx)
 	IOHandler * ioh = IOHandler::CreateForPath(p);
 	if(ioh==NULL)
 	{
-		ctx.Eax = -ENOMEM;
+		ctx.Eax = -linux::ENOMEM;
 		return;
 	}
 
@@ -796,7 +816,7 @@ void SysCalls::sys_lstat64(CONTEXT &ctx)
 	IOHandler * ioh = IOHandler::CreateForPath(p);
 	if(ioh==NULL)
 	{
-		ctx.Eax = -ENOMEM;
+		ctx.Eax = -linux::ENOMEM;
 		return;
 	}
 
@@ -827,14 +847,14 @@ void SysCalls::sys_fstat64(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -864,12 +884,12 @@ void SysCalls::sys_readlink(CONTEXT &ctx)
 
 	if(GetFileAttributes(p.GetWin32Path())==INVALID_FILE_ATTRIBUTES)
 	{
-		ctx.Eax = -ENOENT; //no file
+		ctx.Eax = -linux::ENOENT; //no file
 	}
 	else
 	if(!p.IsSymbolicLink())
 	{
-		ctx.Eax = -EINVAL; //not a link
+		ctx.Eax = -linux::EINVAL; //not a link
 	}
 	else
 	{
@@ -951,12 +971,12 @@ void SysCalls::sys_unlink(CONTEXT &ctx)
 	DWORD attr = GetFileAttributes(p.GetWin32Path());
 	if(attr==INVALID_FILE_ATTRIBUTES)
 	{
-		ctx.Eax = -ENOENT;
+		ctx.Eax = -linux::ENOENT;
 		return;
 	}
 	if(attr & FILE_ATTRIBUTE_DIRECTORY)
 	{
-		ctx.Eax = -EISDIR;
+		ctx.Eax = -linux::EISDIR;
 		return;
 	}
 
@@ -1021,29 +1041,29 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	DWORD method;
-	if(whence==SEEK_SET)
+	if(whence==linux::_SEEK_SET)
 		method=FILE_BEGIN;
 	else
-	if(whence==SEEK_END)
+	if(whence==linux::_SEEK_END)
 		method=FILE_END;
 	else
-	if(whence==SEEK_CUR)
+	if(whence==linux::_SEEK_CUR)
 		method=FILE_CURRENT;
 	else
 	{
-		ctx.Eax = -EINVAL;
+		ctx.Eax = -linux::EINVAL;
 		return;
 	}
 
@@ -1072,14 +1092,14 @@ void SysCalls::sys_lseek(CONTEXT &ctx)
 	fd = ctx.Ebx;
 	if(fd<0 || fd>MAX_OPEN_FILES)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
 	ioh = P->m_OpenFiles[fd];
 	if(ioh == NULL)
 	{
-		ctx.Eax = -EBADF;
+		ctx.Eax = -linux::EBADF;
 		return;
 	}
 
@@ -1094,7 +1114,7 @@ void SysCalls::sys_lseek(CONTEXT &ctx)
 		method=FILE_CURRENT;
 	else
 	{
-		ctx.Eax = -EINVAL;
+		ctx.Eax = -linux::EINVAL;
 		return;
 	}
 
@@ -1120,9 +1140,9 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 	linux::timeval *pTimeout = (linux::timeval*)ctx.Edi;
 
 	linux::fd_set ReadRequest, WriteRequest, ExceptRequest;
-	LINUX_FD_ZERO(&ReadRequest);
-	LINUX_FD_ZERO(&WriteRequest);
-	LINUX_FD_ZERO(&ExceptRequest);
+	KEOW_FD_ZERO(&ReadRequest);
+	KEOW_FD_ZERO(&WriteRequest);
+	KEOW_FD_ZERO(&ExceptRequest);
 	if(pReadFds)
 		P->ReadMemory(&ReadRequest, (ADDR)pReadFds, sizeof(ReadRequest));
 	if(pWriteFds)
@@ -1131,9 +1151,9 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 		P->ReadMemory(&ExceptRequest, (ADDR)pExceptFds, sizeof(ExceptRequest));
 
 	linux::fd_set ReadResults, WriteResults, ExceptResults;
-	LINUX_FD_ZERO(&ReadResults);
-	LINUX_FD_ZERO(&WriteResults);
-	LINUX_FD_ZERO(&ExceptResults);
+	KEOW_FD_ZERO(&ReadResults);
+	KEOW_FD_ZERO(&WriteResults);
+	KEOW_FD_ZERO(&ExceptResults);
 
 
 	DWORD dwWait;
@@ -1155,24 +1175,24 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
 	{
 		for(int fd=0; fd<numFds; ++fd)
 		{
-			if( LINUX_FD_ISSET(fd, &ReadRequest)
+			if( KEOW_FD_ISSET(fd, &ReadRequest)
 			&&  P->m_OpenFiles[fd]!=NULL
 			&&  P->m_OpenFiles[fd]->CanRead() ) {
-				LINUX_FD_SET(fd, &ReadResults);
+				KEOW_FD_SET(fd, &ReadResults);
 				foundData = true;
 			}
 
-			if( LINUX_FD_ISSET(fd, &WriteRequest)
+			if( KEOW_FD_ISSET(fd, &WriteRequest)
 			&&  P->m_OpenFiles[fd]!=NULL
 			&&  P->m_OpenFiles[fd]->CanWrite() ) {
-				LINUX_FD_SET(fd, &WriteResults);
+				KEOW_FD_SET(fd, &WriteResults);
 				foundData = true;
 			}
 
-			if( LINUX_FD_ISSET(fd, &ExceptRequest)
+			if( KEOW_FD_ISSET(fd, &ExceptRequest)
 			&&  P->m_OpenFiles[fd]!=NULL
 			&&  P->m_OpenFiles[fd]->HasException() ) {
-				LINUX_FD_SET(fd, &ExceptResults);
+				KEOW_FD_SET(fd, &ExceptResults);
 				foundData = true;
 			}
 		}

@@ -43,7 +43,7 @@ typedef BYTE* ADDR;
 //some process limits
 #define MAX_OPEN_FILES		1024
 #define MAX_PENDING_SIGNALS	128
-#define MAX_SIGNALS			_NSIG
+#define MAX_SIGNALS			linux::_NSIG
 
 class Process  
 {
@@ -200,9 +200,9 @@ public:
 	//signal handling
 	int m_CurrentSignal;
 	int m_KilledBySig;
-	bool m_PendingSignals[_NSIG];
+	bool m_PendingSignals[linux::_NSIG];
 	linux::sigset_t m_SignalMask;
-	linux::sigaction m_SignalAction[_NSIG];
+	linux::sigaction m_SignalAction[linux::_NSIG];
 	
 	//we save this stuff when calling signal handlers, so that we can return from the signal
 	struct SignalSaveState {

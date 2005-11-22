@@ -110,9 +110,9 @@ bool IOHStaticData::Stat64(linux::stat64 * s)
 	s->st_mode = 0444;  // r--r--r--
 
 	if(m_DataType==File)
-		s->st_mode |= S_IFREG; //regular file
+		s->st_mode |= linux::S_IFREG; //regular file
 	else
-		s->st_mode |= S_IFDIR; //directory
+		s->st_mode |= linux::S_IFDIR; //directory
 
 	s->st_nlink = 1;//fi.nNumberOfLinks;
 	s->st_uid = 0;
@@ -124,7 +124,7 @@ bool IOHStaticData::Stat64(linux::stat64 * s)
 	s->st_ino = s->__st_ino = (DWORD)this; //dummy
 
 
-	s->st_size = m_DataLength;
+	s->st_size = Length();
 
 	s->st_blksize = 512; //block size for efficient IO
 	
@@ -151,7 +151,7 @@ DWORD IOHStaticData::ioctl(DWORD request, DWORD data)
 	case 0:
 	default:
 		ktrace("IMPLEMENT sys_ioctl 0x%lx for IOHStaticData\n", request);
-		dwRet = -ENOSYS;
+		dwRet = -linux::ENOSYS;
 		break;
 	}
 

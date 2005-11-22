@@ -81,18 +81,18 @@ void ProcessIoctlRequest()
 
 	switch(dwRequestType)
 	{
-	case TCSETSW:
+	case linux::TCSETSW:
 		//flush output
 		//console io never buffered, so not required
 		//...fall through...
-	case TCSETSF:
+	case linux::TCSETSF:
 		//flush input & output
 		FlushConsoleInputBuffer(g_hConsoleInput);
 		//...fall through...
-	case TCSETS: //set stty stuff
+	case linux::TCSETS: //set stty stuff
 		break;
 
-	case TIOCGWINSZ: //get window size
+	case linux::TIOCGWINSZ: //get window size
 		{
 			linux::winsize rec;
 
@@ -112,7 +112,7 @@ void ProcessIoctlRequest()
 		}
 		break;
 
-	case TIOCSWINSZ: //set window size
+	case linux::TIOCSWINSZ: //set window size
 		{
 			linux::winsize rec;
 

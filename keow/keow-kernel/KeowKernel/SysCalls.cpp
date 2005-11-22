@@ -28,8 +28,8 @@
 #include "includes.h"
 #include "SysCalls.h"
 
-SysCalls::SYSCALL_HANDLER SysCalls::syscall_handlers[NR_syscalls];
-const char* SysCalls::syscall_names[NR_syscalls];
+SysCalls::SYSCALL_HANDLER SysCalls::syscall_handlers[linux::NR_syscalls];
+const char* SysCalls::syscall_names[linux::NR_syscalls];
 
 // eax is the syscall number
 // ebx,ecx,edx,esi,edi,ebp are up to 6(max) parameters
@@ -42,15 +42,15 @@ const char* SysCalls::syscall_names[NR_syscalls];
 void SysCalls::InitSysCallTable()
 {
 	//default all syscalls to unhandled
-	for(int i=0; i<NR_syscalls; ++i)
+	for(int i=0; i<linux::NR_syscalls; ++i)
 		syscall_handlers[i] = Unhandled;
 
 	//
 	// these come from include linux/asm/unistd.h
 	//
 #define DEF_SYSCALL(n) \
-		syscall_handlers[__NR_##n]=sys_##n; \
-		syscall_names[__NR_##n]=#n;
+		syscall_handlers[linux::__NR_##n]=sys_##n; \
+		syscall_names[linux::__NR_##n]=#n;
 
 	DEF_SYSCALL(exit);
 	DEF_SYSCALL(fork);
@@ -321,12 +321,12 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 	P->m_ptrace.ctx = ctx;
 	P->m_ptrace.ctx_valid = true;
 
-	if(syscall < NR_syscalls)
+	if(syscall < linux::NR_syscalls)
 	{
 		ktrace("debug: syscall %d [%s] from @ 0x%08lx\n", ctx.Eax, syscall_names[ctx.Eax], ctx.Eip);
 
 		if(P->m_ptrace.OwnerPid
-		&& P->m_ptrace.Request == PTRACE_SYSCALL )
+		&& P->m_ptrace.Request == linux::PTRACE_SYSCALL )
 		{
 			ktrace("stopping for ptrace on syscall entry eax=%d\n", syscall);
 
@@ -334,9 +334,9 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 			//original eax is available as saved value
 
 			P->m_ptrace.Saved_Eax = syscall;
-			P->m_ptrace.ctx.Eax = (DWORD)-ENOSYS; //this is what ptrace in the tracer sees as eax
+			P->m_ptrace.ctx.Eax = (DWORD)-linux::ENOSYS; //this is what ptrace in the tracer sees as eax
 
-			P->SendSignal(SIGTRAP);
+			P->SendSignal(linux::SIGTRAP);
 		}
 
 
@@ -348,7 +348,7 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 
 		
 		if(P->m_ptrace.OwnerPid
-		&& P->m_ptrace.Request == PTRACE_SYSCALL )
+		&& P->m_ptrace.Request == linux::PTRACE_SYSCALL )
 		{
 			ktrace("stopping for ptrace on syscall exit eax=%d, orig=%d\n", ctx.Eax, syscall);
 
@@ -358,7 +358,7 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 			P->m_ptrace.ctx = ctx; //new state
 			P->m_ptrace.Saved_Eax = syscall;
 
-			P->SendSignal(SIGTRAP);
+			P->SendSignal(linux::SIGTRAP);
 		}
 	}
 	else
@@ -378,9 +378,9 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 
 void SysCalls::Unhandled(CONTEXT &ctx)
 {
-	ktrace("NOT IMPLEMENTED: syscall %d %s\n", ctx.Eax, ((int)ctx.Eax)<NR_syscalls?syscall_names[ctx.Eax]:"?");
+	ktrace("NOT IMPLEMENTED: syscall %d %s\n", ctx.Eax, ((int)ctx.Eax)<linux::NR_syscalls?syscall_names[ctx.Eax]:"?");
 	//DebugBreak();
-	ctx.Eax = -ENOSYS;
+	ctx.Eax = -linux::ENOSYS;
 }
 
 

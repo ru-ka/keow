@@ -116,48 +116,48 @@ void SysCalls::sys_ugetrlimit(CONTEXT &ctx)
 
 	if(!pRLim)
 	{
-		ctx.Eax = -EFAULT;
+		ctx.Eax = -linux::EFAULT;
 		return;
 	}
 
 	ctx.Eax = 0;
 	switch(ctx.Ebx)
 	{
-	case RLIMIT_CPU:		/* CPU time in ms */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_CPU:		/* CPU time in ms */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_FSIZE:		/* Maximum filesize */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_FSIZE:		/* Maximum filesize */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_DATA:		/* max data size */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_DATA:		/* max data size */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_STACK:		/* max stack size */
+	case linux::RLIMIT_STACK:		/* max stack size */
 		RLim.rlim_cur = RLim.rlim_max = P->m_KeowUserStackTop - P->m_KeowUserStackBase;
 		break;
-	case RLIMIT_CORE:		/* max core file size */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_CORE:		/* max core file size */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_RSS:		/* max resident set size */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_RSS:		/* max resident set size */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_NPROC:		/* max number of processes */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_NPROC:		/* max number of processes */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_NOFILE:		/* max number of open files */
+	case linux::RLIMIT_NOFILE:		/* max number of open files */
 		RLim.rlim_cur = RLim.rlim_max = MAX_OPEN_FILES;
 		break;
-	case RLIMIT_MEMLOCK:	/* max locked-in-memory address space */
+	case linux::RLIMIT_MEMLOCK:	/* max locked-in-memory address space */
 		RLim.rlim_cur = RLim.rlim_max = 0x70000000;
 		break;
-	case RLIMIT_AS:			/* address space limit */
+	case linux::RLIMIT_AS:			/* address space limit */
 		RLim.rlim_cur = RLim.rlim_max = 0x7000000;
 		break;
-	case RLIMIT_LOCKS:		/* maximum file locks held */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_LOCKS:		/* maximum file locks held */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
 	default:
-		ctx.Eax = -EINVAL;
+		ctx.Eax = -linux::EINVAL;
 		return;
 	}
 
@@ -174,48 +174,48 @@ void SysCalls::sys_getrlimit(CONTEXT &ctx)
 
 	if(!pRLim)
 	{
-		ctx.Eax = -EFAULT;
+		ctx.Eax = -linux::EFAULT;
 		return;
 	}
 
 	ctx.Eax = 0;
 	switch(ctx.Ebx)
 	{
-	case RLIMIT_CPU:		/* CPU time in ms */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_CPU:		/* CPU time in ms */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_FSIZE:		/* Maximum filesize */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_FSIZE:		/* Maximum filesize */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_DATA:		/* max data size */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_DATA:		/* max data size */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_STACK:		/* max stack size */
+	case linux::RLIMIT_STACK:		/* max stack size */
 		RLim.rlim_cur = RLim.rlim_max = P->m_KeowUserStackTop - P->m_KeowUserStackBase;
 		break;
-	case RLIMIT_CORE:		/* max core file size */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_CORE:		/* max core file size */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_RSS:		/* max resident set size */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_RSS:		/* max resident set size */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_NPROC:		/* max number of processes */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_NPROC:		/* max number of processes */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
-	case RLIMIT_NOFILE:		/* max number of open files */
+	case linux::RLIMIT_NOFILE:		/* max number of open files */
 		RLim.rlim_cur = RLim.rlim_max = MAX_OPEN_FILES;
 		break;
-	case RLIMIT_MEMLOCK:	/* max locked-in-memory address space */
+	case linux::RLIMIT_MEMLOCK:	/* max locked-in-memory address space */
 		RLim.rlim_cur = RLim.rlim_max = 0x70000000;
 		break;
-	case RLIMIT_AS:			/* address space limit */
+	case linux::RLIMIT_AS:			/* address space limit */
 		RLim.rlim_cur = RLim.rlim_max = 0x7000000;
 		break;
-	case RLIMIT_LOCKS:		/* maximum file locks held */
-		RLim.rlim_cur = RLim.rlim_max = RLIM_INFINITY;
+	case linux::RLIMIT_LOCKS:		/* maximum file locks held */
+		RLim.rlim_cur = RLim.rlim_max = linux::RLIM_INFINITY;
 		break;
 	default:
-		ctx.Eax = -EINVAL;
+		ctx.Eax = -linux::EINVAL;
 		return;
 	}
 
@@ -231,24 +231,24 @@ void SysCalls::sys_getrlimit(CONTEXT &ctx)
  */
 void SysCalls::sys_reboot(CONTEXT &ctx)
 {
-	ctx.Eax = -EINVAL;
+	ctx.Eax = -linux::EINVAL;
 
-	if(ctx.Ebx != LINUX_REBOOT_MAGIC1)
+	if(ctx.Ebx != linux::LINUX_REBOOT_MAGIC1)
 		return;
 
-	if(ctx.Ecx != LINUX_REBOOT_MAGIC2
-	&& ctx.Ecx != LINUX_REBOOT_MAGIC2A
-	&& ctx.Ecx != LINUX_REBOOT_MAGIC2B)
+	if(ctx.Ecx != linux::LINUX_REBOOT_MAGIC2
+	&& ctx.Ecx != linux::LINUX_REBOOT_MAGIC2A
+	&& ctx.Ecx != linux::LINUX_REBOOT_MAGIC2B)
 		return;
 
 	switch(ctx.Edx)
 	{
-	case LINUX_REBOOT_CMD_RESTART:
-	case LINUX_REBOOT_CMD_HALT:
-	case LINUX_REBOOT_CMD_CAD_ON:
-	case LINUX_REBOOT_CMD_CAD_OFF:
-	case LINUX_REBOOT_CMD_POWER_OFF:
-	case LINUX_REBOOT_CMD_RESTART2:
+	case linux::LINUX_REBOOT_CMD_RESTART:
+	case linux::LINUX_REBOOT_CMD_HALT:
+	case linux::LINUX_REBOOT_CMD_CAD_ON:
+	case linux::LINUX_REBOOT_CMD_CAD_OFF:
+	case linux::LINUX_REBOOT_CMD_POWER_OFF:
+	case linux::LINUX_REBOOT_CMD_RESTART2:
 		ktrace("Implement me: Dummy reboot() - no action taken\n");
 		ctx.Eax = 0;
 		break;
@@ -266,9 +266,9 @@ void SysCalls::sys_kill(CONTEXT &ctx)
 	PID pid = ctx.Ebx;
 	unsigned int sig = ctx.Ecx;
 
-	if(sig>=_NSIG)
+	if(sig>=linux::_NSIG)
 	{
-		ctx.Eax = -EINVAL;
+		ctx.Eax = -linux::EINVAL;
 		return;
 	}
 
@@ -277,7 +277,7 @@ void SysCalls::sys_kill(CONTEXT &ctx)
 	// positive - send to 1 process
 	if(pid>0)
 	{
-		ctx.Eax = -ESRCH;
+		ctx.Eax = -linux::ESRCH;
 		Process * pDest = g_pKernelTable->FindProcess(pid);
 		if(pDest!=NULL)
 		{
@@ -373,18 +373,18 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 
 	switch(request)
 	{
-	case PTRACE_TRACEME:
+	case linux::PTRACE_TRACEME:
 		ktrace("ptrace PTRACE_TRACEME\n");
 		P->m_ptrace.OwnerPid = P->m_ParentPid;
-		P->m_ptrace.Request = PTRACE_TRACEME;
+		P->m_ptrace.Request = linux::PTRACE_TRACEME;
 		ctx.Eax = 0;
 		break;
 
-	case PTRACE_SYSCALL:
+	case linux::PTRACE_SYSCALL:
 		{
 			ktrace("ptrace PTRACE_SYSCALL pid %d\n", pid);
-			pTraced->m_ptrace.Request = PTRACE_SYSCALL;
-			if((int)data!=0 && (int)data!=SIGSTOP)
+			pTraced->m_ptrace.Request = linux::PTRACE_SYSCALL;
+			if((int)data!=0 && (int)data!=linux::SIGSTOP)
 				pTraced->m_ptrace.new_signal = (int)data;
 			ktrace("ptrace_syscall resuming pid %d\n",pid);
 			ResumeThread(pTraced->m_KernelThreadHandle); //kernel handler thread is paused when using ptrace
@@ -392,11 +392,11 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 		}
 		break;
 
-	case PTRACE_CONT:
+	case linux::PTRACE_CONT:
 		{
 			ktrace("ptrace PTRACE_CONT pid %d\n", pid);
 			pTraced->m_ptrace.Request = 0;
-			if((int)data!=0 && (int)data!=SIGSTOP)
+			if((int)data!=0 && (int)data!=linux::SIGSTOP)
 				pTraced->m_ptrace.new_signal = (int)data;
 			ktrace("ptrace_cont resuming pid %d\n",pid);
 			ResumeThread(pTraced->m_KernelThreadHandle); //kernel handler thread is paused when using ptrace
@@ -404,13 +404,13 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 		}
 		break;
 
-	case PTRACE_PEEKUSR:
+	case linux::PTRACE_PEEKUSR:
 		{
 			ktrace("ptrace PTRACE_PEEKUSR pid %d addr 0x%lx (reg %ld) data 0x%08lx\n", pid, addr, (DWORD)addr>>2, data);
 
 			if((unsigned long)addr > sizeof(linux::user)-3)
 			{
-				ctx.Eax = -EFAULT;
+				ctx.Eax = -linux::EFAULT;
 				break;
 			}
 
@@ -470,14 +470,14 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 		}
 		break;
 
-	case PTRACE_PEEKTEXT:
-	case PTRACE_PEEKDATA:
+	case linux::PTRACE_PEEKTEXT:
+	case linux::PTRACE_PEEKDATA:
 		{
 			ktrace("ptrace PTRACE_PEEKDATA pid %d addr 0x%lx data 0x%08lx\n", pid, addr, data);
 			DWORD tmp;
 			if(!pTraced->ReadMemory(&tmp, (ADDR)addr, sizeof(tmp)))
 			{
-				ctx.Eax = -EFAULT;
+				ctx.Eax = -linux::EFAULT;
 			}
 			else
 			{
@@ -488,16 +488,16 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 		}
 		break;
 
-	case PTRACE_KILL:
+	case linux::PTRACE_KILL:
 		ktrace("ptrace PTRACE_KILL pid %d \n", pid);
-		pTraced->SendSignal(SIGKILL);
+		pTraced->SendSignal(linux::SIGKILL);
 		ResumeThread(pTraced->m_KernelThreadHandle); //need to wake kernel handler thread so it can die
 		ctx.Eax = 0;
 		break;
 
 	default:
 		ktrace("IMPLEMENT ptrace request %lx\n", ctx.Ebx);
-		ctx.Eax = -ENOSYS;
+		ctx.Eax = -linux::ENOSYS;
 		break;
 	}
 }
@@ -524,7 +524,7 @@ void SysCalls::sys_nanosleep(CONTEXT &ctx)
 	//signal interruptable wait
 	if(WaitForSingleObject(P->m_hWaitTerminatingEvent, msec) == WAIT_OBJECT_0)
 	{
-		ctx.Eax = -EINTR;
+		ctx.Eax = -linux::EINTR;
 	}
 	else
 	{
