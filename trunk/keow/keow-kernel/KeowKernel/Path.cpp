@@ -35,7 +35,7 @@
 Path::Path(const Path& other)
 {
 	m_pFinalMountPoint=NULL;
-	m_FollowSymLinks = FollowSymLinks;
+	m_FollowSymLinks = other.m_FollowSymLinks;
 	m_NeedCalculation = true;
 	*this = other;
 }

@@ -33,7 +33,7 @@
 #endif // _MSC_VER > 1000
 
 
-template<class T>
+template<typename T>
 class list
 {
 public:
@@ -102,13 +102,13 @@ public:
 	~list();
 
 	list& operator=(const list& other);
-	T& operator[](int index);
+	typename T& operator[](int index);
 
-	list& push_back(T element);
-	T pop_back();
-	iterator find(T value);
+	list& push_back(typename T element);
+	typename T pop_back();
+	iterator find(typename T value);
 	void erase(iterator it);
-	void erase(T value);
+	void erase(typename T value);
 	void clear();
 	bool empty() const;
 	int size() const;
@@ -121,20 +121,20 @@ public:
 /////////////////////////////////////////////////////////////////
 
 
-template<class T> inline
-list<T>::list<T>()
+template<typename T> inline
+list<T>::list()
 {
 	head=tail=NULL;
 }
 
-template<class T> inline
-list<T>::~list<T>()
+template<typename T> inline
+list<T>::~list()
 {
 	clear();
 }
 
-template<class T> inline
-list<T>& list<T>::operator=(const list<T>& other)
+template<typename T> inline
+list<T>& list<T>::operator=(const list<typename T>& other)
 {
 	clear();
 
@@ -146,7 +146,7 @@ list<T>& list<T>::operator=(const list<T>& other)
 	return *this;
 }
 
-template<class T> inline
+template<typename T> inline
 T& list<T>::operator[](int index)
 {
 	list<T>::iterator it;
@@ -159,7 +159,7 @@ T& list<T>::operator[](int index)
 	return *it;
 }
 
-template<class T> inline
+template<typename T> inline
 list<T>& list<T>::push_back(T element)
 {
 	list<T>::node *n = new list<T>::node(element);
@@ -174,7 +174,7 @@ list<T>& list<T>::push_back(T element)
 	return *this;
 }
 
-template<class T> inline
+template<typename T> inline
 T list<T>::pop_back()
 {
 	list<T>::node *n = tail; //save
@@ -191,10 +191,10 @@ T list<T>::pop_back()
 	return value;
 }
 
-template<class T> inline
-list<T>::iterator list<T>::find(T value)
+template<typename T> inline
+typename list<T>::iterator list<T>::find(typename T value)
 {
-	list<T>::iterator it;
+	typename list<T>::iterator it;
 	for(it=begin(); it!=end(); ++it)
 	{
 		if(it.n->value == value)
@@ -203,8 +203,8 @@ list<T>::iterator list<T>::find(T value)
 	return it;
 }
 
-template<class T> inline
-void list<T>::erase(list<T>::iterator it)
+template<typename T> inline
+void list<T>::erase(typename list<T>::iterator it)
 {
 	if(it.n==NULL)
 		return;
@@ -223,30 +223,30 @@ void list<T>::erase(list<T>::iterator it)
 	delete n;
 }
 
-template<class T> inline
-void list<T>::erase(T value)
+template<typename T> inline
+void list<T>::erase(typename T value)
 {
 	list<T>::erase(list<T>::find(value));
 }
 
-template<class T> inline
+template<typename T> inline
 void list<T>::clear()
 {
 	while(!empty())
 		pop_back();
 }
 
-template<class T> inline
+template<typename T> inline
 bool list<T>::empty() const
 {
 	return head==NULL;
 }
 
-template<class T> inline
+template<typename T> inline
 int list<T>::size() const
 {
 	int cnt = 0;
-	list<T>::iterator it;
+	typename list<T>::iterator it;
 	for(it=begin(); it!=end(); ++it)
 	{
 		++cnt;
@@ -255,18 +255,18 @@ int list<T>::size() const
 }
 
 
-template<class T> inline
-list<T>::iterator list<T>::begin() const
+template<typename T> inline
+typename list<T>::iterator list<T>::begin() const
 {
-	list<T>::iterator it;
+	typename list<T>::iterator it;
 	it.n = head;
 	return it;
 }
 
-template<class T> inline
-list<T>::iterator list<T>::end() const
+template<typename T> inline
+typename list<T>::iterator list<T>::end() const
 {
-	list<T>::iterator it;
+	typename list<T>::iterator it;
 	it.n = NULL;
 	return it;
 }

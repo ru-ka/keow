@@ -38,22 +38,22 @@ public:
 	static void sys_socketcall(CONTEXT &ctx);
 
 	static int sys_socket(int domain, int type, int protocol);
-	static int sys_bind(int sockfd, linux::sockaddr *my_addr, linux::socklen_t addrlen);
-	static int sys_connect(int  sockfd,  const  struct sockaddr *serv_addr, socklen_t addrlen);
-	static int sys_listen(a0,a1);
-	static int sys_accept(a0,(struct sockaddr __user *)a1, (static int __user *)a[2]);
-	static int sys_getsockname(a0,(struct sockaddr __user *)a1, (static int __user *)a[2]);
-	static int sys_getpeername(a0, (struct sockaddr __user *)a1, (static int __user *)a[2]);
-	static int sys_socketpair(a0,a1, a[2], (static int __user *)a[3]);
-	static int sys_send(a0, (void __user *)a1, a[2], a[3]);
-	static int sys_sendto(a0,(void __user *)a1, a[2], a[3], (struct sockaddr __user *)a[4], a[5]);
-	static int sys_recv(a0, (void __user *)a1, a[2], a[3]);
-	static int sys_recvfrom(a0, (void __user *)a1, a[2], a[3], (struct sockaddr __user *)a[4], (static int __user *)a[5]);
-	static int sys_shutdown(a0,a1);
-	static int sys_setsockopt(a0, a1, a[2], (char __user *)a[3], a[4]);
-	static int sys_getsockopt(a0, a1, a[2], (char __user *)a[3], (static int __user *)a[4]);
-	static int sys_sendmsg(a0, (struct msghdr __user *) a1, a[2]);
-	static int sys_recvmsg(a0, (struct msghdr __user *) a1, a[2]);
+	static int sys_bind(int sockfd, linux::sockaddr *my_addr, int addrlen);
+	static int sys_connect(int  sockfd,  const linux::sockaddr *serv_addr, int addrlen);
+	static int sys_listen(int sockfd, int backlog);
+	static int sys_accept(int sockfd, linux::sockaddr *addr, int *addrlen);
+	static int sys_getsockname(int sockfd, linux::sockaddr *addr, int *addrlen);
+	static int sys_getpeername(int sockfd, linux::sockaddr *addr, int *addrlen);
+	static int sys_socketpair(int domain, int type, int protocol, int * sv);
+	static int sys_send(int sockfd, const void *buf, linux::size_t len, int flags);
+	static int sys_sendto(int sockfd, const void *buf, linux::size_t len, int flags, const linux::sockaddr *serv_addr, int addrlen);
+	static int sys_recv(int sockfd, void *buf, linux::size_t len, int flags);
+	static int sys_recvfrom(int sockfd, void *buf, linux::size_t len, int flags, linux::sockaddr *src_addr, int *addrlen);
+	static int sys_shutdown(int sockfd, int how);
+	static int sys_setsockopt(int sockfd, int level, int optname, const void *optval, int optlen);
+	static int sys_getsockopt(int sockfd, int level, int optname, void *optval, int *optlen);
+	static int sys_sendmsg(int sockfd, linux::msghdr *msg, int flags);
+	static int sys_recvmsg(int sockfd, linux::msghdr *msg, int flags);
 
 private:
 	SocketCalls() {}

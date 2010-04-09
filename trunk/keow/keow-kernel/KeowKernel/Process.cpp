@@ -332,7 +332,8 @@ void Process::DebuggerLoop()
 		WaitForDebugEvent(&evt, INFINITE);
 
 		//any signals to dispatch first?
-		for(int sig=0; sig<linux::_NSIG; ++sig)
+		int sig=0;
+		for(; sig<linux::_NSIG; ++sig)
 		{
 			if(m_PendingSignals[sig])
 			{

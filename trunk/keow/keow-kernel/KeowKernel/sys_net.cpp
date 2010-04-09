@@ -23,6 +23,7 @@
 
 #include "includes.h"
 #include "SysCalls.h"
+#include "SocketCalls.h"
 
 // eax is the syscall number
 // ebx,ecx,edx,esi,edi,ebp are up to 6(max) parameters
@@ -35,6 +36,7 @@
  */
 void SysCalls::sys_socketcall(CONTEXT &ctx)
 {
+	//Pass to implementation in SocketCalls class
 	SocketCalls::sys_socketcall(ctx);
 }
 
