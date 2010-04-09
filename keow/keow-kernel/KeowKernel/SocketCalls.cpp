@@ -43,6 +43,7 @@ static unsigned char nargs[18]={AL(0),AL(3),AL(3),AL(3),AL(2),AL(3),
 				AL(6),AL(2),AL(5),AL(5),AL(3),AL(3)};
 #undef AL
 
+/* Decode a linux socket call and dispatch the the appropriate handler routine */
 void SocketCalls::sys_socketcall(CONTEXT &ctx)
 {
 	unsigned long a[6];
@@ -51,7 +52,7 @@ void SocketCalls::sys_socketcall(CONTEXT &ctx)
 
 	DWORD call = ctx.Ebx;
 
-	if(call<1||call>linux::SYS_RECVMSG) {
+	if(call<1 || call>linux::SYS_RECVMSG) {
 		ctx.Eax=-linux::EINVAL;
 		return;
 	}
@@ -71,54 +72,54 @@ void SocketCalls::sys_socketcall(CONTEXT &ctx)
 			err = sys_socket(a0,a1,a[2]);
 			break;
 		case linux::SYS_BIND:
-			err = sys_bind(a0,(struct sockaddr __user *)a1, a[2]);
+			err = sys_bind(a0,(linux::sockaddr *)a1, a[2]);
 			break;
 		case linux::SYS_CONNECT:
-			err = sys_connect(a0, (struct sockaddr __user *)a1, a[2]);
+			err = sys_connect(a0, (linux::sockaddr *)a1, a[2]);
 			break;
 		case linux::SYS_LISTEN:
 			err = sys_listen(a0,a1);
 			break;
 		case linux::SYS_ACCEPT:
-			err = sys_accept(a0,(struct sockaddr __user *)a1, (int __user *)a[2]);
+			err = sys_accept(a0,(linux::sockaddr *)a1, (int *)a[2]);
 			break;
 		case linux::SYS_GETSOCKNAME:
-			err = sys_getsockname(a0,(struct sockaddr __user *)a1, (int __user *)a[2]);
+			err = sys_getsockname(a0,(linux::sockaddr *)a1, (int *)a[2]);
 			break;
 		case linux::SYS_GETPEERNAME:
-			err = sys_getpeername(a0, (struct sockaddr __user *)a1, (int __user *)a[2]);
+			err = sys_getpeername(a0, (linux::sockaddr *)a1, (int *)a[2]);
 			break;
 		case linux::SYS_SOCKETPAIR:
-			err = sys_socketpair(a0,a1, a[2], (int __user *)a[3]);
+			err = sys_socketpair(a0,a1, a[2], (int *)a[3]);
 			break;
 		case linux::SYS_SEND:
-			err = sys_send(a0, (void __user *)a1, a[2], a[3]);
+			err = sys_send(a0, (void *)a1, a[2], a[3]);
 			break;
 		case linux::SYS_SENDTO:
-			err = sys_sendto(a0,(void __user *)a1, a[2], a[3],
-					 (struct sockaddr __user *)a[4], a[5]);
+			err = sys_sendto(a0,(void *)a1, a[2], a[3],
+					 (linux::sockaddr *)a[4], a[5]);
 			break;
 		case linux::SYS_RECV:
-			err = sys_recv(a0, (void __user *)a1, a[2], a[3]);
+			err = sys_recv(a0, (void *)a1, a[2], a[3]);
 			break;
 		case linux::SYS_RECVFROM:
-			err = sys_recvfrom(a0, (void __user *)a1, a[2], a[3],
-					   (struct sockaddr __user *)a[4], (int __user *)a[5]);
+			err = sys_recvfrom(a0, (void *)a1, a[2], a[3],
+					   (linux::sockaddr *)a[4], (int *)a[5]);
 			break;
 		case linux::SYS_SHUTDOWN:
 			err = sys_shutdown(a0,a1);
 			break;
 		case linux::SYS_SETSOCKOPT:
-			err = sys_setsockopt(a0, a1, a[2], (char __user *)a[3], a[4]);
+			err = sys_setsockopt(a0, a1, a[2], (char *)a[3], (int)a[4]);
 			break;
 		case linux::SYS_GETSOCKOPT:
-			err = sys_getsockopt(a0, a1, a[2], (char __user *)a[3], (int __user *)a[4]);
+			err = sys_getsockopt(a0, a1, a[2], (char *)a[3], (int *)a[4]);
 			break;
 		case linux::SYS_SENDMSG:
-			err = sys_sendmsg(a0, (struct msghdr __user *) a1, a[2]);
+			err = sys_sendmsg(a0, (linux::msghdr *) a1, a[2]);
 			break;
 		case linux::SYS_RECVMSG:
-			err = sys_recvmsg(a0, (struct msghdr __user *) a1, a[2]);
+			err = sys_recvmsg(a0, (linux::msghdr *) a1, a[2]);
 			break;
 		default:
 			err = -linux::EINVAL;
@@ -126,5 +127,93 @@ void SocketCalls::sys_socketcall(CONTEXT &ctx)
 	}
 	ctx.Eax = err;
 }
+
+//////////////////////////////////////////////////////////////////////
+
+
+int SocketCalls::sys_socket(int domain, int type, int protocol) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+int SocketCalls::sys_bind(int sockfd, linux::sockaddr *my_addr, int addrlen) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_connect(int  sockfd,  const linux::sockaddr *serv_addr, int addrlen) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_listen(int sockfd, int backlog) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_accept(int sockfd, linux::sockaddr *addr, int *addrlen) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_getsockname(int sockfd, linux::sockaddr *addr, int *addrlen) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_getpeername(int sockfd, linux::sockaddr *addr, int *addrlen) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_socketpair(int domain, int type, int protocol, int * sv) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_send(int sockfd, const void *buf, linux::size_t len, int flags) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_sendto(int sockfd, const void *buf, linux::size_t len, int flags, const linux::sockaddr *serv_addr, int addrlen) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_recv(int sockfd, void *buf, linux::size_t len, int flags) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_recvfrom(int sockfd, void *buf, linux::size_t len, int flags, linux::sockaddr *src_addr, int *addrlen) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_shutdown(int sockfd, int how) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_setsockopt(int sockfd, int level, int optname, const void *optval, int optlen) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_getsockopt(int sockfd, int level, int optname, void *optval, int *optlen) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_sendmsg(int sockfd, linux::msghdr *msg, int flags) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
+int SocketCalls::sys_recvmsg(int sockfd, linux::msghdr *msg, int flags) {
+	return -linux::ENOSYS; //Not implemented
+}
+
+
 
 //////////////////////////////////////////////////////////////////////

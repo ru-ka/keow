@@ -4,22 +4,10 @@
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
-//
-// Generated from the TEXTINCLUDE 2 resource.
-//
-#include "afxres.h"
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
-/////////////////////////////////////////////////////////////////////////////
-// English (New Zealand) resources
-
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENZ)
-#ifdef _WIN32
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_NZ
-#pragma code_page(1252)
-#endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -39,12 +27,6 @@ IDI_ICON1               ICON    DISCARDABLE     "Tux.ico"
 1 TEXTINCLUDE DISCARDABLE 
 BEGIN
     "resource.h\0"
-END
-
-2 TEXTINCLUDE DISCARDABLE 
-BEGIN
-    "#include ""afxres.h""\r\n"
-    "\0"
 END
 
 3 TEXTINCLUDE DISCARDABLE 
@@ -101,7 +83,6 @@ END
 
 #endif    // !_MAC
 
-#endif    // English (New Zealand) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

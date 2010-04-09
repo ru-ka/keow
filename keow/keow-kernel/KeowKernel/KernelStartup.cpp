@@ -81,7 +81,8 @@ void KernelStartup::ProcessCommandLine(LPSTR lpCmdLine)
 		
 
 		//find handler for arg
-		for(int h=0; s_ArgumentHandlers[h].arg_name!=NULL; ++h)
+		int h=0;
+		for(; s_ArgumentHandlers[h].arg_name!=NULL; ++h)
 		{
 			if(name == s_ArgumentHandlers[h].arg_name)
 			{
