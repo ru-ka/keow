@@ -25,7 +25,7 @@ for cmd in zip fakeroot fakechroot debootstrap; do
 done
 
 #prepare tmp - and cleanup at exit
-#trap "echo -e '\nCleaning up'; rm -rf $tmpdir; echo 'Done.'" 0
+trap "echo -e '\nCleaning up'; rm -rf $tmpdir; echo 'Done.'" 0
 mkdir -p "$tmpdir/linux"
 
 # build minimal system
