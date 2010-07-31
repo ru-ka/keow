@@ -139,6 +139,8 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 
 
 	//env and args
+	for(NewP->m_ArgCnt=0; InitialArguments[NewP->m_ArgCnt]!=NULL; NewP->m_ArgCnt++) {}
+	for(NewP->m_EnvCnt=0; InitialEnvironment[NewP->m_EnvCnt]!=NULL; NewP->m_EnvCnt++) {}
 	//StartNewImageRunning expects to be able to free these - so copy them - in the kernel still
 	NewP->m_Arguments   = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), (ADDR)InitialArguments, GetCurrentProcess(), NULL, &NewP->m_ArgCnt, NULL);
 	NewP->m_Environment = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), (ADDR)InitialEnvironment, GetCurrentProcess(), NULL, &NewP->m_EnvCnt, NULL);

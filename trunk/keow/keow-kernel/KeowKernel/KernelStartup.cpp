@@ -80,7 +80,7 @@ void KernelStartup::ProcessCommandLine(LPSTR lpCmdLine)
 		if(eq<0)
 		{
 			name = a;
-			val  = "";
+			val  = a;
 		}
 		else
 		{
