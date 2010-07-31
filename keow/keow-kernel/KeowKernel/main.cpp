@@ -52,11 +52,6 @@ static char * InitialEnv[] = {
 	NULL
 };
 
-static char * InitialArgs[] = {
-	"",
-	NULL
-};
-
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
@@ -109,8 +104,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//Load the initial executable
 	ktrace("Loading 'init'");
 	Path InitPath;
+	char ** InitialArgs;
 	InitPath.SetUnixPath( KernelStartup::GetInitProgram() );
-	InitialArgs[0] = strdup(InitPath.GetUnixPath());
+	InitialArgs = KernelStartup::GetInitArguments();
 	Process * proc = Process::StartInit(1, InitPath, InitialArgs, InitialEnv);
 	if(proc == 0)
 	{

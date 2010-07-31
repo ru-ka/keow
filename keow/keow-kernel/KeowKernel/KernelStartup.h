@@ -39,13 +39,18 @@ public:
 	static void ValidateKernelTraps();
 	static void AutoMountDrives();
 
-	static string GetInitProgram()  {
-		return s_InitProgram;
+	static char * GetInitProgram()  {
+		return s_InitArguments[0];
+	}
+	static char ** GetInitArguments()  {
+		return s_InitArguments;
 	}
 
 protected:
-	static string s_InitProgram;
-	static const char * ms_pszAutoMount;
+	static const int s_InitMaxArgs;
+	static int s_InitCurrentArgs;
+	static char ** s_InitArguments;
+	static char * s_pszAutoMount;
 
 	typedef void (*ARG_HANDLER)(const char *);
 	struct HandlerRec {

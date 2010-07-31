@@ -42,8 +42,10 @@ KernelStartup::HandlerRec KernelStartup::s_ArgumentHandlers[] = {
 	{NULL, NULL}
 };
 
-string KernelStartup::s_InitProgram("/sbin/init");
-const char * KernelStartup::ms_pszAutoMount = NULL;
+const int KernelStartup::s_InitMaxArgs = 20;
+int KernelStartup::s_InitCurrentArgs = 0;
+char ** KernelStartup::s_InitArguments = new char * [KernelStartup::s_InitMaxArgs];
+char * KernelStartup::s_pszAutoMount = NULL;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -56,6 +58,13 @@ void KernelStartup::ProcessCommandLine(LPSTR lpCmdLine)
 
 	list<string> args;
 	ParseCommandLine(lpCmdLine, args);
+
+	//default init is /bin/init
+	s_InitArguments[0] = "/bin/init";
+	for(int i=1; i<s_InitMaxArgs; ++i) {
+		s_InitArguments[i] = NULL;
+	}
+	s_InitCurrentArgs = 1;
 
 	//process the found args
 	list<string>::iterator it;
@@ -82,15 +91,23 @@ void KernelStartup::ProcessCommandLine(LPSTR lpCmdLine)
 
 		//find handler for arg
 		int h=0;
+		bool handled=false;
 		for(; s_ArgumentHandlers[h].arg_name!=NULL; ++h)
 		{
 			if(name == s_ArgumentHandlers[h].arg_name)
 			{
 				(*s_ArgumentHandlers[h].handler)(val.c_str());
+				handled=true;
+				break;
 			}
 		}
-		if(s_ArgumentHandlers[h].arg_name!=NULL)
-			ktrace("unknown argument ignored");
+		if(!handled) {
+			//Unknown arguments are passed as arguments to init (same as linux kernel does)
+			if(s_InitCurrentArgs < s_InitMaxArgs) {
+				s_InitArguments[s_InitCurrentArgs] = _strdup(val.c_str());
+				s_InitCurrentArgs++;
+			}
+		}
 
 	}
 	ktrace("Finished argument processing\n");
@@ -153,8 +170,8 @@ void KernelStartup::ValidateKernelTraps()
 //make mounts and generate initial /etc/mtab
 void KernelStartup::AutoMountDrives()
 {
-	if(ms_pszAutoMount==0)
-		ms_pszAutoMount = "CDEFGHIJKLMNOPRSTUVWXYZ";
+	if(s_pszAutoMount==0)
+		s_pszAutoMount = "CDEFGHIJKLMNOPRSTUVWXYZ";
 
 	Path p;
 
@@ -168,7 +185,7 @@ void KernelStartup::AutoMountDrives()
 	char mnt[] = "/mnt/X";
 	char *pMntLetter = &mnt[5]; //the 'X'
 
-	const char *letter = ms_pszAutoMount;
+	const char *letter = s_pszAutoMount;
 	while(*letter)
 	{
 		drive[0] = *pMntLetter = toupper(*letter);
@@ -235,7 +252,7 @@ void KernelStartup::arg_root(const char *arg)
 	//also ensure that the kernel starts from this directory
 	if(!SetCurrentDirectory(arg))
 	{
-		perror("root dir does not exist");
+		ktrace("root dir does not exist");
 		halt();
 	}
 
@@ -250,7 +267,7 @@ void KernelStartup::arg_root(const char *arg)
 
 void KernelStartup::arg_init(const char *arg)
 {
-	s_InitProgram = arg;
+	s_InitArguments[0] = _strdup(arg);
 	ktrace("Using %s as 'init'\n", arg);
 }
 
@@ -262,8 +279,8 @@ void KernelStartup::arg_debug(const char *arg)
 
 void KernelStartup::arg_automount(const char *arg)
 {
-	ms_pszAutoMount = arg;
-	ktrace("AutoMount: %s\n", ms_pszAutoMount);
+	s_pszAutoMount = _strdup(arg);
+	ktrace("AutoMount: %s\n", s_pszAutoMount);
 }
 
 void KernelStartup::arg_log(const char *arg)
@@ -271,6 +288,4 @@ void KernelStartup::arg_log(const char *arg)
 	g_pKernelTable->m_hLogFile = CreateFile(arg, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, 0, 0);
 	ktrace("Log File: %s\n", arg);
 }
-
-
 
