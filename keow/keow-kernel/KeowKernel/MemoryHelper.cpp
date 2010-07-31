@@ -122,7 +122,7 @@ ADDR MemoryHelper::AllocateMemAndProtectProcess(HANDLE hProcess, ADDR addr, DWOR
 
 ADDR MemoryHelper::AllocateMemAndProtect(ADDR addr, DWORD size, DWORD prot)
 {
-	ADDR addrActual = AllocateMemAndProtectProcess(P->m_Win32PInfo.hProcess, addr, size, prot);
+	ADDR addrActual = AllocateMemAndProtectProcess(P->m_hProcess, addr, size, prot);
 	if(addrActual != (ADDR)-1)
 		P->m_MemoryAllocations.push_back(new Process::MemoryAlloc(addrActual, size, prot));
 	return addrActual;
@@ -139,9 +139,9 @@ bool MemoryHelper::DeallocateMemory(ADDR addr, DWORD size)
 		if(pAlloc->addr == addr
 		&& pAlloc->len == size)
 		{
-			ktrace("freeing 0x%08lx, len %d in proc %lx\n", addr, size, P->m_Win32PInfo.hProcess);
+			ktrace("freeing 0x%08lx, len %d in proc %lx\n", addr, size, P->m_hProcess);
 
-			if(!LegacyWindows::VirtualFreeEx(P->m_Win32PInfo.hProcess, addr, size, MEM_DECOMMIT))
+			if(!LegacyWindows::VirtualFreeEx(P->m_hProcess, addr, size, MEM_DECOMMIT))
 				return false;
 
 			P->m_MemoryAllocations.erase(it);
@@ -439,6 +439,210 @@ string MemoryHelper::ReadString(HANDLE hFromProcess, ADDR fromAddr)
 	}
 }
 
+
 /*****************************************************************************/
 
+/*
+static int GetLdtCount()
+{
+	PROCESS_LDT_INFORMATION information;
+	information.Start = 0;
+	information.Length = 8;
+	NtQueryInformationProcess(GetCurrentProcess(), ProcessLdtInformation, &information, sizeof(information), NULL);
+	return information.Length / sizeof(LDT_ENTRY);
+}
+*/
 
+int MemoryHelper::AllocateLDTSelector(DWORD dwThreadId)
+{
+	//Look for a free LDT entry to use
+	//Windows does not use LDT, so any entries are our to use, so just using internal tables to keep track
+
+	/*
+	 Windows uses only 9 GDT entries
+	 And linux code thinks we are returning a GDT selector index,
+	 (so it converts the index into a selector but does not set the LDT bit (bit 3)).
+	 By returning LDT indexes > 9  we generate invalid GDT entries,
+	 then we can trap when they are assigned to a segment register (currently GS in libpthread).
+	 This trapping occurs in MemoryHelper::HandlePossibleLDTException()
+	*/
+	int start=16; //TODO: actually check that it is free!
+
+	for(int i=start; i<MAX_LDT_ENTRIES; ++i)
+	{
+		if(P->m_LdtEntries[i].user_desc.base_addr == 0
+		&& P->m_LdtEntries[i].user_desc.limit     == 0)
+		{
+			//unallocated - can use this one
+			P->m_LdtEntries[i].dwAllocatingThreadId = dwThreadId;
+			ktrace("Allocated LDT[%d] for thread %lx\n", i, dwThreadId);
+			return i;
+		}
+	}
+
+	//none found
+	return -1;
+}
+
+//Warn if the thread is accessing a different entry than we expect
+//  In Linux LDT (and GDT) entries are per task (= per thread)
+//  In Windows they are per-Process (except for the TEB entry in the GDT)
+//  Keow is currently assuming that libpthread users are requesting
+//  thread local storage using sys_set_thread_data() and that they will
+//  either request a new segment (entry_number==-1) or that they will honour
+//  the returned entry_number from a set_thread_data() call.
+//  TO assert this assumption, we check that a thread is accessing and
+//  entry allocated to the calling thread.
+static void LDT_Ownership_Warning(DWORD dwThreadId, int entry_number)
+{
+	Process::LdtData *pKernelUserDesc = &P->m_LdtEntries[entry_number];
+
+	//if not allocated, then don't care
+	if(pKernelUserDesc->user_desc.base_addr == 0
+	&& pKernelUserDesc->user_desc.limit     == 0)
+	{
+		return;
+	}
+
+	if(pKernelUserDesc->dwAllocatingThreadId != dwThreadId) 
+	{
+		ktrace("Warning, thread %lx accessing LDT entry belonging to thread %lx\n", dwThreadId, pKernelUserDesc->dwAllocatingThreadId);
+	}
+}
+
+bool MemoryHelper::GetLDTSelector(DWORD dwThreadId, linux::user_desc &user_desc)
+{
+	//We wrote the LDT and keep a copy in the Procress.
+	//Therefore we can just lookup the stored value, rather than perform all
+	//the LDT_ENTRY <-> user_desc mapping that SetLDTSelector() performs.
+
+	//index
+	int index = user_desc.entry_number;
+
+	Process::LdtData *pKernelUserDesc = &P->m_LdtEntries[index];
+
+	//Warn if the thread is accessing a different entry than we expect
+	LDT_Ownership_Warning(dwThreadId, index);
+
+	memcpy(&user_desc, &pKernelUserDesc->user_desc, sizeof(linux::user_desc));
+	return true;
+}
+
+/*
+ * LDT read/write from: http://vxheavens.com/lib/vzo13.html
+ */
+bool MemoryHelper::SetLDTSelector(DWORD dwThreadId, linux::user_desc &user_desc)
+{
+	PROCESS_LDT_INFORMATION ldtInfo;
+	LDT_ENTRY *ldt = &ldtInfo.LdtEntries[0];
+	DWORD rc;
+
+	//index
+	int index = user_desc.entry_number;
+
+	//Warn if the thread is accessing a different entry than we expect
+	LDT_Ownership_Warning(dwThreadId, index);
+
+
+	// See Chapter 5, 386INTEL.TXT
+
+	//	                          DATA SEGMENT DESCRIPTOR
+	// 31                23                15                7               0
+	//+-----------------+-+-+-+-+---------+-+-----+---------+-----------------+
+	//|                 | | | |A| LIMIT   | |     |  TYPE   |                 |
+	//|   BASE 31..24   |G|B|0|V| 19..16  |P| DPL |         |   BASE 23..16   | 4
+	//|                 | | | |L|         | |     |1|0|E|W|A|                 |
+	//+=================+=+=+=+=+=========+=+=====+=+=+=+=+=+=================+
+	//|                                   |                                   |
+	//|        SEGMENT BASE 15..0         |        SEGMENT LIMIT 15..0        | 0
+	//|                                   |                                   |
+	//+-----------------+-----------------+-----------------+-----------------+
+
+	//                       EXECUTABLE SEGMENT DESCRIPTOR
+	// 31                23                15                7               0
+	//+-----------------+-+-+-+-+---------+-+-----+---------+-----------------+
+	//|                 | | | |A| LIMIT   | |     |  TYPE   |                 |
+	//|   BASE 31..24   |G|D|0|V| 19..16  |P| DPL |         |   BASE 23..16   | 4
+	//|                 | | | |L|         | |     |1|0|C|R|A|                 |
+	//+=================+=+=+=+=+=========+=+=====+=+=+=+=+=+=================+
+	//|                                   |                                   |
+	//|        SEGMENT BASE 15..0         |        SEGMENT LIMIT 15..0        | 0
+	//|                                   |                                   |
+	//+-----------------+-----------------+-----------------+-----------------+
+
+    //  A   - ACCESSED                              E   - EXPAND-DOWN
+    //  AVL - AVAILABLE FOR PROGRAMMERS USE         G   - GRANULARITY
+    //  B   - BIG                                   P   - SEGMENT PRESENT
+    //  C   - CONFORMING                            R   - READABLE
+    //  D   - DEFAULT                               W   - WRITABLE
+    //  DPL - DESCRIPTOR PRIVILEGE LEVEL
+
+
+	//convert data
+	//
+	ZeroMemory(ldt, sizeof(LDT_ENTRY));
+
+	ldt->BaseLow                = user_desc.base_addr & 0xFFFF;
+	ldt->HighWord.Bytes.BaseMid = user_desc.base_addr >> 16;
+	ldt->HighWord.Bytes.BaseHi  = user_desc.base_addr >> 24;
+
+	ldt->LimitLow                  = user_desc.limit & 0xFFFF;
+	ldt->HighWord.Bits.LimitHi     = user_desc.limit >> 16;
+	ldt->HighWord.Bits.Granularity = user_desc.limit_in_pages; //0=bytes, 1=pages (4k)
+
+	ldt->HighWord.Bits.Default_Big = user_desc.seg_32bit; //0=16bit, 1=32bit
+
+	//Code or data segment?
+	ldt->HighWord.Bits.Type = user_desc.read_exec_only ? 0x1b : 0x13;
+
+	ldt->HighWord.Bits.Pres = !user_desc.seg_not_present;  //Presense bit
+	ldt->HighWord.Bits.Dpl = 3;  //ALWAYS ring 3
+	ldt->HighWord.Bits.Sys = 1;  // 0=sys, 1=user
+
+
+	//Write LDT entry
+	//
+	ldtInfo.Start = index * sizeof(LDT_ENTRY); // selector --> offset
+	ldtInfo.Length = sizeof(LDT_ENTRY);
+	rc = LegacyWindows::NtSetInformationProcess(P->m_hProcess, ProcessLdtInformation, &ldtInfo, sizeof(ldtInfo));
+
+
+	if(rc==0) { //NTSTATUS OK
+		//ok
+		ktrace("Set LDT[%d] for thread %lx to 0x%08lx\n", user_desc.entry_number, dwThreadId, user_desc.base_addr);
+		P->DumpDescriptors();
+		return true;
+	}
+	else 
+	{
+		ktrace("Selector set error %lx\n", rc);
+		return false;
+	}
+
+}
+
+bool MemoryHelper::HandlePossibleLDTException(WORD instruction, ADDR exceptionAddress, CONTEXT& ctx)
+{
+	//This is _possibly_ an access violation occuring because the caller is attempting
+	// to load an invalid GDT selector entry into FS,GS, etc.. 
+	//See MemoryHelper::AllocateLDT() for why we cause this situation.
+
+	//We detect these operations and correct the selector to be an LDT selector, not GDT
+	//and then let the process resume with the corrected value.
+	const DWORD LDT_BIT = 0x4;
+
+
+	// Testing for instrunctions that SET a Selector register
+	// These causes determined by debugging the linux process with gdb and recording the cases.
+	switch(instruction) {
+
+	case 0xe88e:  //GDB:  movl %eax,%gs
+		ktrace("trap LDT: mov gs,eax   LDT[%d]\n", ctx.Eax>>3);
+		//fixup the value to be an LDT selector
+		ctx.Eax |= LDT_BIT;
+		return true;
+	}
+
+	//not an exception that we handle
+	return false;
+}

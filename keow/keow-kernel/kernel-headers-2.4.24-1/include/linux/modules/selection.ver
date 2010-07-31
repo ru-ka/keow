@@ -1,4 +1,0 @@
-#define __ver_set_selection	smp_c62b5ddd
-#define set_selection	_set_ver(set_selection)
-#define __ver_paste_selection	smp_4064cdde
-#define paste_selection	_set_ver(paste_selection)

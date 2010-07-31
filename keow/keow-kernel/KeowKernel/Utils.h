@@ -56,4 +56,18 @@ extern ULARGE_INTEGER Time1Jan1970;
 #define offset_of(base,member) ( ((DWORD)&member) - ((DWORD)&base) )
 
 
+//information about threads
+struct ThreadInfo
+{
+	DWORD dwThreadId;
+	HANDLE hThread;
+
+	DWORD SegGs;
+
+	ThreadInfo(DWORD id, HANDLE h)
+		: dwThreadId(id), hThread(h), SegGs(0)
+	{
+	}
+};
+
 #endif // !defined(AFX_UTILS_H__23B86EDD_923F_42A7_94E3_68A42DB40A3D__INCLUDED_)

@@ -33,7 +33,7 @@
 /*
  *  uname(struct utsname *name)
  */
-void SysCalls::sys_uname(CONTEXT &ctx)
+void SysCalls::sys_uname(CONTEXT& ctx)
 {
 	linux::new_utsname * pU = (linux::new_utsname *)ctx.Ebx;
 	linux::new_utsname U;
@@ -56,7 +56,7 @@ void SysCalls::sys_uname(CONTEXT &ctx)
 /*
  * int getpid()
  */
-void SysCalls::sys_getpid(CONTEXT &ctx)
+void SysCalls::sys_getpid(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_Pid;
 }
@@ -66,7 +66,7 @@ void SysCalls::sys_getpid(CONTEXT &ctx)
 /*
  * int getppid()
  */
-void SysCalls::sys_getppid(CONTEXT &ctx)
+void SysCalls::sys_getppid(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_ParentPid;
 }
@@ -77,7 +77,7 @@ void SysCalls::sys_getppid(CONTEXT &ctx)
 /*
  * mode_t umask(mode_t mask)
  */
-void SysCalls::sys_umask(CONTEXT &ctx)
+void SysCalls::sys_umask(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_umask;
 	P->m_umask = ctx.Ebx;
@@ -89,7 +89,7 @@ void SysCalls::sys_umask(CONTEXT &ctx)
 /*
  * time_t time(time_t *t);
  */
-void SysCalls::sys_time(CONTEXT &ctx)
+void SysCalls::sys_time(CONTEXT& ctx)
 {
 	SYSTEMTIME st;
 	FILETIME ft;
@@ -109,7 +109,7 @@ void SysCalls::sys_time(CONTEXT &ctx)
 /*
  * long getrlimit(uint resource, rlimit* rlim)
  */
-void SysCalls::sys_ugetrlimit(CONTEXT &ctx)
+void SysCalls::sys_ugetrlimit(CONTEXT& ctx)
 {
 	linux::rlimit *pRLim = (linux::rlimit *)ctx.Ecx;
 	linux::rlimit RLim;
@@ -167,7 +167,7 @@ void SysCalls::sys_ugetrlimit(CONTEXT &ctx)
 /*
  * same as ugetrlimit except unsigned values
  */
-void SysCalls::sys_getrlimit(CONTEXT &ctx)
+void SysCalls::sys_getrlimit(CONTEXT& ctx)
 {
 	linux::rlimit *pRLim = (linux::rlimit *)ctx.Ecx;
 	linux::rlimit RLim;
@@ -229,7 +229,7 @@ void SysCalls::sys_getrlimit(CONTEXT &ctx)
 /*
  * int reboot(int magic, int magic2, int flag, void *arg);
  */
-void SysCalls::sys_reboot(CONTEXT &ctx)
+void SysCalls::sys_reboot(CONTEXT& ctx)
 {
 	ctx.Eax = -linux::EINVAL;
 
@@ -261,7 +261,7 @@ void SysCalls::sys_reboot(CONTEXT &ctx)
 /*
  * int kill(pid, sig)
  */
-void SysCalls::sys_kill(CONTEXT &ctx)
+void SysCalls::sys_kill(CONTEXT& ctx)
 {
 	PID pid = ctx.Ebx;
 	unsigned int sig = ctx.Ecx;
@@ -338,7 +338,7 @@ void SysCalls::sys_kill(CONTEXT &ctx)
  * int gettimeofday(timeval* tv, timezone* tz)
  * same as time() but has tv_usec too;
  */
-void SysCalls::sys_gettimeofday(CONTEXT &ctx)
+void SysCalls::sys_gettimeofday(CONTEXT& ctx)
 {
 	linux::timeval * pTv = (linux::timeval*)ctx.Ebx;
 	//never used for linux -   linux::timezone * tz = (linux::timezone*)pCtx->Ecx;
@@ -362,7 +362,7 @@ void SysCalls::sys_gettimeofday(CONTEXT &ctx)
 /*
  * long ptrace(enum request, int pid, void* addr, void* data)
  */
-void SysCalls::sys_ptrace(CONTEXT &ctx)
+void SysCalls::sys_ptrace(CONTEXT& ctx)
 {
 	int request = ctx.Ebx;
 	int pid = ctx.Ecx;
@@ -370,6 +370,9 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 	void* data = (void*)ctx.Esi;
 
 	Process * pTraced = g_pKernelTable->FindProcess(pid);
+
+	//TODO: what does ptrace on a process with threads actually do?
+	ThreadInfo * pTracedThread = pTraced->m_ThreadList[0];
 
 	switch(request)
 	{
@@ -426,10 +429,10 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 				//it's possible that the traced process has caught a signal and then
 				//signalled us, however it's kernel thread has yet to sleep
 				//so we do an extra suspend here to get the correct context
-				SuspendThread(pTraced->m_Win32PInfo.hThread);
+				SuspendThread(pTracedThread->hThread);
 				TempCtx.ContextFlags = CONTEXT_FULL;
-				GetThreadContext(pTraced->m_Win32PInfo.hThread, &TempCtx);
-				ResumeThread(pTraced->m_Win32PInfo.hThread);
+				GetThreadContext(pTracedThread->hThread, &TempCtx);
+				ResumeThread(pTracedThread->hThread);
 				pTracedCtx = &TempCtx;
 			}
 
@@ -509,7 +512,7 @@ void SysCalls::sys_ptrace(CONTEXT &ctx)
 /*
  * int nanosleep(timespec*req, timespec*rem)
  */
-void SysCalls::sys_nanosleep(CONTEXT &ctx)
+void SysCalls::sys_nanosleep(CONTEXT& ctx)
 {
 	linux::timespec * pReq = (linux::timespec*)ctx.Ebx;
 	linux::timespec * pRem = (linux::timespec*)ctx.Ecx;
@@ -553,7 +556,7 @@ void SysCalls::sys_nanosleep(CONTEXT &ctx)
 /*
  * int sysinfo(struct sysinfo *info)
  */
-void SysCalls::sys_sysinfo(CONTEXT &ctx)
+void SysCalls::sys_sysinfo(CONTEXT& ctx)
 {
 	linux::sysinfo si;
 	

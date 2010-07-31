@@ -34,7 +34,7 @@
 IOHPipe::IOHPipe(HANDLE hPipe)
 {
 	//make it inheritable
-	DuplicateHandle(GetCurrentProcess(), hPipe, P->m_Win32PInfo.hProcess, &m_hRemotePipe, 0, TRUE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
+	DuplicateHandle(GetCurrentProcess(), hPipe, P->m_hProcess, &m_hRemotePipe, 0, TRUE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
 }
 
 IOHPipe::~IOHPipe()
@@ -47,8 +47,8 @@ IOHandler * IOHPipe::Duplicate()
 {
 	IOHPipe * p2 = new IOHPipe(NULL); //dup in constructor will fail, but we deal with it next
 
-	DuplicateHandle(m_pInProcess->m_Win32PInfo.hProcess, m_hRemotePipe,
-		P->m_Win32PInfo.hProcess, &p2->m_hRemotePipe,
+	DuplicateHandle(m_pInProcess->m_hProcess, m_hRemotePipe,
+		P->m_hProcess, &p2->m_hRemotePipe,
 		0, TRUE, DUPLICATE_SAME_ACCESS);
 
 	return p2;

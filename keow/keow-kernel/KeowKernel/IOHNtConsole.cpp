@@ -57,11 +57,11 @@ bool IOHNtConsole::Open(DWORD win32access, DWORD win32share, DWORD disposition, 
 	Close();
 
 	DuplicateHandle(GetCurrentProcess(), m_pConsole->m_hConsoleRead,
-		P->m_Win32PInfo.hProcess, &m_hRemoteConsoleRead,
+		P->m_hProcess, &m_hRemoteConsoleRead,
 		0, FALSE, DUPLICATE_SAME_ACCESS);
 
 	DuplicateHandle(GetCurrentProcess(), m_pConsole->m_hConsoleWrite,
-		P->m_Win32PInfo.hProcess, &m_hRemoteConsoleWrite,
+		P->m_hProcess, &m_hRemoteConsoleWrite,
 		0, FALSE, DUPLICATE_SAME_ACCESS);
 
 	return true;

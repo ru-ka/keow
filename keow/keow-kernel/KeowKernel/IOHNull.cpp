@@ -49,7 +49,7 @@ bool IOHNull::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD
 	HANDLE h = CreateFile("NUL:", GENERIC_READ|GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
 
 	DuplicateHandle(GetCurrentProcess(), h,
-		P->m_Win32PInfo.hProcess, &m_hRemoteHandle,
+		P->m_hProcess, &m_hRemoteHandle,
 		0, FALSE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
 	return true;
 }

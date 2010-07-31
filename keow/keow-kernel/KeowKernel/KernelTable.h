@@ -83,6 +83,7 @@ extern KernelTable * g_pKernelTable;
 static const int KTRACE_BUFFER_SIZE = 32000;
 extern _declspec(thread) char * g_pTraceBuffer;
 extern _declspec(thread) Process * P;
+extern _declspec(thread) ThreadInfo * T;
 
 
 #endif // !defined(AFX_KERNELTABLE_H__232A87EB_0936_4CC2_8C52_5412CEC21F68__INCLUDED_)

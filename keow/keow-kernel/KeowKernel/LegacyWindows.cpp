@@ -124,7 +124,7 @@ LPVOID LegacyWindows::VirtualAllocEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T d
 		return VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
 
 #ifdef _DEBUG
-	if(hProcess != P->m_Win32PInfo.hProcess)
+	if(hProcess != P->m_hProcess)
 		DebugBreak();
 #endif
 
@@ -157,7 +157,7 @@ BOOL LegacyWindows::VirtualFreeEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSi
 		return VirtualFree(lpAddress, dwSize, dwFreeType);
 
 #ifdef _DEBUG
-	if(hProcess != P->m_Win32PInfo.hProcess)
+	if(hProcess != P->m_hProcess)
 		DebugBreak();
 #endif
 
@@ -214,6 +214,58 @@ BOOL LegacyWindows::CreateHardLink(LPCSTR lpNewFile, LPCSTR lpOldFile)
 	else
 	{
 		//can't do anything like this on win9x
+
+		SetLastError(ERROR_INVALID_FUNCTION);
+		return FALSE;
+	}
+}
+
+NTSTATUS LegacyWindows::NtQueryInformationProcess(HANDLE ProcessHandle, PROCESSINFOCLASS ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength)
+{
+	HMODULE hlib = GetModuleHandle("NTDLL");
+	FARPROC fp = GetProcAddress(hlib, "NtQueryInformationProcess");
+#ifdef KEOW_FORCE_WIN95_VERSIONS
+	fp=0;
+#endif
+
+	if(fp)
+	{
+		//can use the real function
+
+		NTSTATUS (CALLBACK *NtQueryInformationProcess)
+				 (HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG);
+        *(FARPROC *)&NtQueryInformationProcess = fp;
+		return NtQueryInformationProcess(ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength, ReturnLength);
+	}
+	else
+	{
+		//can't do anything like this on win9x
+
+		SetLastError(ERROR_INVALID_FUNCTION);
+		return FALSE;
+	}
+}
+
+NTSTATUS LegacyWindows::NtSetInformationProcess(HANDLE ProcessHandle, PROCESSINFOCLASS ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength)
+{
+	HMODULE hlib = GetModuleHandle("NTDLL");
+	FARPROC fp = GetProcAddress(hlib, "NtSetInformationProcess");
+#ifdef KEOW_FORCE_WIN95_VERSIONS
+	fp=0;
+#endif
+
+	if(fp)
+	{
+		//can use the real function
+
+		NTSTATUS (CALLBACK *NtSetInformationProcess)
+				 (HANDLE, PROCESSINFOCLASS, PVOID, ULONG);
+        *(FARPROC *)&NtSetInformationProcess = fp;
+		return NtSetInformationProcess(ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength);
+	}
+	else
+	{
+		//can't do anything like this on win9x?
 
 		SetLastError(ERROR_INVALID_FUNCTION);
 		return FALSE;

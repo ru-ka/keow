@@ -38,7 +38,7 @@
  * write bytes to a handle
  * sys_write(handle,text,len)
  */
-void SysCalls::sys_write(CONTEXT &ctx)
+void SysCalls::sys_write(CONTEXT& ctx)
 {
 	int fd;
 	IOHandler * ioh;
@@ -76,7 +76,7 @@ void SysCalls::sys_write(CONTEXT &ctx)
  * int writev(int filedes, struct iovec* v, int count)
  * this is a write from several buffers
  */
-void SysCalls::sys_writev(CONTEXT &ctx)
+void SysCalls::sys_writev(CONTEXT& ctx)
 {
 	linux::iovec *pV = (linux::iovec *)ctx.Ecx;
 	linux::iovec iov;
@@ -131,7 +131,7 @@ void SysCalls::sys_writev(CONTEXT &ctx)
 /*
  * unsigned long sys_read(int fd, char*buf, unsigned long size)
  */
-void SysCalls::sys_read(CONTEXT &ctx)
+void SysCalls::sys_read(CONTEXT& ctx)
 {
 	int fd;
 	IOHandler * ioh;
@@ -161,14 +161,14 @@ void SysCalls::sys_read(CONTEXT &ctx)
 /*
  * access(filename, perms)
  */
-void SysCalls::sys_access(CONTEXT &ctx)
+void SysCalls::sys_access(CONTEXT& ctx)
 {
 	Path p;
 	DWORD attr;
 	char ok = 1;
 	DWORD check = ctx.Ecx;
 
-	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx) );
 
 	attr = GetFileAttributes(p.GetWin32Path());
 	if(attr==INVALID_FILE_ATTRIBUTES)
@@ -195,7 +195,7 @@ void SysCalls::sys_access(CONTEXT &ctx)
  * int open(path, access, perms)
  * open or create a file
  */
-void SysCalls::sys_open(CONTEXT &ctx)
+void SysCalls::sys_open(CONTEXT& ctx)
 {
 	Path p;
 	DWORD access = ctx.Ecx;
@@ -204,7 +204,7 @@ void SysCalls::sys_open(CONTEXT &ctx)
 	DWORD win32access, win32share, disposition, flags;
 	IOHandler * ioh;
 
-	string s = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	string s = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx);
 	ktrace("open([0x%08lx]%s, 0x%lx, 0%lo)\n", ctx.Ebx,s.c_str(), access, perms);
 	p.SetUnixPath(s);
 
@@ -274,7 +274,7 @@ void SysCalls::sys_open(CONTEXT &ctx)
 /*
  * int close(handle)
  */
-void SysCalls::sys_close(CONTEXT &ctx)
+void SysCalls::sys_close(CONTEXT& ctx)
 {
 	int fd;
 	IOHandler * ioh;
@@ -307,7 +307,7 @@ void SysCalls::sys_close(CONTEXT &ctx)
 /*
  * int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
  */
-void SysCalls::sys_select(CONTEXT &ctx)
+void SysCalls::sys_select(CONTEXT& ctx)
 {
 	sys__newselect(ctx);
 }
@@ -319,7 +319,7 @@ void SysCalls::sys_select(CONTEXT &ctx)
 /*
  * int ioctl(int fd, int request, ...)
  */
-void SysCalls::sys_ioctl(CONTEXT &ctx)
+void SysCalls::sys_ioctl(CONTEXT& ctx)
 {
 	int fd;
 	IOHandler * ioh;
@@ -348,7 +348,7 @@ void SysCalls::sys_ioctl(CONTEXT &ctx)
 /*
  * int getcwd(char* buf, int size)
  */
-void SysCalls::sys_getcwd(CONTEXT &ctx)
+void SysCalls::sys_getcwd(CONTEXT& ctx)
 {
 	int cnt = (int)ctx.Ecx;
 	string cwd = P->m_UnixPwd.GetUnixPath();
@@ -369,10 +369,10 @@ void SysCalls::sys_getcwd(CONTEXT &ctx)
 /*
  * int chdir(const char* path)
  */
-void SysCalls::sys_chdir(CONTEXT &ctx)
+void SysCalls::sys_chdir(CONTEXT& ctx)
 {
 	Path p;
-	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx) );
 
 	//it is a directory, right?
 	DWORD attr;
@@ -399,7 +399,7 @@ void SysCalls::sys_chdir(CONTEXT &ctx)
 /*
  * int fchdir(int fd)
  */
-void SysCalls::sys_fchdir(CONTEXT &ctx)
+void SysCalls::sys_fchdir(CONTEXT& ctx)
 {
 	int fd;
 	IOHandler * ioh;
@@ -449,7 +449,7 @@ void SysCalls::sys_fchdir(CONTEXT &ctx)
 /*
  * int fcntl(int fd, int cmd, ...)
  */
-void SysCalls::sys_fcntl(CONTEXT &ctx)
+void SysCalls::sys_fcntl(CONTEXT& ctx)
 {
 	int fd;
 	IOHandler * ioh;
@@ -533,7 +533,7 @@ void SysCalls::sys_fcntl(CONTEXT &ctx)
 /*
  * int dup(int fd)
  */
-void SysCalls::sys_dup(CONTEXT &ctx)
+void SysCalls::sys_dup(CONTEXT& ctx)
 {
 	int fdnew;
 	DWORD OldEcx;
@@ -560,7 +560,7 @@ void SysCalls::sys_dup(CONTEXT &ctx)
 /*
  * int dup2(int fd, int newfd)
  */
-void SysCalls::sys_dup2(CONTEXT &ctx)
+void SysCalls::sys_dup2(CONTEXT& ctx)
 {
 	int fdold, fdnew;
 	IOHandler *ioh_old;
@@ -613,7 +613,7 @@ void SysCalls::sys_dup2(CONTEXT &ctx)
 /*
  * int getdents64(int fd, dirent64* d, int bytes)
  */
-void SysCalls::sys_getdents64(CONTEXT &ctx)
+void SysCalls::sys_getdents64(CONTEXT& ctx)
 {
 	linux::dirent64 * s = (linux::dirent64 *)ctx.Ecx;
 	int maxbytes = ctx.Edx;
@@ -662,9 +662,9 @@ void SysCalls::sys_getdents64(CONTEXT &ctx)
 /*
  * int stat(const char * name,  struct stat* buf)
  */
-void SysCalls::sys_stat(CONTEXT &ctx)
+void SysCalls::sys_stat(CONTEXT& ctx)
 {
-	string fname = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	string fname = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx);
 	linux::stat * pBuf = (linux::stat*)ctx.Ecx;
 	linux::stat buf;
 
@@ -696,9 +696,9 @@ void SysCalls::sys_stat(CONTEXT &ctx)
 /*
  * int lstat(const char * name,  struct stat* buf)
  */
-void SysCalls::sys_lstat(CONTEXT &ctx)
+void SysCalls::sys_lstat(CONTEXT& ctx)
 {
-	string fname = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	string fname = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx);
 	linux::stat * pBuf = (linux::stat*)ctx.Ecx;
 	linux::stat buf;
 
@@ -730,7 +730,7 @@ void SysCalls::sys_lstat(CONTEXT &ctx)
 /*
  * int fstat(int fd,  struct stat* buf)
  */
-void SysCalls::sys_fstat(CONTEXT &ctx)
+void SysCalls::sys_fstat(CONTEXT& ctx)
 {
 	linux::stat * pBuf = (linux::stat*)ctx.Ecx;
 	linux::stat buf;
@@ -769,9 +769,9 @@ void SysCalls::sys_fstat(CONTEXT &ctx)
 /*
  * int stat64(const char * name,  struct stat64* buf)
  */
-void SysCalls::sys_stat64(CONTEXT &ctx)
+void SysCalls::sys_stat64(CONTEXT& ctx)
 {
-	string fname = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	string fname = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx);
 	linux::stat64 * pBuf = (linux::stat64*)ctx.Ecx;
 	linux::stat64 buf;
 
@@ -803,9 +803,9 @@ void SysCalls::sys_stat64(CONTEXT &ctx)
 /*
  * int lstat64(const char * name,  struct stat64* buf)
  */
-void SysCalls::sys_lstat64(CONTEXT &ctx)
+void SysCalls::sys_lstat64(CONTEXT& ctx)
 {
-	string fname = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	string fname = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx);
 	linux::stat64 * pBuf = (linux::stat64*)ctx.Ecx;
 	linux::stat64 buf;
 
@@ -837,7 +837,7 @@ void SysCalls::sys_lstat64(CONTEXT &ctx)
 /*
  * int fstat64(int fd,  struct stat64* buf)
  */
-void SysCalls::sys_fstat64(CONTEXT &ctx)
+void SysCalls::sys_fstat64(CONTEXT& ctx)
 {
 	linux::stat64 * pBuf = (linux::stat64*)ctx.Ecx;
 	linux::stat64 buf;
@@ -875,12 +875,12 @@ void SysCalls::sys_fstat64(CONTEXT &ctx)
 /*
  * int readlink(path, buf, size)
  */
-void SysCalls::sys_readlink(CONTEXT &ctx)
+void SysCalls::sys_readlink(CONTEXT& ctx)
 {
 	//don't follow symlinks
 	Path p;
 	p.FollowSymLinks(false);
-	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx) );
 
 	if(GetFileAttributes(p.GetWin32Path())==INVALID_FILE_ATTRIBUTES)
 	{
@@ -914,7 +914,7 @@ void SysCalls::sys_readlink(CONTEXT &ctx)
 /*
  * int pipe(int filesdes[2])
  */
-void SysCalls::sys_pipe(CONTEXT &ctx)
+void SysCalls::sys_pipe(CONTEXT& ctx)
 {
 	//handles to open
 	HANDLE hRead, hWrite;
@@ -944,12 +944,12 @@ void SysCalls::sys_pipe(CONTEXT &ctx)
 /*
  * int link(olfpath, newpath)
  */
-void SysCalls::sys_link(CONTEXT &ctx)
+void SysCalls::sys_link(CONTEXT& ctx)
 {
 	Path OldP(false), NewP(false);
 
-	OldP.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
-	NewP.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx) );
+	OldP.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx) );
+	NewP.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ecx) );
 
 	if(LegacyWindows::CreateHardLink(NewP.GetWin32Path(), OldP.GetWin32Path()))
 		ctx.Eax = 0;
@@ -961,10 +961,10 @@ void SysCalls::sys_link(CONTEXT &ctx)
 /*
  * int unlink(path)
  */
-void SysCalls::sys_unlink(CONTEXT &ctx)
+void SysCalls::sys_unlink(CONTEXT& ctx)
 {
 	Path p(false);
-	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx) );
 
 	ktrace("unlink(%s)\n", p.GetWin32Path().c_str() );
 
@@ -1012,10 +1012,10 @@ void SysCalls::sys_unlink(CONTEXT &ctx)
 /*
  * int symlink(const char *oldpath, const char *newpath)
  */
-void SysCalls::sys_symlink(CONTEXT &ctx)
+void SysCalls::sys_symlink(CONTEXT& ctx)
 {
-	string OldP = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
-	string NewP = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx);
+	string OldP = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx);
+	string NewP = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ecx);
 
 	if(FilesystemKeow::CreateSymbolicLink(OldP, NewP))
 		ctx.Eax = 0;
@@ -1028,7 +1028,7 @@ void SysCalls::sys_symlink(CONTEXT &ctx)
 /*
  * int _llseek(int fd, ulong offset_high, ulong offset_low, loff_t* result, uint whence)
  */
-void SysCalls::sys__llseek(CONTEXT &ctx)	
+void SysCalls::sys__llseek(CONTEXT& ctx)	
 {
 	int fd = ctx.Ebx;
 	LONG offset_high = ctx.Ecx;
@@ -1082,7 +1082,7 @@ void SysCalls::sys__llseek(CONTEXT &ctx)
 /*
  * off_t lseek(int fildes, off_t offset, int whence)
  */
-void SysCalls::sys_lseek(CONTEXT &ctx)
+void SysCalls::sys_lseek(CONTEXT& ctx)
 {
 	int fd;
 	IOHandler * ioh;
@@ -1131,7 +1131,7 @@ void SysCalls::sys_lseek(CONTEXT &ctx)
 /*
  * int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout)
  */
-void SysCalls::sys__newselect(CONTEXT &ctx)
+void SysCalls::sys__newselect(CONTEXT& ctx)
 {
 	int numFds = ctx.Ebx;
 	linux::fd_set *pReadFds = (linux::fd_set*)ctx.Ecx;
@@ -1232,12 +1232,12 @@ void SysCalls::sys__newselect(CONTEXT &ctx)
  * int mkdir(path)
  * create a new directory
  */
-void SysCalls::sys_mkdir(CONTEXT &ctx)
+void SysCalls::sys_mkdir(CONTEXT& ctx)
 {
 	DWORD mode = ctx.Ecx;
 
 	Path p;
-	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx) );
 
 	if(CreateDirectory(p.GetWin32Path(), NULL))
 	{
@@ -1253,10 +1253,10 @@ void SysCalls::sys_mkdir(CONTEXT &ctx)
  * int rmdir(path)
  * remove a directory - it must be empty
  */
-void SysCalls::sys_rmdir(CONTEXT &ctx)
+void SysCalls::sys_rmdir(CONTEXT& ctx)
 {
 	Path p(false);
-	p.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
+	p.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx) );
 
 	if(RemoveDirectory(p.GetWin32Path()))
 	{
@@ -1292,12 +1292,12 @@ void SysCalls::sys_rmdir(CONTEXT &ctx)
 /*
  * int rename(oldpath, newpath)
  */
-void SysCalls::sys_rename(CONTEXT &ctx)
+void SysCalls::sys_rename(CONTEXT& ctx)
 {
 	Path OldP, NewP;
 
-	OldP.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
-	NewP.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx) );
+	OldP.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx) );
+	NewP.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ecx) );
 
 	char * p2 = NULL;
 	if(OldP.IsSymbolicLink())
@@ -1321,10 +1321,10 @@ void SysCalls::sys_rename(CONTEXT &ctx)
 /*
  * int utime(const char *filename, struct utimbuf *buf)
  */
-void SysCalls::sys_utime(CONTEXT &ctx)
+void SysCalls::sys_utime(CONTEXT& ctx)
 {
 	Path path;
-	path.SetUnixPath( MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx) );
+	path.SetUnixPath( MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx) );
 
 	linux::utimbuf times;
 	P->ReadMemory(&times, (ADDR)ctx.Ecx, sizeof(times));

@@ -43,6 +43,10 @@ public:
 	static bool FillMem(HANDLE hToProcess, ADDR toAddr, int len, BYTE fill);
 	static ADDR CopyStringListBetweenProcesses(HANDLE hFromProcess, ADDR pFromList, HANDLE hToProcess, Process* pProcToRecordMemoryIn, DWORD * pdwCount, DWORD * pdwMemSize);
 	static string ReadString(HANDLE hFromProcess, ADDR fromAddr);
+	static int AllocateLDTSelector(DWORD dwThreadId);
+	static bool GetLDTSelector(DWORD dwThreadId, linux::user_desc &user_desc);
+	static bool SetLDTSelector(DWORD dwThreadId, linux::user_desc &user_desc);
+	static bool HandlePossibleLDTException(WORD instruction, ADDR exceptionAddress, CONTEXT& ctx);
 
 private: 
 	MemoryHelper();

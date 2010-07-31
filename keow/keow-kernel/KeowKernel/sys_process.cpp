@@ -34,7 +34,7 @@
  * exit process with a return code
  * EBX = exit code
  */
-void SysCalls::sys_exit(CONTEXT &ctx)
+void SysCalls::sys_exit(CONTEXT& ctx)
 {
 	ktrace("Process terminating, code 0x%08lx\n", ctx.Ebx);
 	SysCallDll::exit((UINT)ctx.Ebx);
@@ -47,7 +47,7 @@ void SysCalls::sys_exit(CONTEXT &ctx)
 /*
  * int sigaction(int signum, const struct old_sigaction *act, struct old_sigaction *oldact);
  */
-void SysCalls::sys_sigaction(CONTEXT &ctx)
+void SysCalls::sys_sigaction(CONTEXT& ctx)
 {
 	DWORD signum = ctx.Ebx;
 	linux::old_sigaction *pAct = (linux::old_sigaction*)ctx.Ecx;
@@ -92,7 +92,7 @@ void SysCalls::sys_sigaction(CONTEXT &ctx)
 /*
  * int sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
  */
-void SysCalls::sys_sigprocmask(CONTEXT &ctx)
+void SysCalls::sys_sigprocmask(CONTEXT& ctx)
 {
 	linux::sigset_t *pSet = (linux::sigset_t*)ctx.Ecx;
 	linux::sigset_t *pOldset = (linux::sigset_t*)ctx.Edx;
@@ -143,7 +143,7 @@ void SysCalls::sys_sigprocmask(CONTEXT &ctx)
 /*
  * pid_t getpgrp()
  */
-void SysCalls::sys_getpgrp(CONTEXT &ctx)
+void SysCalls::sys_getpgrp(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_ProcessGroupPID;
 }
@@ -153,7 +153,7 @@ void SysCalls::sys_getpgrp(CONTEXT &ctx)
 /*
  * pid_t getpgid(int pid, int pgid)
  */
-void SysCalls::sys_getpgid(CONTEXT &ctx)
+void SysCalls::sys_getpgid(CONTEXT& ctx)
 {
 	DWORD pid = ctx.Ebx;
 	DWORD pgid = ctx.Ecx;
@@ -182,7 +182,7 @@ void SysCalls::sys_getpgid(CONTEXT &ctx)
 /*
  * pid_t setpgrp()
  */
-void SysCalls::sys_setpgid(CONTEXT &ctx)
+void SysCalls::sys_setpgid(CONTEXT& ctx)
 {
 	P->m_ProcessGroupPID = P->m_Pid;
 	ctx.Eax = 0;
@@ -193,7 +193,7 @@ void SysCalls::sys_setpgid(CONTEXT &ctx)
 /*
  * pid_t fork()
  */
-void SysCalls::sys_fork(CONTEXT &ctx)
+void SysCalls::sys_fork(CONTEXT& ctx)
 {
 	/*
 	launch win32 process stub
@@ -210,13 +210,13 @@ void SysCalls::sys_fork(CONTEXT &ctx)
 /*
  * int execve(filename, argv[], envp[])
  */
-void SysCalls::sys_execve(CONTEXT &ctx)
+void SysCalls::sys_execve(CONTEXT& ctx)
 {
-	string filename = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	string filename = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx);
 	//need a kernel copy of argv and envp  (we're about to remove the processes own memory)
 	DWORD dwArgCnt, dwEnvCnt, dwMemSize;
-	ADDR argv = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx, GetCurrentProcess(), NULL, &dwArgCnt, &dwMemSize);
-	ADDR envp = MemoryHelper::CopyStringListBetweenProcesses(P->m_Win32PInfo.hProcess, (ADDR)ctx.Edx, GetCurrentProcess(), NULL, &dwEnvCnt, &dwMemSize);
+	ADDR argv = MemoryHelper::CopyStringListBetweenProcesses(P->m_hProcess, (ADDR)ctx.Ecx, GetCurrentProcess(), NULL, &dwArgCnt, &dwMemSize);
+	ADDR envp = MemoryHelper::CopyStringListBetweenProcesses(P->m_hProcess, (ADDR)ctx.Edx, GetCurrentProcess(), NULL, &dwEnvCnt, &dwMemSize);
 
 	ktrace("execve(%s,...,...)\n", filename.c_str());
 
@@ -242,7 +242,7 @@ void SysCalls::sys_execve(CONTEXT &ctx)
 	//reset the keow stack (AFTER resource free - it may have injected code and new stack)
 	//linux process start with a little bit of stack in use but overwritable?
 	ctx.Esp = (DWORD)P->m_KeowUserStackTop - 0x200;
-	SetThreadContext(P->m_Win32PInfo.hThread, &ctx);
+	SetThreadContext(P->m_ThreadList[0], &ctx);
 
 	//load new image
 	P->m_ProcessFileImage.SetUnixPath(filename);
@@ -264,7 +264,7 @@ void SysCalls::sys_execve(CONTEXT &ctx)
 
 	//when we get here the execution point has changed - it's a brand new process
 	// update ctx so that debugger loop doesn't restore a bad context
-	GetThreadContext(P->m_Win32PInfo.hThread, &ctx);
+	GetThreadContext(T->hThread, &ctx);
 }
 
 /*****************************************************************************/
@@ -272,7 +272,7 @@ void SysCalls::sys_execve(CONTEXT &ctx)
 /*
  * pid_t wait4(pid_t pid, int *status, int options, rusage *ru)
  */
-void SysCalls::sys_wait4(CONTEXT &ctx)
+void SysCalls::sys_wait4(CONTEXT& ctx)
 {
 	int wait_pid = (int)ctx.Ebx;
 	int* pStatus = (int*)ctx.Ecx;
@@ -317,8 +317,8 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 		
 		if(wait_this)
 		{
-			pProcessWin32Pids[NumHandles] = pChild->m_Win32PInfo.dwProcessId;
-			pProcessHandles[NumHandles] = pChild->m_Win32PInfo.hProcess;
+			pProcessWin32Pids[NumHandles] = pChild->m_dwProcessId;
+			pProcessHandles[NumHandles] = pChild->m_hProcess;
 			pPids[NumHandles] = pChild->m_Pid;
 			NumHandles++; 
 
@@ -490,7 +490,7 @@ void SysCalls::sys_wait4(CONTEXT &ctx)
 /*
  * pid_t waitpid(pid_t pid, int *status, int options)
  */
-void SysCalls::sys_waitpid(CONTEXT &ctx)
+void SysCalls::sys_waitpid(CONTEXT& ctx)
 {
 	//reuse wait4(pid_t pid, int *status, int options, rusage *ru)
 	CONTEXT save = ctx;

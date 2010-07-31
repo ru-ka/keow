@@ -1,8 +1,0 @@
-#define __ver_crypto_hmac_init	smp_4498ae10
-#define crypto_hmac_init	_set_ver(crypto_hmac_init)
-#define __ver_crypto_hmac_update	smp_68a4317c
-#define crypto_hmac_update	_set_ver(crypto_hmac_update)
-#define __ver_crypto_hmac_final	smp_c3c703ef
-#define crypto_hmac_final	_set_ver(crypto_hmac_final)
-#define __ver_crypto_hmac	smp_1013f8c2
-#define crypto_hmac	_set_ver(crypto_hmac)

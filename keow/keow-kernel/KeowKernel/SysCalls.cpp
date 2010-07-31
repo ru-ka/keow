@@ -52,6 +52,8 @@ void SysCalls::InitSysCallTable()
 		syscall_handlers[linux::__NR_##n]=sys_##n; \
 		syscall_names[linux::__NR_##n]=#n;
 
+	//correct syscall numbers come from the __NR_ variables in defines.h
+
 	DEF_SYSCALL(exit);
 	DEF_SYSCALL(fork);
 	DEF_SYSCALL(read);
@@ -303,11 +305,101 @@ void SysCalls::InitSysCallTable()
 	DEF_SYSCALL(free_hugepages);
 	DEF_SYSCALL(exit_group);
 
+	//Added when moving from 2.4 to 2.6.35 kernel
+	//....
+
+	DEF_SYSCALL(lookup_dcookie);
+	DEF_SYSCALL(epoll_create);
+	DEF_SYSCALL(epoll_ctl);
+	DEF_SYSCALL(epoll_wait);
+	DEF_SYSCALL(remap_file_pages);
+	DEF_SYSCALL(set_tid_address);
+	DEF_SYSCALL(timer_create);
+	DEF_SYSCALL(timer_settime);
+	DEF_SYSCALL(timer_gettime);
+	DEF_SYSCALL(timer_getoverrun);
+	DEF_SYSCALL(timer_delete);
+	DEF_SYSCALL(clock_settime);
+	DEF_SYSCALL(clock_gettime);
+	DEF_SYSCALL(clock_getres);
+	DEF_SYSCALL(clock_nanosleep);
+	DEF_SYSCALL(statfs64);
+	DEF_SYSCALL(fstatfs64);
+	DEF_SYSCALL(tgkill);
+	DEF_SYSCALL(utimes);
+	DEF_SYSCALL(fadvise64_64);
+	DEF_SYSCALL(vserver);
+	DEF_SYSCALL(mbind);
+	DEF_SYSCALL(get_mempolicy);
+	DEF_SYSCALL(set_mempolicy);
+	DEF_SYSCALL(mq_open);
+	DEF_SYSCALL(mq_unlink);
+	DEF_SYSCALL(mq_timedsend);
+	DEF_SYSCALL(mq_timedreceive);
+	DEF_SYSCALL(mq_notify);
+	DEF_SYSCALL(mq_getsetattr);
+	DEF_SYSCALL(kexec_load);
+	DEF_SYSCALL(waitid);
+	/* DEF_SYSCALL(sys_setaltroot);*/
+	DEF_SYSCALL(add_key);
+	DEF_SYSCALL(request_key);
+	DEF_SYSCALL(keyctl);
+	DEF_SYSCALL(ioprio_set);
+	DEF_SYSCALL(ioprio_get);
+	DEF_SYSCALL(inotify_init);
+	DEF_SYSCALL(inotify_add_watch);
+	DEF_SYSCALL(inotify_rm_watch);
+	DEF_SYSCALL(migrate_pages);
+	DEF_SYSCALL(openat);
+	DEF_SYSCALL(mkdirat);
+	DEF_SYSCALL(mknodat);
+	DEF_SYSCALL(fchownat);
+	DEF_SYSCALL(futimesat);
+	DEF_SYSCALL(fstatat64);
+	DEF_SYSCALL(unlinkat);
+	DEF_SYSCALL(renameat);
+	DEF_SYSCALL(linkat);
+	DEF_SYSCALL(symlinkat);
+	DEF_SYSCALL(readlinkat);
+	DEF_SYSCALL(fchmodat);
+	DEF_SYSCALL(faccessat);
+	DEF_SYSCALL(pselect6);
+	DEF_SYSCALL(ppoll);
+	DEF_SYSCALL(unshare);
+	DEF_SYSCALL(set_robust_list);
+	DEF_SYSCALL(get_robust_list);
+	DEF_SYSCALL(splice);
+	DEF_SYSCALL(sync_file_range);
+	DEF_SYSCALL(tee);
+	DEF_SYSCALL(vmsplice);
+	DEF_SYSCALL(move_pages);
+	DEF_SYSCALL(getcpu);
+	DEF_SYSCALL(epoll_pwait);
+	DEF_SYSCALL(utimensat);
+	DEF_SYSCALL(signalfd);
+	DEF_SYSCALL(timerfd_create);
+	DEF_SYSCALL(eventfd);
+	DEF_SYSCALL(fallocate);
+	DEF_SYSCALL(timerfd_settime);
+	DEF_SYSCALL(timerfd_gettime);
+	DEF_SYSCALL(signalfd4);
+	DEF_SYSCALL(eventfd2);
+	DEF_SYSCALL(epoll_create1);
+	DEF_SYSCALL(dup3);
+	DEF_SYSCALL(pipe2);
+	DEF_SYSCALL(inotify_init1);
+	DEF_SYSCALL(preadv);
+	DEF_SYSCALL(pwritev);
+	DEF_SYSCALL(rt_tgsigqueueinfo);
+	DEF_SYSCALL(perf_event_open);
+	DEF_SYSCALL(recvmmsg);
+
+
 #undef DEF_SYSCALL
 }
 
 
-void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
+void SysCalls::HandleInt80SysCall(CONTEXT& ctx)
 {
 	// eax is the syscall number
 	// ebx,ecx,edx,esi,edi,ebp are up to 6(max) parameters
@@ -363,7 +455,7 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 	}
 	else
 	{
-		ktrace("debug: bad syscall %d [???] from @ 0x%08lx\n", syscall, ctx.Eip);
+		ktrace("debug: bad or unimplemented syscall %d [???] from @ 0x%08lx\n", syscall, ctx.Eip);
 		Unhandled(ctx);
 	}
 
@@ -376,9 +468,14 @@ void SysCalls::HandleInt80SysCall(CONTEXT &ctx)
 //////////////////////////////////////////////////////////////////////////////
 
 
-void SysCalls::Unhandled(CONTEXT &ctx)
+void SysCalls::Unhandled(CONTEXT& ctx)
 {
 	ktrace("NOT IMPLEMENTED: syscall %d %s\n", ctx.Eax, ((int)ctx.Eax)<linux::NR_syscalls?syscall_names[ctx.Eax]:"?");
+	ktrace("               : Eax=0x%lx,%ld\n", ctx.Eax);
+	ktrace("               : Ebx=0x%lx,%ld\n", ctx.Ebx);
+	ktrace("               : Ecx=0x%lx,%ld\n", ctx.Ecx);
+	ktrace("               : Edx=0x%lx,%ld\n", ctx.Edx);
+	ktrace("               : ...\n");
 	//DebugBreak();
 	ctx.Eax = -linux::ENOSYS;
 }
@@ -391,163 +488,245 @@ void SysCalls::Unhandled(CONTEXT &ctx)
  * move them to their own files as coded
  */
 
-void SysCalls::sys_creat(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_mknod(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setuid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_stime(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_alarm(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_oldfstat(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_pause(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_stty(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_gtty(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_nice(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_ftime(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sync(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_times(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_prof(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setgid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_signal(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_acct(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_umount2(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_lock(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_mpx(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_ulimit(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_oldolduname(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_chroot(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_ustat(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setsid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sgetmask(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_ssetmask(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sigsuspend(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sigpending(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sethostname(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setrlimit(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getrusage(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_settimeofday(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getgroups(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setgroups(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_oldlstat(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_uselib(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_swapon(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_readdir(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_truncate(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_ftruncate(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getpriority(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setpriority(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_profil(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_statfs(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_fstatfs(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_ioperm(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_syslog(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setitimer(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getitimer(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_olduname(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_iopl(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_vhangup(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_idle(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_vm86old(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_swapoff(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_ipc(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_fsync(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_clone(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setdomainname(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_modify_ldt(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_adjtimex(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_create_module(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_init_module(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_delete_module(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_get_kernel_syms(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_quotactl(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_bdflush(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sysfs(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_personality(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_afs_syscall(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setfsuid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setfsgid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getdents(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_flock(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_msync(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_readv(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getsid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_fdatasync(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys__sysctl(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_mlock(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_munlock(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_mlockall(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_munlockall(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sched_setparam(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sched_getparam(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sched_setscheduler(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sched_getscheduler(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sched_yield(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sched_get_priority_max(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sched_get_priority_min(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sched_rr_get_interval(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_mremap(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setresuid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getresuid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_vm86(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_query_module(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_poll(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_nfsservctl(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setresgid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getresgid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_prctl(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_pread(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_pwrite(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_capget(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_capset(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sigaltstack(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sendfile(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getpmsg(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_putpmsg(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_vfork(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_mmap2(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_truncate64(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_ftruncate64(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getgroups32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setgroups32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setresuid32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getresuid32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setresgid32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getresgid32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setuid32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setgid32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setfsuid32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setfsgid32(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_pivot_root(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_mincore(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_madvise(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_madvise1(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_fcntl64(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_security(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_gettid(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_readahead(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_setxattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_lsetxattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_fsetxattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_getxattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_lgetxattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_fgetxattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_listxattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_llistxattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_flistxattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_removexattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_lremovexattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_fremovexattr(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_tkill(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sendfile64(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_futex(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sched_setaffinity(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_sched_getaffinity(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_set_thread_area(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_get_thread_area(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_io_setup(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_io_destroy(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_io_getevents(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_io_submit(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_io_cancel(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_alloc_hugepages(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_free_hugepages(CONTEXT &ctx)		{Unhandled(ctx);}
-void SysCalls::sys_exit_group(CONTEXT &ctx)		{Unhandled(ctx);}
+void SysCalls::sys_creat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mknod(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setuid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_stime(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_alarm(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_oldfstat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_pause(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_stty(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_gtty(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_nice(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ftime(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sync(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_times(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_prof(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setgid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_signal(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_acct(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_umount2(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_lock(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mpx(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ulimit(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_oldolduname(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_chroot(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ustat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setsid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sgetmask(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ssetmask(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sigsuspend(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sigpending(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sethostname(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setrlimit(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getrusage(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_settimeofday(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getgroups(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setgroups(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_oldlstat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_uselib(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_swapon(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_readdir(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_truncate(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ftruncate(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getpriority(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setpriority(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_profil(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_statfs(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fstatfs(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ioperm(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_syslog(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setitimer(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getitimer(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_olduname(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_iopl(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_vhangup(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_idle(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_vm86old(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_swapoff(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ipc(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fsync(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_clone(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setdomainname(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_adjtimex(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_create_module(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_init_module(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_delete_module(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_get_kernel_syms(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_quotactl(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_bdflush(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sysfs(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_personality(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_afs_syscall(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setfsuid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setfsgid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getdents(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_flock(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_msync(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_readv(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getsid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fdatasync(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys__sysctl(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mlock(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_munlock(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mlockall(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_munlockall(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sched_setparam(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sched_getparam(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sched_setscheduler(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sched_getscheduler(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sched_yield(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sched_get_priority_max(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sched_get_priority_min(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sched_rr_get_interval(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mremap(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setresuid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getresuid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_vm86(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_query_module(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_poll(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_nfsservctl(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setresgid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getresgid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_prctl(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_pread(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_pwrite(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_capget(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_capset(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sigaltstack(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sendfile(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getpmsg(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_putpmsg(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_vfork(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mmap2(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_truncate64(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ftruncate64(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getgroups32(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setgroups32(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setresuid32(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getresuid32(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setresgid32(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getresgid32(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setuid32(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setgid32(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setfsuid32(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setfsgid32(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_pivot_root(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mincore(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_madvise(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_madvise1(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fcntl64(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_security(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_gettid(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_readahead(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_setxattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_lsetxattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fsetxattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getxattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_lgetxattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fgetxattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_listxattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_llistxattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_flistxattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_removexattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_lremovexattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fremovexattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_tkill(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sendfile64(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_futex(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sched_setaffinity(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sched_getaffinity(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_io_setup(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_io_destroy(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_io_getevents(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_io_submit(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_io_cancel(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_alloc_hugepages(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_free_hugepages(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_exit_group(CONTEXT& ctx)		{Unhandled(ctx);}
 
+void SysCalls::sys_lookup_dcookie(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_epoll_create(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_epoll_ctl(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_epoll_wait(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_remap_file_pages(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_set_tid_address(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_timer_create(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_timer_settime(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_timer_gettime(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_timer_getoverrun(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_timer_delete(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_clock_settime(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_clock_gettime(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_clock_getres(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_clock_nanosleep(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_statfs64(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fstatfs64(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_tgkill(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_utimes(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fadvise64_64(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_vserver(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mbind(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_get_mempolicy(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_set_mempolicy(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mq_open(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mq_unlink(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mq_timedsend(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mq_timedreceive(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mq_notify(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mq_getsetattr(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_kexec_load(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_waitid(CONTEXT& ctx)		{Unhandled(ctx);}
+	/*void SysCalls::sys_sys_setaltroot(CONTEXT& ctx)		{Unhandled(ctx);}*/
+void SysCalls::sys_add_key(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_request_key(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_keyctl(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ioprio_set(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ioprio_get(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_inotify_init(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_inotify_add_watch(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_inotify_rm_watch(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_migrate_pages(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_openat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mkdirat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_mknodat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fchownat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_futimesat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fstatat64(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_unlinkat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_renameat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_linkat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_symlinkat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_readlinkat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fchmodat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_faccessat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_pselect6(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_ppoll(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_unshare(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_set_robust_list(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_get_robust_list(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_splice(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_sync_file_range(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_tee(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_vmsplice(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_move_pages(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_getcpu(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_epoll_pwait(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_utimensat(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_signalfd(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_timerfd_create(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_eventfd(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_fallocate(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_timerfd_settime(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_timerfd_gettime(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_signalfd4(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_eventfd2(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_epoll_create1(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_dup3(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_pipe2(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_inotify_init1(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_preadv(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_pwritev(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_rt_tgsigqueueinfo(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_perf_event_open(CONTEXT& ctx)		{Unhandled(ctx);}
+void SysCalls::sys_recvmmsg(CONTEXT& ctx)		{Unhandled(ctx);}

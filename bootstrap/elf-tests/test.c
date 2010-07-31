@@ -1,4 +1,5 @@
 /* a simple C testbed with NO c runtime to test api calls */
+#include <unistd.h>
 
 int _start()
 {

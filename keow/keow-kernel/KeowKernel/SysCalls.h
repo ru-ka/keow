@@ -304,6 +304,95 @@ private:
 	PROTO_SYSCALL(free_hugepages);
 	PROTO_SYSCALL(exit_group);
 
+	//Added when moving from 2.4 to 2.6.35 kernel
+	//....
+
+	PROTO_SYSCALL(lookup_dcookie);
+	PROTO_SYSCALL(epoll_create);
+	PROTO_SYSCALL(epoll_ctl);
+	PROTO_SYSCALL(epoll_wait);
+	PROTO_SYSCALL(remap_file_pages);
+	PROTO_SYSCALL(set_tid_address);
+	PROTO_SYSCALL(timer_create);
+	PROTO_SYSCALL(timer_settime);
+	PROTO_SYSCALL(timer_gettime);
+	PROTO_SYSCALL(timer_getoverrun);
+	PROTO_SYSCALL(timer_delete);
+	PROTO_SYSCALL(clock_settime);
+	PROTO_SYSCALL(clock_gettime);
+	PROTO_SYSCALL(clock_getres);
+	PROTO_SYSCALL(clock_nanosleep);
+	PROTO_SYSCALL(statfs64);
+	PROTO_SYSCALL(fstatfs64);
+	PROTO_SYSCALL(tgkill);
+	PROTO_SYSCALL(utimes);
+	PROTO_SYSCALL(fadvise64_64);
+	PROTO_SYSCALL(vserver);
+	PROTO_SYSCALL(mbind);
+	PROTO_SYSCALL(get_mempolicy);
+	PROTO_SYSCALL(set_mempolicy);
+	PROTO_SYSCALL(mq_open);
+	PROTO_SYSCALL(mq_unlink);
+	PROTO_SYSCALL(mq_timedsend);
+	PROTO_SYSCALL(mq_timedreceive);
+	PROTO_SYSCALL(mq_notify);
+	PROTO_SYSCALL(mq_getsetattr);
+	PROTO_SYSCALL(kexec_load);
+	PROTO_SYSCALL(waitid);
+	/* PROTO_SYSCALL(sys_setaltroot);*/
+	PROTO_SYSCALL(add_key);
+	PROTO_SYSCALL(request_key);
+	PROTO_SYSCALL(keyctl);
+	PROTO_SYSCALL(ioprio_set);
+	PROTO_SYSCALL(ioprio_get);
+	PROTO_SYSCALL(inotify_init);
+	PROTO_SYSCALL(inotify_add_watch);
+	PROTO_SYSCALL(inotify_rm_watch);
+	PROTO_SYSCALL(migrate_pages);
+	PROTO_SYSCALL(openat);
+	PROTO_SYSCALL(mkdirat);
+	PROTO_SYSCALL(mknodat);
+	PROTO_SYSCALL(fchownat);
+	PROTO_SYSCALL(futimesat);
+	PROTO_SYSCALL(fstatat64);
+	PROTO_SYSCALL(unlinkat);
+	PROTO_SYSCALL(renameat);
+	PROTO_SYSCALL(linkat);
+	PROTO_SYSCALL(symlinkat);
+	PROTO_SYSCALL(readlinkat);
+	PROTO_SYSCALL(fchmodat);
+	PROTO_SYSCALL(faccessat);
+	PROTO_SYSCALL(pselect6);
+	PROTO_SYSCALL(ppoll);
+	PROTO_SYSCALL(unshare);
+	PROTO_SYSCALL(set_robust_list);
+	PROTO_SYSCALL(get_robust_list);
+	PROTO_SYSCALL(splice);
+	PROTO_SYSCALL(sync_file_range);
+	PROTO_SYSCALL(tee);
+	PROTO_SYSCALL(vmsplice);
+	PROTO_SYSCALL(move_pages);
+	PROTO_SYSCALL(getcpu);
+	PROTO_SYSCALL(epoll_pwait);
+	PROTO_SYSCALL(utimensat);
+	PROTO_SYSCALL(signalfd);
+	PROTO_SYSCALL(timerfd_create);
+	PROTO_SYSCALL(eventfd);
+	PROTO_SYSCALL(fallocate);
+	PROTO_SYSCALL(timerfd_settime);
+	PROTO_SYSCALL(timerfd_gettime);
+	PROTO_SYSCALL(signalfd4);
+	PROTO_SYSCALL(eventfd2);
+	PROTO_SYSCALL(epoll_create1);
+	PROTO_SYSCALL(dup3);
+	PROTO_SYSCALL(pipe2);
+	PROTO_SYSCALL(inotify_init1);
+	PROTO_SYSCALL(preadv);
+	PROTO_SYSCALL(pwritev);
+	PROTO_SYSCALL(rt_tgsigqueueinfo);
+	PROTO_SYSCALL(perf_event_open);
+	PROTO_SYSCALL(recvmmsg);
+
 #undef PROTO_SYSCALL
 };
 
