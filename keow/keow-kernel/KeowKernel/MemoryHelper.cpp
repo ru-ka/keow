@@ -578,6 +578,24 @@ bool MemoryHelper::SetLDTSelector(DWORD dwThreadId, linux::user_desc &user_desc)
     //  DPL - DESCRIPTOR PRIVILEGE LEVEL
 
 
+	//NT Rules: base < 7FFF0000, limit < 7FFF0000, base+limit <= 7FFF0000
+	//But we don't want to return this info to the caller, so create temp vars
+	DWORD limit = user_desc.limit;
+	DWORD max_limit;
+	if(user_desc.limit_in_pages)
+	{
+		DWORD base4k = (user_desc.base_addr + 0xFFF) & 0xFFFFF000; //round-up to next 4k boundary
+		max_limit = (0x7FFEFFFF - base4k) >> 12; //limit in pages
+	}
+	else 
+	{
+		max_limit = 0x7FFEFFFF - user_desc.base_addr;
+	}
+	if(limit > max_limit) {
+		limit = max_limit;
+	}
+
+
 	//convert data
 	//
 	ZeroMemory(ldt, sizeof(LDT_ENTRY));
@@ -586,8 +604,8 @@ bool MemoryHelper::SetLDTSelector(DWORD dwThreadId, linux::user_desc &user_desc)
 	ldt->HighWord.Bytes.BaseMid = user_desc.base_addr >> 16;
 	ldt->HighWord.Bytes.BaseHi  = user_desc.base_addr >> 24;
 
-	ldt->LimitLow                  = user_desc.limit & 0xFFFF;
-	ldt->HighWord.Bits.LimitHi     = user_desc.limit >> 16;
+	ldt->LimitLow                  = limit & 0xFFFF;
+	ldt->HighWord.Bits.LimitHi     = limit >> 16;
 	ldt->HighWord.Bits.Granularity = user_desc.limit_in_pages; //0=bytes, 1=pages (4k)
 
 	ldt->HighWord.Bits.Default_Big = user_desc.seg_32bit; //0=16bit, 1=32bit
