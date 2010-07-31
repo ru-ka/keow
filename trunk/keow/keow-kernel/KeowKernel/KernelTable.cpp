@@ -41,8 +41,15 @@ KernelTable::KernelTable()
 	m_pRootMountPoint = 0;
 	m_LastPID = 0;
 
-	m_KernelVersion = "2.4.20"; //specs we are using are this (Sep 2005)
-	m_KernelCpuType = "i386"; //use miniumum value for now?
+
+	//Original
+//	m_KernelVersion = "2.4.20"; //specs we are using are this (Sep 2005)
+//	m_KernelCpuType = "i386"; //use miniumum value for now?
+
+	//Updated to run Ubuntu Lucid bootstrap image
+	m_KernelVersion = "2.6.35";
+	m_KernelCpuType = "i386";
+
 
 	char * dir = m_KeowExeDir.GetBuffer(MAX_PATH);
 	GetModuleFileName(NULL, dir, MAX_PATH);
