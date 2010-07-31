@@ -319,7 +319,7 @@ IOHandler* FilesystemProc::Get_Pid_Cmdline(Path& path, const char * pid)
 
 	while(str!=0)
 	{
-		ioh->AddData( MemoryHelper::ReadString(pp->m_Win32PInfo.hProcess, str) );
+		ioh->AddData( MemoryHelper::ReadString(pp->m_hProcess, str) );
 		ioh->AddData(&zero, 1);
 
 		StrArrayEntry+=sizeof(ADDR);
@@ -360,7 +360,7 @@ IOHandler* FilesystemProc::Get_Pid_Environ(Path& path, const char * pid)
 
 	while(str!=0)
 	{
-		ioh->AddData( MemoryHelper::ReadString(pp->m_Win32PInfo.hProcess, str) );
+		ioh->AddData( MemoryHelper::ReadString(pp->m_hProcess, str) );
 		ioh->AddData(&zero, 1);
 
 		StrArrayEntry+=sizeof(ADDR);
@@ -408,7 +408,7 @@ IOHandler* FilesystemProc::Get_Pid_Stat(Path& path, const char * pid)
 	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	FILETIME ftCreateTime, ftExitTime, ftKernelTime, ftUserTime;
-	GetProcessTimes(pp->m_Win32PInfo.hProcess, &ftCreateTime, &ftExitTime, &ftKernelTime, &ftUserTime);
+	GetProcessTimes(pp->m_hProcess, &ftCreateTime, &ftExitTime, &ftKernelTime, &ftUserTime);
 
 	DWORD starttime = ToJiffies(&pp->m_BaseTimes.ftCreateTime, &ftCreateTime);
 	DWORD kerneltime = ToJiffies(&pp->m_BaseTimes.ftKernelTime, &ftKernelTime);
@@ -472,7 +472,7 @@ IOHandler* FilesystemProc::Get_Pid_Statm(Path& path, const char * pid)
 	IOHStaticData * ioh = new IOHStaticData(path, IOHStaticData::File, true);
 
 	FILETIME ftCreateTime, ftExitTime, ftKernelTime, ftUserTime;
-	GetProcessTimes(pp->m_Win32PInfo.hProcess, &ftCreateTime, &ftExitTime, &ftKernelTime, &ftUserTime);
+	GetProcessTimes(pp->m_hProcess, &ftCreateTime, &ftExitTime, &ftKernelTime, &ftUserTime);
 
 	DWORD starttime = ToJiffies(&pp->m_BaseTimes.ftCreateTime, &ftCreateTime);
 

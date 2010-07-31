@@ -21,7 +21,7 @@
  *
  */
 
-// Kernel side implementation of the SysCallDll class.
+// Userspace implementation of the SysCallDll class.
 //
 ////////////////////////////////////////////////////////////////////////
 

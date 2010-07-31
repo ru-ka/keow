@@ -34,7 +34,7 @@
 /*
  * int socketcall(int call, unsigned long *args);
  */
-void SysCalls::sys_socketcall(CONTEXT &ctx)
+void SysCalls::sys_socketcall(CONTEXT& ctx)
 {
 	//Pass to implementation in SocketCalls class
 	SocketCalls::sys_socketcall(ctx);

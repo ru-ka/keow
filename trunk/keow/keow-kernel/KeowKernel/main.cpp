@@ -31,10 +31,12 @@
 //single copy of the kernel data
 KernelTable * g_pKernelTable;
 
-//thread local stuff for current thread state in kernel handler
+//Thread local stuff for current thread state in kernel handler
+//This allows all the various kernal functions to access the current (P)rocess and (T)hread
 //static const int KTRACE_BUFFER_SIZE = 32000;
 _declspec(thread) char * g_pTraceBuffer;
 _declspec(thread) Process * P;
+_declspec(thread) ThreadInfo * T;
 
 Process * g_pInit;
 
@@ -118,7 +120,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	ktrace("'init' launched\n");
 
 	//wait for it to exit
-	MsgWaitForMultipleObjects(1, &proc->m_Win32PInfo.hProcess, FALSE, INFINITE, NULL);
+	MsgWaitForMultipleObjects(1, &proc->m_hProcess, FALSE, INFINITE, NULL);
 	ktrace("'init' appears to have terminated, ");
 
 	ktrace("exit code 0x%lx (%ld)\n", proc->m_dwExitCode,proc->m_dwExitCode);

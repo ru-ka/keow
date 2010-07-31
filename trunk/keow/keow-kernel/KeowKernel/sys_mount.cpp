@@ -39,11 +39,11 @@
  * int  mount(const char *source, const char *target, const char *filesystemtype,
  *				unsigned long mountflags, const void *data);
  */
-void SysCalls::sys_mount(CONTEXT &ctx)
+void SysCalls::sys_mount(CONTEXT& ctx)
 {
-	string source = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
-	string target = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ecx);
-	string filesystemtype = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Edx);
+	string source = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx);
+	string target = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ecx);
+	string filesystemtype = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Edx);
 	unsigned long mountflags = ctx.Esi;
 	const void *data = (const void*)ctx.Edi;
 
@@ -95,7 +95,7 @@ void SysCalls::sys_mount(CONTEXT &ctx)
 		}
 
 		//copy of the mount data
-		string MntData = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)data);
+		string MntData = MemoryHelper::ReadString(P->m_hProcess, (ADDR)data);
 
 		//perform the mount
 
@@ -132,9 +132,9 @@ void SysCalls::sys_mount(CONTEXT &ctx)
 /*
  * int umount(const char *target)
  */
-void SysCalls::sys_umount(CONTEXT &ctx)
+void SysCalls::sys_umount(CONTEXT& ctx)
 {
-	string target = MemoryHelper::ReadString(P->m_Win32PInfo.hProcess, (ADDR)ctx.Ebx);
+	string target = MemoryHelper::ReadString(P->m_hProcess, (ADDR)ctx.Ebx);
 
 	if(target.length()==0)
 	{

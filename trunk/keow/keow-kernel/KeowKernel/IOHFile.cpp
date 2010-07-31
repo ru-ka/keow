@@ -49,8 +49,8 @@ IOHandler * IOHFile::Duplicate()
 {
 	IOHFile * pF = new IOHFile(m_Path);
 
-	DuplicateHandle(m_pInProcess->m_Win32PInfo.hProcess, m_RemoteHandle,
-		P->m_Win32PInfo.hProcess, &pF->m_RemoteHandle,
+	DuplicateHandle(m_pInProcess->m_hProcess, m_RemoteHandle,
+		P->m_hProcess, &pF->m_RemoteHandle,
 		0,0, DUPLICATE_SAME_ACCESS);
 
 	pF->m_bIsADirectory = m_bIsADirectory;
@@ -90,7 +90,7 @@ bool IOHFile::Open(DWORD win32access, DWORD win32share, DWORD disposition, DWORD
 		return false;
 
 	//move handle to the user
-	DuplicateHandle(GetCurrentProcess(), h, P->m_Win32PInfo.hProcess, &m_RemoteHandle, 0, FALSE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
+	DuplicateHandle(GetCurrentProcess(), h, P->m_hProcess, &m_RemoteHandle, 0, FALSE, DUPLICATE_SAME_ACCESS|DUPLICATE_CLOSE_SOURCE);
 
 	return true;
 }
@@ -287,7 +287,7 @@ int IOHFile::GetDirEnts64(linux::dirent64 *de, int maxbytes)
 		{
 			//ensure name we return does not end in .lnk (we use windows shortcuts as symbolic links)
  			int e = strlen(de->d_name) - 4;
-			if(e>0 && stricmp(&de->d_name[e], ".lnk")==0)
+			if(e>0 && _stricmp(&de->d_name[e], ".lnk")==0)
 				de->d_name[e] = 0;
 		}
 

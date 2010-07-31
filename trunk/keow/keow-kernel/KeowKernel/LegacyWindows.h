@@ -33,6 +33,59 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+
+
+
+// Structures from NT DDK (not including .h because it clashes with windows.h. see: http://www.microsoft.com/msj/0197/hood/hood0197.aspx )
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+//
+// Process Information Classes
+//
+
+typedef enum _PROCESSINFOCLASS {
+    ProcessBasicInformation,
+    ProcessQuotaLimits,
+    ProcessIoCounters,
+    ProcessVmCounters,
+    ProcessTimes,
+    ProcessBasePriority,
+    ProcessRaisePriority,
+    ProcessDebugPort,
+    ProcessExceptionPort,
+    ProcessAccessToken,
+    ProcessLdtInformation,
+    ProcessLdtSize,
+    ProcessDefaultHardErrorMode,
+    ProcessIoPortHandlers,          // Note: this is kernel mode only
+    ProcessPooledUsageAndLimits,
+    ProcessWorkingSetWatch,
+    ProcessUserModeIOPL,
+    ProcessEnableAlignmentFaultFixup,
+    ProcessPriorityClass,
+    ProcessWx86Information,
+    ProcessHandleCount,
+    ProcessAffinityMask,
+    ProcessPriorityBoost,
+    MaxProcessInfoClass
+} PROCESSINFOCLASS;
+
+typedef struct {
+	ULONG Start;
+	ULONG Length;
+	LDT_ENTRY LdtEntries[1];
+} PROCESS_LDT_INFORMATION, *LPPROCESS_LDT_INFORMATION;
+
+
+#ifdef __cplusplus
+}
+#endif
+
+
+
+
 class LegacyWindows  
 {
 public:
@@ -45,6 +98,10 @@ public:
 	static DWORD VirtualQueryEx(HANDLE hProcess, LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZE_T dwLength);
 
 	static BOOL CreateHardLink(LPCSTR lpNewFile, LPCSTR lpOldFile);
+
+	static NTSTATUS NtQueryInformationProcess(HANDLE ProcessHandle, PROCESSINFOCLASS ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength);
+	static NTSTATUS NtSetInformationProcess(HANDLE ProcessHandle, PROCESSINFOCLASS ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength);
+
 };
 
 #endif // !defined(AFX_LEGACYWINDOWS_H__E7DD2E50_8394_481B_95DE_6B192387DA06__INCLUDED_)

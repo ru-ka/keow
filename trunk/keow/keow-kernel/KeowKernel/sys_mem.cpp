@@ -38,7 +38,7 @@
  * It starts at process creation time as the end of the bss segment,
  * and continues to grow (and shrink) from there.
  */
-void SysCalls::sys_brk(CONTEXT &ctx)
+void SysCalls::sys_brk(CONTEXT& ctx)
 {
 	ADDR p;
 	ADDR old_brk = P->m_ElfLoadData.brk;
@@ -89,7 +89,7 @@ void SysCalls::sys_brk(CONTEXT &ctx)
  *
  * Map a section of a file into memory, or alternatively a peice of swap file (no fd). 
  */
-void SysCalls::sys_mmap(CONTEXT &ctx)
+void SysCalls::sys_mmap(CONTEXT& ctx)
 {
 	linux::mmap_arg_struct args;
 	DWORD err = -linux::EINVAL;
@@ -293,7 +293,7 @@ void SysCalls::sys_mmap(CONTEXT &ctx)
 /*
  * void munmap(void* start, unsigned long len)
  */
-void SysCalls::sys_munmap(CONTEXT &ctx)
+void SysCalls::sys_munmap(CONTEXT& ctx)
 {
 	ADDR addr = (ADDR)ctx.Ebx;
 	DWORD len = ctx.Ecx;
@@ -336,7 +336,7 @@ void SysCalls::sys_munmap(CONTEXT &ctx)
 /*
  * int mprotect(const void *addr, size_t len, int prot)
  */
-void SysCalls::sys_mprotect(CONTEXT &ctx)
+void SysCalls::sys_mprotect(CONTEXT& ctx)
 {
 	void* addr = (void*)ctx.Ebx;
 	DWORD len = ctx.Ecx;
@@ -345,4 +345,124 @@ void SysCalls::sys_mprotect(CONTEXT &ctx)
 	//for now we are not doing protection
 	//pretend we succeeded
 	ctx.Eax = 0;
+}
+
+
+/*****************************************************************************/
+
+
+/*
+ * int set_thread_area(struct user_desc *u_info);
+ */
+void SysCalls::sys_set_thread_area(CONTEXT& ctx)
+{
+	ADDR user_desc_Addr = (ADDR)ctx.Ebx;
+
+	// These should be GDT entries, but we can't emulate them (we don't run in ring 0 ?)
+	// So instead we reuse the LDT code
+
+	//read user_desc from process
+	linux::user_desc user_desc;
+	P->ReadMemory(&user_desc, user_desc_Addr, sizeof(user_desc));
+
+	//default return, unless we succeed
+	ctx.Eax = -linux::EINVAL;
+
+	//may need to allocate a selector
+	if(user_desc.entry_number == -1) {
+		user_desc.entry_number = MemoryHelper::AllocateLDTSelector(T->dwThreadId);
+		if(user_desc.entry_number == -1) {
+			//no room left
+			ctx.Eax = -linux::ESRCH;
+			return;
+		}
+	}
+
+	if(MemoryHelper::SetLDTSelector(T->dwThreadId, user_desc))
+	{
+		//write result back to process
+		P->WriteMemory(user_desc_Addr, sizeof(user_desc), &user_desc);
+		ctx.Eax = 0;
+	}
+}
+
+/*
+ * int get_thread_area(struct user_desc *u_info);
+ */
+void SysCalls::sys_get_thread_area(CONTEXT& ctx)
+{
+	ADDR user_desc_Addr = (ADDR)ctx.Ebx;
+
+	// These should be GDT entries, but we can't emulate them (we don't run in ring 0 ?)
+	// So instead we reuse the LDT code: sys_modify_ldt
+
+	//read user_desc from process
+	linux::user_desc user_desc;
+	P->ReadMemory(&user_desc, user_desc_Addr, sizeof(user_desc));
+
+	//default return, unless we succeed
+	ctx.Eax = -linux::EINVAL;
+
+	if(MemoryHelper::GetLDTSelector(T->dwThreadId, user_desc))
+	{
+		//write result back to process
+		P->WriteMemory(user_desc_Addr, sizeof(user_desc), &user_desc);
+		ctx.Eax = 0;
+	}
+}
+
+/*
+ * int modify_ldt(int func, void *ptr, unsigned long bytecount);
+ */
+void SysCalls::sys_modify_ldt(CONTEXT& ctx)
+{
+	DWORD modify_function = ctx.Ebx;
+	ADDR user_desc_Addr = (ADDR)ctx.Ecx;
+	DWORD user_desc_Size = ctx.Edx;
+
+	linux::user_desc user_desc;
+
+	//read user_desc from process
+	if(user_desc_Size != sizeof(user_desc)) {
+		ctx.Eax = -linux::EINVAL;
+		return;
+	}
+	P->ReadMemory(&user_desc, user_desc_Addr, sizeof(user_desc));
+
+	//These LDT entries should be Thread specific
+	//But on Windows they are only per-Process.
+	//In a similar way to the get/set_thread_area() calls,
+	//we will generate an invalid LDT entry, so that we can
+	//trap it's assignment to a segment register and correct the behaviour.
+#pragma message("TODO: fix modify_ldt")
+ctx.Eax = -linux::ENOSYS;
+return;
+
+	//default return, unless we succeed
+	ctx.Eax = -linux::EINVAL;
+
+	switch(modify_function) 
+	{
+	case 0: //READ LDT
+		if(MemoryHelper::GetLDTSelector(T->dwThreadId, user_desc))
+		{
+			//write result back to process
+			P->WriteMemory(user_desc_Addr, sizeof(user_desc), &user_desc);
+			ctx.Eax = 0;
+		}
+		break;
+	case 1: //WRITE LDT
+		if(MemoryHelper::SetLDTSelector(T->dwThreadId, user_desc))
+		{
+			//write result back to process
+			P->WriteMemory(user_desc_Addr, sizeof(user_desc), &user_desc);
+			ctx.Eax = 0;
+		}
+		break;
+
+	default:
+		ctx.Eax = -linux::ENOSYS; //no such function
+		break;
+	}
+
 }

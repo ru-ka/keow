@@ -44,6 +44,8 @@ typedef BYTE* ADDR;
 #define MAX_OPEN_FILES		1024
 #define MAX_PENDING_SIGNALS	128
 #define MAX_SIGNALS			linux::_NSIG
+#define MAX_LDT_ENTRIES		8192
+
 
 class Process  
 {
@@ -67,6 +69,7 @@ public:
 	void DumpMemory(ADDR addr, DWORD len);
 	void DumpContext(CONTEXT &ctx);
 	void DumpStackTrace(CONTEXT &ctx);
+	void DumpDescriptors();
 
 	void SetSingleStep(bool set, CONTEXT * pCtx);
 
@@ -85,6 +88,8 @@ public:
 
 public:
 	bool IsSuspended();
+	ThreadInfo* GetThreadInfo(DWORD dwThreadId);
+
 	PID m_Pid;
 	PID m_ParentPid;
 	PID m_ProcessGroupPID;
@@ -97,7 +102,10 @@ public:
 	int m_saved_uid, m_saved_gid;
 	int m_umask;
 
-	PROCESS_INFORMATION m_Win32PInfo;
+	DWORD m_dwProcessId;
+	HANDLE m_hProcess;
+	typedef list<ThreadInfo*> ThreadList;
+	ThreadList m_ThreadList;
 
 	bool m_bStillRunning;
 	bool m_bCoreDumped;
@@ -109,7 +117,8 @@ public:
 
 	HANDLE m_hWaitTerminatingEvent;
 
-	CONTEXT m_BaseWin32Ctx; //used for injection etc
+	//keep track of original win32 data needed for injection etc (when we run as a win32 process again)
+	CONTEXT m_BaseWin32Ctx;
 
 	ADDR m_KeowUserStackBase;
 	ADDR m_KeowUserStackTop;
@@ -213,15 +222,23 @@ public:
 	//open files
 	IOHandler * m_OpenFiles[MAX_OPEN_FILES];
 
+	//keep track of LDT entries allocated
+	struct LdtData {
+		DWORD dwAllocatingThreadId;
+		linux::user_desc user_desc;
+	};
+	LdtData m_LdtEntries[MAX_LDT_ENTRIES];
+
+
 private:
 	Process(); //private - use methods to create
 protected:
 	void InitSignalHandling();
-	void ForkCopyOtherProcess(Process &other);
+	void ForkCopyOtherProcess(Process &other, ThreadInfo& otherThread);
 	void HandleException(DEBUG_EVENT &evt);
 	void ConvertProcessToKeow();
 	void DebuggerLoop();
-
+	void ResumeKeowProcess(DEBUG_EVENT &evt, bool bNeedToRestoreGS);
 	DWORD LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElf, ElfLoadData * pElfLoadData, bool LoadAsLibrary);
 };
 

@@ -35,18 +35,18 @@
  * stub out here to remove IMPLEMENT... messages from ktrace
  */
 
-void SysCalls::sys_rt_sigaction(CONTEXT &ctx)		{ctx.Eax = -linux::ENOSYS;}
-void SysCalls::sys_rt_sigprocmask(CONTEXT &ctx)		{ctx.Eax = -linux::ENOSYS;}
-void SysCalls::sys_rt_sigpending(CONTEXT &ctx)		{ctx.Eax = -linux::ENOSYS;}
-void SysCalls::sys_rt_sigtimedwait(CONTEXT &ctx)	{ctx.Eax = -linux::ENOSYS;}
-void SysCalls::sys_rt_sigqueueinfo(CONTEXT &ctx)	{ctx.Eax = -linux::ENOSYS;}
-void SysCalls::sys_rt_sigsuspend(CONTEXT &ctx)		{ctx.Eax = -linux::ENOSYS;}
+void SysCalls::sys_rt_sigaction(CONTEXT& ctx)		{ctx.Eax = -linux::ENOSYS;}
+void SysCalls::sys_rt_sigprocmask(CONTEXT& ctx)		{ctx.Eax = -linux::ENOSYS;}
+void SysCalls::sys_rt_sigpending(CONTEXT& ctx)		{ctx.Eax = -linux::ENOSYS;}
+void SysCalls::sys_rt_sigtimedwait(CONTEXT& ctx)	{ctx.Eax = -linux::ENOSYS;}
+void SysCalls::sys_rt_sigqueueinfo(CONTEXT& ctx)	{ctx.Eax = -linux::ENOSYS;}
+void SysCalls::sys_rt_sigsuspend(CONTEXT& ctx)		{ctx.Eax = -linux::ENOSYS;}
 
 
 /*
  *  int sigreturn(unsigned long __unused)
  */
-void SysCalls::sys_sigreturn(CONTEXT &ctx)
+void SysCalls::sys_sigreturn(CONTEXT& ctx)
 {
 	sys_rt_sigreturn(ctx);
 }
@@ -54,14 +54,16 @@ void SysCalls::sys_sigreturn(CONTEXT &ctx)
 /*
  *  int rt_sigreturn(?)
  */
-void SysCalls::sys_rt_sigreturn(CONTEXT &ctx)
+void SysCalls::sys_rt_sigreturn(CONTEXT& ctx)
 {
 	Process::SignalSaveState state;
 
 	//restore context
 	P->ReadMemory(&state, (ADDR)ctx.Ebx, sizeof(state));
 
-	ctx = state.ctx;
+	CONTEXT *pCtx = &ctx;
+	*pCtx = state.ctx;
+
 	P->m_SignalMask = state.SignalMask;
 
 	ktrace("rt_sigreturn returning to 0x%08lx\n", ctx.Eip);

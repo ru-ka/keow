@@ -64,7 +64,9 @@ Process::Process()
 	m_pControllingTty = NULL;
 	m_bIsInForeground = true;
 
-	memset(&m_Win32PInfo, 0, sizeof(m_Win32PInfo));
+	m_hProcess = NULL;
+	m_dwProcessId = NULL;
+
 	m_KernelThreadId = 0;
 	m_KernelThreadHandle = NULL;
 
@@ -84,6 +86,8 @@ Process::Process()
 	m_hProcessStartEvent = m_hForkDoneEvent = NULL;
 
 	memset(&SysCallAddr, 0, sizeof(SysCallAddr));
+
+	memset(&m_LdtEntries, 0, sizeof(m_LdtEntries));
 }
 
 Process::~Process()
@@ -92,8 +96,16 @@ Process::~Process()
 	g_pKernelTable->m_Processes.erase(this);
 
 	//close all handles
-	CloseHandle(m_Win32PInfo.hProcess);
-	CloseHandle(m_Win32PInfo.hThread);
+
+	CloseHandle(m_hProcess);
+
+	for(Process::ThreadList::iterator it = m_ThreadList.begin();
+		it != m_ThreadList.end();
+		++it)
+	{
+		ThreadInfo * pInfo = *it;
+		CloseHandle(pInfo->hThread);
+	}
 
 	CloseHandle(m_KernelThreadHandle);
 
@@ -151,7 +163,7 @@ Process* Process::StartInit(PID pid, Path& path, char ** InitialArguments, char 
 	NewP->m_hProcessStartEvent=NULL;
 
 	//check it's ok
-	if(NewP->m_Win32PInfo.hProcess==NULL)
+	if(NewP->m_hProcess==NULL)
 	{
 		ktrace("failed to start the process\n");
 		delete NewP;
@@ -230,7 +242,7 @@ Process* Process::StartFork(Process * pParent)
 	NewP->m_hProcessStartEvent=NULL;
 
 	//check it's ok
-	if(NewP->m_Win32PInfo.hProcess==NULL)
+	if(NewP->m_hProcess==NULL)
 	{
 		ktrace("failed to start the process\n");
 		delete NewP;
@@ -263,15 +275,19 @@ Process* Process::StartFork(Process * pParent)
 	CoInitialize(NULL);//Ex(NULL, COINIT_MULTITHREADED);
 
 	//Start the stub
+	PROCESS_INFORMATION pi;
 	STARTUPINFO si;
 	GetStartupInfo(&si);
-	if(CreateProcess(NULL, (char*)KEOW_PROCESS_STUB, NULL, NULL, FALSE, DEBUG_ONLY_THIS_PROCESS|DEBUG_PROCESS, NULL, P->m_UnixPwd.GetWin32Path(), &si, &P->m_Win32PInfo) == FALSE)
+	if(CreateProcess(NULL, (char*)KEOW_PROCESS_STUB, NULL, NULL, FALSE, DEBUG_ONLY_THIS_PROCESS|DEBUG_PROCESS, NULL, P->m_UnixPwd.GetWin32Path(), &si, &pi) == FALSE)
 	{
 		//failed
-		P->m_Win32PInfo.hProcess = NULL;
+		P->m_hProcess = NULL;
 		SetEvent(P->m_hProcessStartEvent);
 		return 0;
 	}
+	P->m_hProcess    = pi.hProcess;
+	P->m_dwProcessId = pi.dwProcessId;
+	P->m_ThreadList.push_back( new ThreadInfo(pi.dwThreadId, pi.hThread) );
 
 	//started now
 	SetEvent(P->m_hProcessStartEvent);
@@ -293,6 +309,7 @@ Process* Process::StartFork(Process * pParent)
 	if(P->m_Pid != 1)
 	{
 		Process * pParent = g_pKernelTable->FindProcess(P->m_ParentPid);
+		ThreadInfo * pParentThread = pParent->m_ThreadList[0];
 		if(pParent)
 			pParent->SendSignal(linux::SIGCHLD);
 	}
@@ -331,6 +348,9 @@ void Process::DebuggerLoop()
 	{
 		WaitForDebugEvent(&evt, INFINITE);
 
+		//what thread?
+		T = P->GetThreadInfo(evt.dwThreadId);
+
 		//any signals to dispatch first?
 		int sig=0;
 		for(; sig<linux::_NSIG; ++sig)
@@ -348,35 +368,39 @@ void Process::DebuggerLoop()
 			m_CurrentSignal = 0;
 
 			//debuging in signal handler now - abort original reason for debug
-			FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for our process modifications?
-			ContinueDebugEvent(evt.dwProcessId, evt.dwThreadId, DBG_CONTINUE);
+			ResumeKeowProcess(evt, true);
 			continue;
 		}
 
 
 		//handle the real reason we are in the debugger
+		bool bNeedToRestoreGS = false;
 		switch(evt.dwDebugEventCode)
 		{
 		case CREATE_PROCESS_DEBUG_EVENT:
 			CloseHandle(evt.u.CreateProcessInfo.hFile); //don't need this
-			GetProcessTimes(P->m_Win32PInfo.hProcess, &P->m_BaseTimes.ftCreateTime, &P->m_BaseTimes.ftExitTime, &P->m_BaseTimes.ftKernelTime, &P->m_BaseTimes.ftUserTime);
+			GetProcessTimes(P->m_hProcess, &P->m_BaseTimes.ftCreateTime, &P->m_BaseTimes.ftExitTime, &P->m_BaseTimes.ftKernelTime, &P->m_BaseTimes.ftUserTime);
+			bNeedToRestoreGS = false;
 			break;
 
 		case EXIT_PROCESS_DEBUG_EVENT:
 			m_dwExitCode = evt.u.ExitProcess.dwExitCode;
 			m_bStillRunning = false; //parent will clean up the process table entry
 			ktrace("process exit debug event\n");
+			bNeedToRestoreGS = false;
 			return; //no longer debugging
 
 
 		case CREATE_THREAD_DEBUG_EVENT:
 		case EXIT_THREAD_DEBUG_EVENT:
+			bNeedToRestoreGS = false;
 			break;
 
 
 		case EXCEPTION_DEBUG_EVENT:
 			if(m_bInWin32Setup)
 			{
+				bNeedToRestoreGS = false;
 				switch(evt.u.Exception.ExceptionRecord.ExceptionCode)
 				{
 				case EXCEPTION_SINGLE_STEP:
@@ -393,12 +417,16 @@ void Process::DebuggerLoop()
 				}
 			}
 			else
+			{
 				HandleException(evt);
+				bNeedToRestoreGS = true;
+			}
 			break;
 
 
 		case LOAD_DLL_DEBUG_EVENT:
 		case UNLOAD_DLL_DEBUG_EVENT:
+			bNeedToRestoreGS = false;
 			break;
 
 		case OUTPUT_DEBUG_STRING_EVENT:
@@ -412,6 +440,7 @@ void Process::DebuggerLoop()
 				ktrace("relay: %*s", evt.u.DebugString.nDebugStringLength, buf);
 
 				delete buf;
+				bNeedToRestoreGS = false;
 			}
 			break;
 
@@ -422,10 +451,59 @@ void Process::DebuggerLoop()
 
 
 		//continue running
-		FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for our process modifications?
-		ContinueDebugEvent(evt.dwProcessId, evt.dwThreadId, DBG_CONTINUE);
+		ResumeKeowProcess(evt, bNeedToRestoreGS);
 
 	}//for(;;)
+}
+
+/* Resume process after a Debug event */
+void Process::ResumeKeowProcess(DEBUG_EVENT &evt, bool bNeedToRestoreGS)
+{
+	/*
+	 Windows resets the GS register on all API calls (reset to zero)
+	 But linux pthreads use GS extensively, so we need to preserve it
+
+	 They way we do this is to arrange that when we return control to the code
+	 we return to a peice of logic that restores GS first.
+	*/
+	if(bNeedToRestoreGS) {
+		//Inject code (on the processes stack) that ensures the appropriate
+		// segment register (eg GS) gets set with a value.
+		//
+		// We place values on the stack, and this code:
+		//    0F A9        pop gs   ;set the register
+		//    C2 06 00     ret 6    ;remove our code from the stack too (WORD+DWORD in StackFrame)
+		//    00                    ;extra byte in last dword of StackFrame.ret
+		//
+		struct {
+			DWORD  segGs;  //"pop gs" pops 4 bytes, even though gs is 16bit 
+			DWORD retAddress;
+			WORD  pop; 
+			DWORD ret; 
+		} StackFrame;
+
+		CONTEXT ctx;
+		ctx.ContextFlags = CONTEXT_CONTROL | CONTEXT_SEGMENTS;
+		::GetThreadContext( T->hThread, &ctx);
+
+		StackFrame.segGs = T->SegGs; //ctx.SegGs;
+		StackFrame.retAddress = ctx.Eip;
+		StackFrame.pop = 0xA90F;
+		StackFrame.ret = 0x000006C2;
+
+		//Inject onto the processes stack and adjust EIP to run it
+		ctx.Esp -= sizeof(StackFrame);
+		ctx.Eip = ctx.Esp + ((DWORD)&StackFrame.pop - (DWORD)&StackFrame); // ==> StackFrame.pop instruction
+
+		::SetThreadContext(T->hThread, &ctx);
+		WriteMemory((ADDR)ctx.Esp, sizeof(StackFrame), &StackFrame);
+
+		ktrace("Inject GS : 0x%02x\n", StackFrame.segGs);
+	}
+
+	//Continue the process
+	FlushInstructionCache(m_hProcess, 0, 0); //need this for our process modifications?
+	ContinueDebugEvent(evt.dwProcessId, evt.dwThreadId, DBG_CONTINUE);
 }
 
 
@@ -441,13 +519,13 @@ void Process::ConvertProcessToKeow()
 
 	CONTEXT ctx;
 	ctx.ContextFlags = CONTEXT_FULL;
-	GetThreadContext(m_Win32PInfo.hThread, &ctx);
+	GetThreadContext( T->hThread, &ctx);
 
 	//This is the details we use as win32 state for code injection etc
 	//keep this seperate from the keow stuff that happens later (eg FS reg changes)
 	m_BaseWin32Ctx = ctx;
 
-	GetProcessTimes(P->m_Win32PInfo.hProcess, &P->m_BaseTimes.ftCreateTime, &P->m_BaseTimes.ftExitTime, &P->m_BaseTimes.ftKernelTime, &P->m_BaseTimes.ftUserTime);
+	GetProcessTimes(P->m_hProcess, &P->m_BaseTimes.ftCreateTime, &P->m_BaseTimes.ftExitTime, &P->m_BaseTimes.ftKernelTime, &P->m_BaseTimes.ftUserTime);
 
 
 	//read syscall data from dll
@@ -468,7 +546,7 @@ void Process::ConvertProcessToKeow()
 
 	//disable single-step that the stub started (to alert us)
 	SetSingleStep(false, &ctx);
-	SetThreadContext(m_Win32PInfo.hThread, &ctx);
+	SetThreadContext( T->hThread, &ctx);
 
 
 	//are we forking or starting init?
@@ -478,7 +556,8 @@ void Process::ConvertProcessToKeow()
 		//forking
 
 		Process * pParent = g_pKernelTable->FindProcess(m_ParentPid);
-		ForkCopyOtherProcess(*pParent);
+		ThreadInfo * pParentThread = pParent->m_ThreadList[0]; //TODO: get correct thread that was forked!
+		ForkCopyOtherProcess(*pParent, *pParentThread);
 
 		m_bInWin32Setup = false; //done now
 		SetEvent(m_hForkDoneEvent);
@@ -494,12 +573,12 @@ void Process::ConvertProcessToKeow()
 	//TODO: alloc dynamically within the contraints
 	DWORD size=1024*1024L;  //1MB will do?
 	ADDR stack_bottom = (ADDR)0x70000000 - size; //ok location?
-	m_KeowUserStackBase = MemoryHelper::AllocateMemAndProtect(stack_bottom, size, PAGE_EXECUTE_READWRITE);//we sometimes inject executable code into the stack
+	m_KeowUserStackBase = MemoryHelper::AllocateMemAndProtect(stack_bottom, size, PAGE_EXECUTE_READWRITE);//we sometimes inject executable code into the stack!
 	m_KeowUserStackTop = m_KeowUserStackBase + size;
 	//linux process start with a little bit of stack in use but overwritable?
 	ctx.Esp = (DWORD)m_KeowUserStackTop - 0x200;
 	//set new stack
-	SetThreadContext(m_Win32PInfo.hThread, &ctx);
+	SetThreadContext(T->hThread, &ctx);
 
 	//not fork or exec, must be 'init', the very first process
 	ktrace("init/exec: load image: %s\n", m_ProcessFileImage.GetWin32Path().c_str());
@@ -554,8 +633,9 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	*/
 
 	CONTEXT ctx;
-	ctx.ContextFlags = CONTEXT_FULL | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
-	GetThreadContext(m_Win32PInfo.hThread, &ctx);
+	ctx.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
+	GetThreadContext( T->hThread, &ctx);
+	T->SegGs = ctx.SegGs;
 
 	switch(evt.u.Exception.ExceptionRecord.ExceptionCode)
 	{
@@ -634,13 +714,21 @@ void Process::HandleException(DEBUG_EVENT &evt)
 			}
 			else
 			{
-				ktrace("Access violation @ 0x%08lx\n", evt.u.Exception.ExceptionRecord.ExceptionAddress);
-				ktrace("instruction = 0x%04lX\n", instruction);
+				if(MemoryHelper::HandlePossibleLDTException(instruction, (ADDR)evt.u.Exception.ExceptionRecord.ExceptionAddress, ctx)) {
+					break;
+				}
+				else {
+					//Seems to be a real exception
 
-				DumpContext(ctx);
-				DumpStackTrace(ctx);
+					ktrace("Access violation @ 0x%08lx\n", evt.u.Exception.ExceptionRecord.ExceptionAddress);
+					ktrace("instruction = 0x%04lX\n", instruction);
+					ktrace("thread = 0x%04lX\n", evt.dwThreadId);
 
-				SendSignal(linux::SIGSEGV); //access violation
+					DumpContext(ctx);
+					DumpStackTrace(ctx);
+
+					SendSignal(linux::SIGSEGV); //access violation
+				}
 			}
 		}
 		break;
@@ -674,13 +762,13 @@ void Process::HandleException(DEBUG_EVENT &evt)
 	//SetSingleStep(true); //DEBUG - keep it up
 
 	//set any context changes
-	SetThreadContext(m_Win32PInfo.hThread, &ctx);
+	SetThreadContext( T->hThread, &ctx);
 }
 
 
 // Clone an existing process into this one,
 // except for a few things (eg ptrace, pid, ppid)
-void Process::ForkCopyOtherProcess(Process &other)
+void Process::ForkCopyOtherProcess(Process &other, ThreadInfo &otherThread)
 {
 	int i;
 	ktrace("fork : Copying state from parent process\n");
@@ -729,7 +817,7 @@ void Process::ForkCopyOtherProcess(Process &other)
 		MemoryAlloc * pMemAlloc = *mem_it;
 
 		ADDR p = MemoryHelper::AllocateMemAndProtect(pMemAlloc->addr, pMemAlloc->len, pMemAlloc->protection);
-		MemoryHelper::TransferMemory(other.m_Win32PInfo.hProcess, pMemAlloc->addr, m_Win32PInfo.hProcess, p, pMemAlloc->len);
+		MemoryHelper::TransferMemory(other.m_hProcess, pMemAlloc->addr, m_hProcess, p, pMemAlloc->len);
 	}
 
 	//clone files
@@ -756,13 +844,13 @@ void Process::ForkCopyOtherProcess(Process &other)
 	//Clone the context
 	CONTEXT ctx;
 	ctx.ContextFlags = CONTEXT_FULL | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
-	GetThreadContext(other.m_Win32PInfo.hThread, &ctx);
+	GetThreadContext(otherThread.hThread, &ctx);
 
 	//we are the child - need zero return from the fork
 	ctx.Eip += 2; //skip the Int 80
 	ctx.Eax = 0; //we are the child
 
-	SetThreadContext(m_Win32PInfo.hThread, &ctx);
+	SetThreadContext(T->hThread, &ctx);
 
 	ktrace("fork : copy done\n");
 }
@@ -1022,7 +1110,7 @@ DWORD Process::LoadElfImage(HANDLE hImg, struct linux::elf32_hdr * pElfHdr, ElfL
 			}
 
 			//need to zero first? (alignment creates gaps needing filled with zeros)
-			MemoryHelper::FillMem(P->m_Win32PInfo.hProcess, pAlignedMem, AlignedSize, 0);
+			MemoryHelper::FillMem(P->m_hProcess, pAlignedMem, AlignedSize, 0);
 
 			//need to load file into our memory, then copy to process
 			if(phdr->p_filesz != 0)
@@ -1243,7 +1331,7 @@ DWORD Process::StartNewImageRunning()
 
 	*/
 
-	GetProcessTimes(P->m_Win32PInfo.hProcess, &P->m_BaseTimes.ftCreateTime, &P->m_BaseTimes.ftExitTime, &P->m_BaseTimes.ftKernelTime, &P->m_BaseTimes.ftUserTime);
+	GetProcessTimes(P->m_hProcess, &P->m_BaseTimes.ftCreateTime, &P->m_BaseTimes.ftExitTime, &P->m_BaseTimes.ftKernelTime, &P->m_BaseTimes.ftUserTime);
 
 	if(m_ElfLoadData.interpreter_start==0)
 	{
@@ -1255,8 +1343,8 @@ DWORD Process::StartNewImageRunning()
 	//when a new process first starts, it's args etc are in the kernel
 	//transfer them to the process
 	DWORD dwEnvSize, dwArgsSize;
-	ADDR pEnv = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Environment, m_Win32PInfo.hProcess, this, &m_EnvCnt, &dwEnvSize);
-	ADDR pArgs = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Arguments, m_Win32PInfo.hProcess, this, &m_ArgCnt, &dwArgsSize);
+	ADDR pEnv = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Environment, m_hProcess, this, &m_EnvCnt, &dwEnvSize);
+	ADDR pArgs = MemoryHelper::CopyStringListBetweenProcesses(GetCurrentProcess(), m_Arguments, m_hProcess, this, &m_ArgCnt, &dwArgsSize);
 	//strings are now in the other process
 	//free kernel copy
 	VirtualFree(m_Arguments, dwArgsSize, MEM_DECOMMIT);
@@ -1271,9 +1359,11 @@ DWORD Process::StartNewImageRunning()
 	const int AUX_RESERVE = 2*sizeof(DWORD)*20; //heaps for what is below
 	int stack_needed = sizeof(ADDR)*(m_EnvCnt+1+m_ArgCnt+1) + AUX_RESERVE + sizeof(ADDR)/*end marker*/;
 
+	ThreadInfo * pInitialThread = m_ThreadList[0];
+
 	CONTEXT ctx;
 	ctx.ContextFlags = CONTEXT_FULL;
-	GetThreadContext(m_Win32PInfo.hThread, &ctx);
+	GetThreadContext(pInitialThread->hThread, &ctx);
 
 	ADDR StackTop = (ADDR)ctx.Esp;
 
@@ -1290,12 +1380,12 @@ DWORD Process::StartNewImageRunning()
 	addr += sizeof(DWORD);
 	//argv[]: clone the array of pointers that are already in the target process
 	//include the null end entry
-	MemoryHelper::TransferMemory(m_Win32PInfo.hProcess, m_Arguments, m_Win32PInfo.hProcess, addr, (m_ArgCnt+1)*sizeof(ADDR));
+	MemoryHelper::TransferMemory(m_hProcess, m_Arguments, m_hProcess, addr, (m_ArgCnt+1)*sizeof(ADDR));
 	addr += (m_ArgCnt+1)*sizeof(ADDR);
 
 	//envp[]: clone the array of pointers that are already in the target process
 	//include the null end entry
-	MemoryHelper::TransferMemory(m_Win32PInfo.hProcess, m_Environment, m_Win32PInfo.hProcess, addr, (m_EnvCnt+1)*sizeof(ADDR));
+	MemoryHelper::TransferMemory(m_hProcess, m_Environment, m_hProcess, addr, (m_EnvCnt+1)*sizeof(ADDR));
 	addr += (m_EnvCnt+1)*sizeof(ADDR);
 
 	//aux
@@ -1344,7 +1434,7 @@ DWORD Process::StartNewImageRunning()
 	ctx.Eip = (DWORD)m_ElfLoadData.interpreter_start;
 
 	//set
-	SetThreadContext(m_Win32PInfo.hThread, &ctx);
+	SetThreadContext(pInitialThread->hThread, &ctx);
 
 	ktrace("Transfer to ELF code done\n");
 	return 0;
@@ -1359,7 +1449,7 @@ void Process::SetSingleStep(bool set, CONTEXT * pCtx)
 	if(pCtx==NULL)
 	{
 		TmpCtx.ContextFlags = CONTEXT_CONTROL;
-		GetThreadContext(m_Win32PInfo.hThread, &TmpCtx);
+		GetThreadContext(T->hThread, &TmpCtx);
 
 		pCtx = &TmpCtx;
 	}
@@ -1376,19 +1466,19 @@ void Process::SetSingleStep(bool set, CONTEXT * pCtx)
 	}
 
 	if(bDoSet)
-		SetThreadContext(m_Win32PInfo.hThread, &TmpCtx);
+		SetThreadContext(T->hThread, &TmpCtx);
 
 }
 
 
 bool Process::ReadMemory(LPVOID pBuf, ADDR addr, DWORD len)
 {
-	return MemoryHelper::ReadMemory((ADDR)pBuf, m_Win32PInfo.hProcess, addr, len);
+	return MemoryHelper::ReadMemory((ADDR)pBuf, m_hProcess, addr, len);
 }
 
 bool Process::WriteMemory(ADDR addr, DWORD len, const void * pBuf)
 {
-	return MemoryHelper::WriteMemory(m_Win32PInfo.hProcess, addr, len, (ADDR)pBuf);
+	return MemoryHelper::WriteMemory(m_hProcess, addr, len, (ADDR)pBuf);
 }
 
 
@@ -1413,13 +1503,13 @@ void Process::SendSignal(int sig)
 	//NOTE: this may be executing on a different thread than the one handling this process
 
 	//because it may not be in the debugger
-	SuspendThread(m_Win32PInfo.hThread);
+	SuspendThread(T->hThread);
 
 	//make single-step
 	//this forces the debugger to intervene and then it can see the pending signals
 	SetSingleStep(true, NULL);
 
-	ResumeThread(m_Win32PInfo.hThread);
+	ResumeThread(T->hThread);
 }
 
 
@@ -1457,7 +1547,13 @@ void Process::HandleSignal(int sig)
 		return;
 	case linux::SIGSTOP:
 		ktrace("stopping on sigstop\n");
-		SuspendThread(m_Win32PInfo.hThread);
+		//suspend all threads
+		for(Process::ThreadList::iterator it = m_ThreadList.begin();
+			it != m_ThreadList.end();
+			++it)
+		{
+			SuspendThread( (*it)->hThread );
+		}
 		return;
 	}
 
@@ -1497,7 +1593,13 @@ void Process::HandleSignal(int sig)
 			break;
 
 		case linux::SIGCONT: 
-			ResumeThread(m_Win32PInfo.hThread);
+			//Resume all threads
+			for(Process::ThreadList::iterator it = m_ThreadList.begin();
+				it != m_ThreadList.end();
+				++it)
+			{
+				ResumeThread( (*it)->hThread );
+			}
 			break;
 
 		//stop
@@ -1505,7 +1607,13 @@ void Process::HandleSignal(int sig)
 		case linux::SIGTSTP:
 		case linux::SIGTTIN:
 		case linux::SIGTTOU:
-			SuspendThread(m_Win32PInfo.hThread);
+			//suspend all threads
+			for(Process::ThreadList::iterator it = m_ThreadList.begin();
+				it != m_ThreadList.end();
+				++it)
+			{
+				SuspendThread( (*it)->hThread );
+			}
 			break;
 
 		//terminate
@@ -1574,8 +1682,8 @@ void Process::HandleSignal(int sig)
 		//need to update user process
 		CONTEXT ctx;
 		ctx.ContextFlags = CONTEXT_FULL | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
-		SuspendThread(P->m_Win32PInfo.hThread);
-		GetThreadContext(P->m_Win32PInfo.hThread, &ctx);
+		SuspendThread(T->hThread);
+		GetThreadContext(T->hThread, &ctx);
 
 
 		//Dispatch to custom handler
@@ -1696,8 +1804,8 @@ void Process::HandleSignal(int sig)
 
 		ctx.Eip = (DWORD)handler;
 
-		SetThreadContext(P->m_Win32PInfo.hThread, &ctx);
-		ResumeThread(P->m_Win32PInfo.hThread);
+		SetThreadContext(T->hThread, &ctx);
+		ResumeThread(T->hThread);
 
 	}
 
@@ -1726,7 +1834,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	if(m_bInWin32Setup)
 	{
 		OldCtx.ContextFlags = CONTEXT_FULL;
-		GetThreadContext(m_Win32PInfo.hThread, &OldCtx);
+		GetThreadContext(T->hThread, &OldCtx);
 	}
 
 	//Injection uses the original Win32 context (& stack etc) from when
@@ -1744,7 +1852,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 //	SetSingleStep(true, &InjectCtx); //FOR DEBUG
 
-	SetThreadContext(m_Win32PInfo.hThread, &InjectCtx);
+	SetThreadContext(T->hThread, &InjectCtx);
 
 
 	ADDR addr = (ADDR)InjectCtx.Esp;
@@ -1782,8 +1890,8 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 	DEBUG_EVENT evt;
 	for(;;) {
 
-		FlushInstructionCache(m_Win32PInfo.hProcess, 0, 0); //need this for our process modifications?
-		ContinueDebugEvent(m_Win32PInfo.dwProcessId, m_Win32PInfo.dwThreadId, DBG_CONTINUE);
+		FlushInstructionCache(m_hProcess, 0, 0); //need this for our process modifications?
+		ContinueDebugEvent(m_dwProcessId, T->dwThreadId, DBG_CONTINUE);
 
 		WaitForDebugEvent(&evt, INFINITE);
 
@@ -1796,11 +1904,11 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 			{
 				CONTEXT ctx;
 				ctx.ContextFlags = CONTEXT_FULL;
-				GetThreadContext(m_Win32PInfo.hThread, &ctx);
+				GetThreadContext(T->hThread, &ctx);
 				DumpContext(ctx);
 				//single step is for debugging - keep it up if it was started
 				P->SetSingleStep(true, &ctx);
-				SetThreadContext(m_Win32PInfo.hThread, &ctx);
+				SetThreadContext(T->hThread, &ctx);
 			}
 			else
 			{
@@ -1809,7 +1917,7 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 #ifdef _DEBUG
 				CONTEXT ctx;
 				ctx.ContextFlags = CONTEXT_FULL;
-				GetThreadContext(m_Win32PInfo.hThread, &ctx);
+				GetThreadContext(T->hThread, &ctx);
 				DumpContext(ctx);
 				SendSignal(linux::SIGSEGV); //terminate
 #endif
@@ -1850,13 +1958,13 @@ DWORD Process::InjectFunctionCall(void *func, void *pStackData, int nStackDataSi
 
 
 	//only for debug - show exit point
-	GetThreadContext(m_Win32PInfo.hThread, &InjectCtx);
+	GetThreadContext(T->hThread, &InjectCtx);
 	DWORD dwRet = InjectCtx.Eax;
 	ktrace("Injection exit @ 0x%08lx\n", InjectCtx.Eip);
 
 	if(m_bInWin32Setup)
 	{
-		SetThreadContext(m_Win32PInfo.hThread, &OldCtx);
+		SetThreadContext(T->hThread, &OldCtx);
 	}
 
 	return dwRet;
@@ -1941,6 +2049,68 @@ void Process::DumpStackTrace(CONTEXT &ctx)
 }
 
 
+// Output current process GDT & LDT descriptors
+void Process::DumpDescriptors()
+{
+	int index;
+	DWORD dwSelector;
+	PROCESS_LDT_INFORMATION ldtInfo;
+	DWORD rc;
+	LDT_ENTRY *ldt = &ldtInfo.LdtEntries[0];
+
+	const bool bFullDump = true;
+
+	if(bFullDump) {
+		ktrace("GDT Table [initial thread]:\n");
+		for(index=0; index<256; ++index) {
+			dwSelector = index*sizeof(LDT_ENTRY);
+			if(::GetThreadSelectorEntry(m_ThreadList[0]->hThread, dwSelector, ldt)==0) {
+				break;
+			}
+			ktrace("GDT %d.%04x: 0x%02x%02x%04x:x%02x%04x DPL:%x Type:%02x 4k:%x Sys:%x Pres:%x Big:%x\n",
+					index, dwSelector,
+					ldt->HighWord.Bytes.BaseHi, ldt->HighWord.Bytes.BaseMid, ldt->BaseLow,
+					ldt->HighWord.Bits.LimitHi, ldt->LimitLow,
+					ldt->HighWord.Bits.Dpl, ldt->HighWord.Bits.Type, ldt->HighWord.Bits.Granularity,
+					ldt->HighWord.Bits.Sys, ldt->HighWord.Bits.Pres, ldt->HighWord.Bits.Default_Big
+					);
+		}
+	}
+
+	HMODULE hlib = GetModuleHandle("NTDLL");
+	FARPROC fp = GetProcAddress(hlib, "NtQueryInformationProcess");
+	NTSTATUS (CALLBACK *NtQueryInformationProcess) (HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG);
+    *(FARPROC *)&NtQueryInformationProcess = fp;
+
+
+	ktrace("LDT Table:\n");
+	ldtInfo.Start = 0;
+	ldtInfo.Length = 1*sizeof(LDT_ENTRY);
+	rc = NtQueryInformationProcess(m_hProcess, ProcessLdtInformation, &ldtInfo, sizeof(ldtInfo), NULL);
+	int numEntries = ldtInfo.Length / sizeof(LDT_ENTRY);
+	for(index = bFullDump?0:16; index<numEntries; ++index) {
+		dwSelector = index*sizeof(LDT_ENTRY);
+
+		ldtInfo.Start = dwSelector ;//& 0xFFFFFFF8;  // selector --> offset
+		ldtInfo.Length = 1*sizeof(LDT_ENTRY);
+		rc = NtQueryInformationProcess(m_hProcess, ProcessLdtInformation, &ldtInfo, sizeof(ldtInfo), NULL);
+		
+		if(rc!=0) {
+			ktrace("LDT read failed %lx\n", rc);
+			break;
+		}
+		
+		ktrace(" LDT %3d.%04x: 0x%02x%02x%04x:x%02x%04x DPL:%x Type:%02x 4k:%x Sys:%x Pres:%x Big:%x\n",
+				index, dwSelector,
+				ldt->HighWord.Bytes.BaseHi, ldt->HighWord.Bytes.BaseMid, ldt->BaseLow,
+				ldt->HighWord.Bits.LimitHi, ldt->LimitLow,
+				ldt->HighWord.Bits.Dpl, ldt->HighWord.Bits.Type, ldt->HighWord.Bits.Granularity,
+				ldt->HighWord.Bits.Sys, ldt->HighWord.Bits.Pres, ldt->HighWord.Bits.Default_Big
+				);
+	}
+}
+
+
 // Find a free entry in the open files list
 int Process::FindFreeFD()
 {
@@ -1992,7 +2162,7 @@ void Process::FreeResourcesBeforeExec()
 			continue;
 		}
 
-		if(!LegacyWindows::VirtualFreeEx(m_Win32PInfo.hProcess, pMemAlloc->addr, pMemAlloc->len, MEM_DECOMMIT))
+		if(!LegacyWindows::VirtualFreeEx(m_hProcess, pMemAlloc->addr, pMemAlloc->len, MEM_DECOMMIT))
 			ktrace("failed to free 0x%08lx, len %d\n", pMemAlloc->addr, pMemAlloc->len);
 
 		m_MemoryAllocations.erase(mem_it);
@@ -2051,3 +2221,19 @@ bool Process::IsSuspended()
 	}
 }
 
+
+ThreadInfo* Process::GetThreadInfo(DWORD dwThreadId)
+{
+	Process::ThreadList::iterator it;
+	for(it=m_ThreadList.begin(); it!=m_ThreadList.end(); ++it)
+	{
+		ThreadInfo * pInfo = *it;
+		if(pInfo->dwThreadId == dwThreadId)
+		{
+			return pInfo;
+		}
+	}
+
+	//no such thread recorded
+	return NULL;
+}

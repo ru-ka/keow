@@ -30,5 +30,5 @@
 //#include <strsafe.h> //NOT HERE - see includes.h
 
 
-//compatability for older versions of windows
+//compatability for older versions of windows 
 #include "LegacyWindows.h"

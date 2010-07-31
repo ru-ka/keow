@@ -30,43 +30,43 @@
 // any more parameters and the caller just puts a struct pointer in one of these
 // eax is the return value
 
-void SysCalls::sys_getuid(CONTEXT &ctx)
+void SysCalls::sys_getuid(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_uid;
 }
 
-void SysCalls::sys_geteuid(CONTEXT &ctx)
+void SysCalls::sys_geteuid(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_euid;
 }
 
-void SysCalls::sys_getgid(CONTEXT &ctx)
+void SysCalls::sys_getgid(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_gid;
 }
 
-void SysCalls::sys_getegid(CONTEXT &ctx)
+void SysCalls::sys_getegid(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_egid;
 }
 
 
-void SysCalls::sys_getuid32(CONTEXT &ctx)
+void SysCalls::sys_getuid32(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_uid;
 }
 
-void SysCalls::sys_geteuid32(CONTEXT &ctx)
+void SysCalls::sys_geteuid32(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_euid;
 }
 
-void SysCalls::sys_getgid32(CONTEXT &ctx)
+void SysCalls::sys_getgid32(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_gid;
 }
 
-void SysCalls::sys_getegid32(CONTEXT &ctx)
+void SysCalls::sys_getegid32(CONTEXT& ctx)
 {
 	ctx.Eax = P->m_egid;
 }
@@ -76,7 +76,7 @@ void SysCalls::sys_getegid32(CONTEXT &ctx)
 /*
  * int setreuid(int ruid, int euid)
  */
-void SysCalls::sys_setreuid(CONTEXT &ctx)
+void SysCalls::sys_setreuid(CONTEXT& ctx)
 {
 	int ruid = ctx.Ebx;
 	int euid = ctx.Ecx;
@@ -114,7 +114,7 @@ void SysCalls::sys_setreuid(CONTEXT &ctx)
 /*
  * int setregid(int rgid, int egid)
  */
-void SysCalls::sys_setregid(CONTEXT &ctx)
+void SysCalls::sys_setregid(CONTEXT& ctx)
 {
 	int rgid = ctx.Ebx;
 	int egid = ctx.Ecx;
@@ -149,12 +149,12 @@ void SysCalls::sys_setregid(CONTEXT &ctx)
 
 }
 
-void SysCalls::sys_setreuid32(CONTEXT &ctx)
+void SysCalls::sys_setreuid32(CONTEXT& ctx)
 {
 	sys_setreuid(ctx);
 }
 
-void SysCalls::sys_setregid32(CONTEXT &ctx)
+void SysCalls::sys_setregid32(CONTEXT& ctx)
 {
 	sys_setregid(ctx);
 }
@@ -163,7 +163,7 @@ void SysCalls::sys_setregid32(CONTEXT &ctx)
 /*
  * int chmod(const char *path, mode_t mode);
  */
-void SysCalls::sys_chmod(CONTEXT &ctx)
+void SysCalls::sys_chmod(CONTEXT& ctx)
 {
 	ktrace("IMPLEMENT proper permissions changes\n");
 
@@ -174,7 +174,7 @@ void SysCalls::sys_chmod(CONTEXT &ctx)
 /*
  * int fchmod(int fildes, mode_t mode);
  */
-void SysCalls::sys_fchmod(CONTEXT &ctx)
+void SysCalls::sys_fchmod(CONTEXT& ctx)
 {
 	ktrace("IMPLEMENT proper permissions changes\n");
 
@@ -182,7 +182,7 @@ void SysCalls::sys_fchmod(CONTEXT &ctx)
 	ctx.Eax = 0;
 }
 
-void SysCalls::sys_chown(CONTEXT &ctx)
+void SysCalls::sys_chown(CONTEXT& ctx)
 {
 	ktrace("IMPLEMENT proper permissions changes\n");
 
@@ -190,7 +190,7 @@ void SysCalls::sys_chown(CONTEXT &ctx)
 	ctx.Eax = 0;
 }
 
-void SysCalls::sys_lchown(CONTEXT &ctx)
+void SysCalls::sys_lchown(CONTEXT& ctx)
 {
 	ktrace("IMPLEMENT proper permissions changes\n");
 
@@ -198,7 +198,7 @@ void SysCalls::sys_lchown(CONTEXT &ctx)
 	ctx.Eax = 0;
 }
 
-void SysCalls::sys_fchown(CONTEXT &ctx)
+void SysCalls::sys_fchown(CONTEXT& ctx)
 {
 	ktrace("IMPLEMENT proper permissions changes\n");
 
@@ -206,7 +206,7 @@ void SysCalls::sys_fchown(CONTEXT &ctx)
 	ctx.Eax = 0;
 }
 
-void SysCalls::sys_lchown32(CONTEXT &ctx)
+void SysCalls::sys_lchown32(CONTEXT& ctx)
 {
 	ktrace("IMPLEMENT proper permissions changes\n");
 
@@ -214,7 +214,7 @@ void SysCalls::sys_lchown32(CONTEXT &ctx)
 	ctx.Eax = 0;
 }
 
-void SysCalls::sys_fchown32(CONTEXT &ctx)
+void SysCalls::sys_fchown32(CONTEXT& ctx)
 {
 	ktrace("IMPLEMENT proper permissions changes\n");
 
@@ -222,7 +222,7 @@ void SysCalls::sys_fchown32(CONTEXT &ctx)
 	ctx.Eax = 0;
 }
 
-void SysCalls::sys_chown32(CONTEXT &ctx)
+void SysCalls::sys_chown32(CONTEXT& ctx)
 {
 	ktrace("IMPLEMENT proper permissions changes\n");
 

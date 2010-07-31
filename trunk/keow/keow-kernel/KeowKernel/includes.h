@@ -54,6 +54,8 @@
 
 //keow stuff - only the generic ones here (eg Filesystem, not FilesystemKeow)
 
+#include "Utils.h"
+#include "SysCalls.h"
 #include "ConstantMapping.h"
 #include "Path.h"
 #include "IOHandler.h"
@@ -63,5 +65,4 @@
 #include "MountPoint.h"
 #include "KernelTable.h"
 #include "MemoryHelper.h"
-#include "Utils.h"
 
