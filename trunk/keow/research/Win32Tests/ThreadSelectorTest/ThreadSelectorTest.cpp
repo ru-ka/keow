@@ -158,6 +158,34 @@ void allocateLDT()
 
 		ldtInfo.Start = dwSelector;
 		rc = NtSetInformationProcess(GetCurrentProcess(), ProcessLdtInformation, &ldtInfo, sizeof(ldtInfo));
+		if(rc!=0) {
+			printf("!fail %lx\n", rc);
+		}
+
+		//Copy of an LDT from trcing busybox through keow
+		//Fails - test why
+		printf("Keow LDT\n");
+		ldt->HighWord.Bits.BaseHi		= 0x08;
+		ldt->HighWord.Bits.BaseMid	    = 0x18;
+		ldt->BaseLow					= 0x4800;
+		ldt->HighWord.Bits.LimitHi	    = 0x0f;
+		ldt->LimitLow					= 0xffff;
+		ldt->HighWord.Bits.Type		    = 0x13;
+		ldt->HighWord.Bits.Dpl		    = 0x03;
+		ldt->HighWord.Bits.Pres		    = 0x01;
+		ldt->HighWord.Bits.Sys		    = 0x01;
+		ldt->HighWord.Bits.Reserved_0	= 0x00;
+		ldt->HighWord.Bits.Default_Big	= 0x01;
+		ldt->HighWord.Bits.Granularity	= 0x01;
+		//Seems to fail because base+limit(4k) >= 0x7FFFFFFF = user address limit
+
+		dwSelector = 12 * sizeof(LDT_ENTRY); 
+		ldtInfo.Start = dwSelector;
+		rc = NtSetInformationProcess(GetCurrentProcess(), ProcessLdtInformation, &ldtInfo, sizeof(ldtInfo));
+		if(rc!=0) {
+			printf("!fail %lx\n", rc);
+			exit(0);
+		}
 
 		return;
 	}
