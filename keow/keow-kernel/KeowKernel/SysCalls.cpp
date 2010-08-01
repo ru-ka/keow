@@ -470,12 +470,18 @@ void SysCalls::HandleInt80SysCall(CONTEXT& ctx)
 
 void SysCalls::Unhandled(CONTEXT& ctx)
 {
+	// eax is the syscall number
+	// ebx,ecx,edx,esi,edi,ebp are up to 6(max) parameters
+	// any more parameters and the caller just puts a struct pointer in one of these
+	// eax is the return value
 	ktrace("NOT IMPLEMENTED: syscall %d %s\n", ctx.Eax, ((int)ctx.Eax)<linux::NR_syscalls?syscall_names[ctx.Eax]:"?");
 	ktrace("               : Eax=0x%lx,%ld\n", ctx.Eax);
 	ktrace("               : Ebx=0x%lx,%ld\n", ctx.Ebx);
 	ktrace("               : Ecx=0x%lx,%ld\n", ctx.Ecx);
 	ktrace("               : Edx=0x%lx,%ld\n", ctx.Edx);
-	ktrace("               : ...\n");
+	ktrace("               : Esi=0x%lx,%ld\n", ctx.Esi);
+	ktrace("               : Edi=0x%lx,%ld\n", ctx.Edi);
+	ktrace("               : Ebp=0x%lx,%ld\n", ctx.Ebp);
 	//DebugBreak();
 	ctx.Eax = -linux::ENOSYS;
 }
@@ -657,7 +663,6 @@ void SysCalls::sys_timer_gettime(CONTEXT& ctx)		{Unhandled(ctx);}
 void SysCalls::sys_timer_getoverrun(CONTEXT& ctx)		{Unhandled(ctx);}
 void SysCalls::sys_timer_delete(CONTEXT& ctx)		{Unhandled(ctx);}
 void SysCalls::sys_clock_settime(CONTEXT& ctx)		{Unhandled(ctx);}
-void SysCalls::sys_clock_gettime(CONTEXT& ctx)		{Unhandled(ctx);}
 void SysCalls::sys_clock_getres(CONTEXT& ctx)		{Unhandled(ctx);}
 void SysCalls::sys_clock_nanosleep(CONTEXT& ctx)		{Unhandled(ctx);}
 void SysCalls::sys_statfs64(CONTEXT& ctx)		{Unhandled(ctx);}
