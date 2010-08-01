@@ -25,8 +25,8 @@
 #define LINUX_INCLUDES_H
 
 
-#include "linux/defines.h"
-#include "linux/types.h"
+#include "linux/linux_defines.h"
+#include "linux/linux_types.h"
 
 
 

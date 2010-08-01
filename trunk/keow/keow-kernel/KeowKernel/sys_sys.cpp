@@ -335,31 +335,6 @@ void SysCalls::sys_kill(CONTEXT& ctx)
 
 
 /*
- * int gettimeofday(timeval* tv, timezone* tz)
- * same as time() but has tv_usec too;
- */
-void SysCalls::sys_gettimeofday(CONTEXT& ctx)
-{
-	linux::timeval * pTv = (linux::timeval*)ctx.Ebx;
-	//never used for linux -   linux::timezone * tz = (linux::timezone*)pCtx->Ecx;
-	linux::timeval tv;
-
-	SYSTEMTIME st;
-	FILETIME ft;
-	GetSystemTime(&st);
-	SystemTimeToFileTime(&st,&ft);
-
-	tv.tv_sec = FILETIME_TO_TIME_T(ft);
-	tv.tv_usec = st.wMilliseconds;
-
-	P->WriteMemory((ADDR)pTv, sizeof(tv), &tv);
-	ctx.Eax = 0;
-}
-
-/*****************************************************************************/
-
-
-/*
  * long ptrace(enum request, int pid, void* addr, void* data)
  */
 void SysCalls::sys_ptrace(CONTEXT& ctx)

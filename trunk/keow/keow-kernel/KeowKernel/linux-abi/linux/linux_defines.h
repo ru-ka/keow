@@ -1102,4 +1102,12 @@ enum sock_type {
 };
 
 
+const int CLOCK_REALTIME           = 0;
+const int CLOCK_MONOTONIC          = 1;
+const int CLOCK_PROCESS_CPUTIME_ID = 2;
+const int CLOCK_THREAD_CPUTIME_ID  = 3;
+const int CLOCK_MONOTONIC_RAW      = 4;
+const int CLOCK_REALTIME_COARSE    = 5;
+const int CLOCK_MONOTONIC_COARSE   = 6;
+
 };

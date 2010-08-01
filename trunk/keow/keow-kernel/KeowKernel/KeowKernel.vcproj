@@ -948,6 +948,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\sys_time.cpp"
+				>
+			</File>
+			<File
 				RelativePath="SysCallDll_Kernel.cpp"
 				>
 				<FileConfiguration
@@ -1095,7 +1099,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\linux-abi\linux\linux_defines.h"
+				>
+			</File>
+			<File
 				RelativePath="linux_includes.h"
+				>
+			</File>
+			<File
+				RelativePath=".\linux-abi\linux\linux_types.h"
 				>
 			</File>
 			<File
