@@ -378,7 +378,7 @@ void SysCalls::sys_set_thread_area(CONTEXT& ctx)
 		}
 	}
 
-	if(MemoryHelper::SetLDTSelector(T->dwThreadId, user_desc))
+	if(MemoryHelper::SetLDTSelector(T->dwThreadId, user_desc, true))
 	{
 		//write result back to process
 		P->WriteMemory(user_desc_Addr, sizeof(user_desc), &user_desc);
@@ -429,15 +429,6 @@ void SysCalls::sys_modify_ldt(CONTEXT& ctx)
 	}
 	P->ReadMemory(&user_desc, user_desc_Addr, sizeof(user_desc));
 
-	//These LDT entries should be Thread specific
-	//But on Windows they are only per-Process.
-	//In a similar way to the get/set_thread_area() calls,
-	//we will generate an invalid LDT entry, so that we can
-	//trap it's assignment to a segment register and correct the behaviour.
-#pragma message("TODO: fix modify_ldt")
-ctx.Eax = -linux::ENOSYS;
-return;
-
 	//default return, unless we succeed
 	ctx.Eax = -linux::EINVAL;
 
@@ -452,7 +443,7 @@ return;
 		}
 		break;
 	case 1: //WRITE LDT
-		if(MemoryHelper::SetLDTSelector(T->dwThreadId, user_desc))
+		if(MemoryHelper::SetLDTSelector(T->dwThreadId, user_desc, false))
 		{
 			//write result back to process
 			P->WriteMemory(user_desc_Addr, sizeof(user_desc), &user_desc);

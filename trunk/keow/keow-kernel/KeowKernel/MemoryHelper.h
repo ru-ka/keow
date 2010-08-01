@@ -45,8 +45,9 @@ public:
 	static string ReadString(HANDLE hFromProcess, ADDR fromAddr);
 	static int AllocateLDTSelector(DWORD dwThreadId);
 	static bool GetLDTSelector(DWORD dwThreadId, linux::user_desc &user_desc);
-	static bool SetLDTSelector(DWORD dwThreadId, linux::user_desc &user_desc);
+	static bool SetLDTSelector(DWORD dwThreadId, linux::user_desc &user_desc, bool bIsReallyLDT);
 	static bool HandlePossibleLDTException(WORD instruction, ADDR exceptionAddress, CONTEXT& ctx);
+	static int CalculateLDTEntryForThread(DWORD dwThreadId, int entry_number);
 
 private: 
 	MemoryHelper();

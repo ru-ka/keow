@@ -46,6 +46,9 @@ typedef BYTE* ADDR;
 #define MAX_SIGNALS			linux::_NSIG
 #define MAX_LDT_ENTRIES		8192
 
+//We skip LDT entries that overlap GDT indexes. See MemoryHelper::AllocateLDTEntry()
+#define FIRST_USABLE_LDT_ENTRY	16
+
 
 class Process  
 {
@@ -225,6 +228,7 @@ public:
 	//keep track of LDT entries allocated
 	struct LdtData {
 		DWORD dwAllocatingThreadId;
+		bool bIsReallyLDT; //is this a real LDT entry, or fake GDT entry for get/set_thread_area
 		linux::user_desc user_desc;
 	};
 	LdtData m_LdtEntries[MAX_LDT_ENTRIES];
