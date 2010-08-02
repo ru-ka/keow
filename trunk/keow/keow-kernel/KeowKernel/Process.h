@@ -47,7 +47,7 @@ typedef BYTE* ADDR;
 #define MAX_LDT_ENTRIES		8192
 
 //We skip LDT entries that overlap GDT indexes. See MemoryHelper::AllocateLDTEntry()
-#define FIRST_USABLE_LDT_ENTRY	16
+#define FIRST_USABLE_LDT_ENTRY	    16
 
 
 class Process  
