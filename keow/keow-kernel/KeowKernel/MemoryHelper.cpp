@@ -453,7 +453,7 @@ static int GetLdtCount()
 }
 */
 
-int MemoryHelper::AllocateLDTSelector(DWORD dwThreadId)
+int MemoryHelper::AllocateLDTSelector(DWORD dwThreadId, bool bIsForLDT)
 {
 	//Look for a free LDT entry to use
 	//Windows does not use LDT, so any entries are our to use, so just using internal tables to keep track
@@ -462,19 +462,37 @@ int MemoryHelper::AllocateLDTSelector(DWORD dwThreadId)
 	 Windows uses only 9 GDT entries
 	 And linux code thinks we are returning a GDT selector index,
 	 (so it converts the index into a selector but does not set the LDT bit (bit 3)).
+
 	 By returning LDT indexes > 9  we generate invalid GDT entries,
 	 then we can trap when they are assigned to a segment register (currently GS in libpthread).
 	 This trapping occurs in MemoryHelper::HandlePossibleLDTException()
-	*/
-	int start = FIRST_USABLE_LDT_ENTRY;
 
-	for(int i=start; i<MAX_LDT_ENTRIES; ++i)
+	 To emulate per thread LDT behaviour (for sys_modify_ldt), we allocate an extra LDT entry.
+	 This entry is the one returned to callers, but is always INVALID.
+	 When we trap it's use, we then use the 'real' entry.
+	*/
+
+	for(int i=FIRST_USABLE_LDT_ENTRY; i<MAX_LDT_ENTRIES; ++i)
 	{
 		if(P->m_LdtEntries[i].dwAllocatingThreadId == 0)
 		{
 			//unallocated - can use this one
-			P->m_LdtEntries[i].dwAllocatingThreadId = dwThreadId;
-			ktrace("Allocated LDT[%d] for thread %lx\n", i, dwThreadId);
+
+			//If the caller is requesting an LDT entry, then we make the returned index a fake
+			//This means they caller will alway use this invalid entry, and subsequent called
+			//to CalculateLDTEntryForThread() will allocate the correct per-thread index.
+			if(bIsForLDT) {
+				P->m_LdtEntries[i].bIsReallyLDT = bIsForLDT;
+				P->m_LdtEntries[i].dwAllocatingThreadId = -1; //nothing will match this, users will get a new entry when they use it
+				ktrace("Allocated LDT[%d] as LDT marker for thread %lx\n", i, dwThreadId);
+			}
+			else
+			{
+				P->m_LdtEntries[i].bIsReallyLDT = bIsForLDT;
+				P->m_LdtEntries[i].dwAllocatingThreadId = dwThreadId;
+				ktrace("Allocated LDT[%d] for thread %lx\n", i, dwThreadId);
+			}
+
 			return i;
 		}
 	}
@@ -629,7 +647,7 @@ bool MemoryHelper::HandlePossibleLDTException(WORD instruction, ADDR exceptionAd
 #define MAKE_SELECTOR(ldt_index)  ( ((ldt_index)<<3) | 0x7 ) /* LDT selector for DPL=3 */
 #define EXTRACT_INDEX(selector)   ( selector >> 3 )
 
-	// Testing for instrunctions that SET a Selector register
+	// Testing for instructions that SET a Selector register
 	// These causes determined by debugging the linux process with gdb and recording the specific cases.
 	int index;
 	switch(instruction) {
@@ -663,15 +681,15 @@ int MemoryHelper::CalculateLDTEntryForThread(DWORD dwThreadId, int requested_ind
 		return 0; //bad index
 	}
 
-	Process::LdtData *pKernelUserDesc = &P->m_LdtEntries[requested_index];
+	Process::LdtData *pRequestedUserDesc = &P->m_LdtEntries[requested_index];
 
-	if(pKernelUserDesc->dwAllocatingThreadId == dwThreadId)
+	if(pRequestedUserDesc->dwAllocatingThreadId == dwThreadId)
 	{
 		//The entry does belong to this thread, go ahead and use it
 		return requested_index;
 	}
 
-	if(pKernelUserDesc->dwAllocatingThreadId == 0)
+	if(pRequestedUserDesc->dwAllocatingThreadId == 0)
 	{
 		//badness, entry has never been allocated in the first place!
 		return 0;
@@ -682,9 +700,9 @@ int MemoryHelper::CalculateLDTEntryForThread(DWORD dwThreadId, int requested_ind
 	//
 	for(int i=FIRST_USABLE_LDT_ENTRY; i<MAX_LDT_ENTRIES; ++i) 
 	{
-		pKernelUserDesc = &P->m_LdtEntries[i];
-		if(pKernelUserDesc->user_desc.entry_number == requested_index
-		&& pKernelUserDesc->dwAllocatingThreadId   == dwThreadId )
+		Process::LdtData *ud = &P->m_LdtEntries[i];
+		if(ud->user_desc.entry_number == requested_index
+		&& ud->dwAllocatingThreadId   == dwThreadId )
 		{
 			// This is the correct entry for the thread
 			return i;
@@ -695,7 +713,7 @@ int MemoryHelper::CalculateLDTEntryForThread(DWORD dwThreadId, int requested_ind
 	// This will be because the entry was allocated in another thread and
 	// would normally be expected to be usable for Thread Local Storage across threads.
 	// We need to allocate an entry for this thread to use.
-	int new_index = AllocateLDTSelector(dwThreadId);
+	int new_index = AllocateLDTSelector(dwThreadId, pRequestedUserDesc->bIsReallyLDT);
 	if(new_index == -1) {
 		//failed
 		return 0;

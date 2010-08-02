@@ -370,7 +370,7 @@ void SysCalls::sys_set_thread_area(CONTEXT& ctx)
 
 	//may need to allocate a selector
 	if(user_desc.entry_number == -1) {
-		user_desc.entry_number = MemoryHelper::AllocateLDTSelector(T->dwThreadId);
+		user_desc.entry_number = MemoryHelper::AllocateLDTSelector(T->dwThreadId, false);
 		if(user_desc.entry_number == -1) {
 			//no room left
 			ctx.Eax = -linux::ESRCH;
@@ -378,7 +378,7 @@ void SysCalls::sys_set_thread_area(CONTEXT& ctx)
 		}
 	}
 
-	if(MemoryHelper::SetLDTSelector(T->dwThreadId, user_desc, true))
+	if(MemoryHelper::SetLDTSelector(T->dwThreadId, user_desc, false))
 	{
 		//write result back to process
 		P->WriteMemory(user_desc_Addr, sizeof(user_desc), &user_desc);
@@ -443,7 +443,7 @@ void SysCalls::sys_modify_ldt(CONTEXT& ctx)
 		}
 		break;
 	case 1: //WRITE LDT
-		if(MemoryHelper::SetLDTSelector(T->dwThreadId, user_desc, false))
+		if(MemoryHelper::SetLDTSelector(T->dwThreadId, user_desc, true))
 		{
 			//write result back to process
 			P->WriteMemory(user_desc_Addr, sizeof(user_desc), &user_desc);
