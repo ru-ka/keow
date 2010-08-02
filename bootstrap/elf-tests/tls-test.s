@@ -15,7 +15,7 @@
 _write:
 .LFB0:
 	.file 1 "tls-test.c"
-	.loc 1 13 0
+	.loc 1 16 0
 	.cfi_startproc
 	pushl	%ebp
 .LCFI0:
@@ -26,23 +26,23 @@ _write:
 	.cfi_def_cfa_register 5
 	pushl	%ebx
 	subl	$16, %esp
-	.loc 1 14 0
+	.loc 1 17 0
 	movl	$4, -8(%ebp)
-	.loc 1 15 0
+	.loc 1 18 0
 	movl	-8(%ebp), %eax
 	movl	8(%ebp), %ebx
 	.cfi_offset 3, -12
 	movl	12(%ebp), %ecx
 	movl	16(%ebp), %edx
 #APP
-# 15 "tls-test.c" 1
+# 18 "tls-test.c" 1
 	int $0x80 
 	
 # 0 "" 2
-	.loc 1 20 0
+	.loc 1 23 0
 #NO_APP
 	movl	$0, %eax
-	.loc 1 21 0
+	.loc 1 24 0
 	addl	$16, %esp
 	popl	%ebx
 	popl	%ebp
@@ -54,7 +54,7 @@ _write:
 	.type	_syscall, @function
 _syscall:
 .LFB1:
-	.loc 1 24 0
+	.loc 1 28 0
 	.cfi_startproc
 	pushl	%ebp
 .LCFI2:
@@ -64,20 +64,20 @@ _syscall:
 .LCFI3:
 	.cfi_def_cfa_register 5
 	pushl	%ebx
-	.loc 1 25 0
+	.loc 1 29 0
 	movl	8(%ebp), %eax
 	movl	12(%ebp), %edx
 	movl	%edx, %ebx
 	.cfi_offset 3, -12
 #APP
-# 25 "tls-test.c" 1
+# 29 "tls-test.c" 1
 	int $0x80 
 	
 # 0 "" 2
-	.loc 1 30 0
+	.loc 1 34 0
 #NO_APP
 	movl	$0, %eax
-	.loc 1 31 0
+	.loc 1 35 0
 	popl	%ebx
 	popl	%ebp
 	ret
@@ -88,7 +88,7 @@ _syscall:
 	.type	exit_n, @function
 exit_n:
 .LFB2:
-	.loc 1 33 0
+	.loc 1 38 0
 	.cfi_startproc
 	pushl	%ebp
 .LCFI4:
@@ -98,12 +98,12 @@ exit_n:
 .LCFI5:
 	.cfi_def_cfa_register 5
 	subl	$8, %esp
-	.loc 1 34 0
+	.loc 1 39 0
 	movl	8(%ebp), %eax
 	movl	%eax, 4(%esp)
 	movl	$1, (%esp)
 	call	_syscall
-	.loc 1 35 0
+	.loc 1 40 0
 	leave
 	ret
 	.cfi_endproc
@@ -113,7 +113,7 @@ exit_n:
 	.type	print, @function
 print:
 .LFB3:
-	.loc 1 39 0
+	.loc 1 45 0
 	.cfi_startproc
 	pushl	%ebp
 .LCFI6:
@@ -123,9 +123,9 @@ print:
 .LCFI7:
 	.cfi_def_cfa_register 5
 	subl	$28, %esp
-	.loc 1 40 0
+	.loc 1 46 0
 	movl	$0, -4(%ebp)
-	.loc 1 41 0
+	.loc 1 47 0
 	jmp	.L8
 .L9:
 	addl	$1, -4(%ebp)
@@ -135,14 +135,14 @@ print:
 	movzbl	(%eax), %eax
 	testb	%al, %al
 	jne	.L9
-	.loc 1 42 0
+	.loc 1 48 0
 	movl	-4(%ebp), %eax
 	movl	%eax, 8(%esp)
 	movl	8(%ebp), %eax
 	movl	%eax, 4(%esp)
 	movl	$1, (%esp)
 	call	_write
-	.loc 1 43 0
+	.loc 1 49 0
 	leave
 	ret
 	.cfi_endproc
@@ -156,7 +156,7 @@ print:
 	.type	print_dec, @function
 print_dec:
 .LFB4:
-	.loc 1 46 0
+	.loc 1 53 0
 	.cfi_startproc
 	pushl	%ebp
 .LCFI8:
@@ -167,27 +167,27 @@ print_dec:
 	.cfi_def_cfa_register 5
 	pushl	%ebx
 	subl	$44, %esp
-	.loc 1 50 0
+	.loc 1 57 0
 	cmpl	$0, 8(%ebp)
 	jns	.L12
 	.cfi_offset 3, -12
-	.loc 1 51 0
+	.loc 1 58 0
 	movl	$1, 8(%esp)
 	movl	$.LC0, 4(%esp)
 	movl	$1, (%esp)
 	call	_write
-	.loc 1 52 0
+	.loc 1 59 0
 	negl	8(%ebp)
 .L12:
-	.loc 1 55 0
+	.loc 1 62 0
 	movl	$19, -8(%ebp)
-	.loc 1 56 0
+	.loc 1 63 0
 	movl	-8(%ebp), %eax
 	movb	$0, -28(%ebp,%eax)
 .L13:
-	.loc 1 58 0
+	.loc 1 65 0
 	subl	$1, -8(%ebp)
-	.loc 1 59 0
+	.loc 1 66 0
 	movl	-8(%ebp), %ebx
 	movl	8(%ebp), %ecx
 	movl	$1717986919, %edx
@@ -206,7 +206,7 @@ print_dec:
 	movl	%edx, %eax
 	addl	$48, %eax
 	movb	%al, -28(%ebp,%ebx)
-	.loc 1 60 0
+	.loc 1 67 0
 	movl	8(%ebp), %ecx
 	movl	$1717986919, %edx
 	movl	%ecx, %eax
@@ -218,10 +218,10 @@ print_dec:
 	subl	%eax, %ecx
 	movl	%ecx, %eax
 	movl	%eax, 8(%ebp)
-	.loc 1 61 0
+	.loc 1 68 0
 	cmpl	$0, 8(%ebp)
 	jne	.L13
-	.loc 1 62 0
+	.loc 1 69 0
 	movl	$20, %eax
 	movl	%eax, %edx
 	subl	-8(%ebp), %edx
@@ -232,7 +232,7 @@ print_dec:
 	movl	%eax, 4(%esp)
 	movl	$1, (%esp)
 	call	_write
-	.loc 1 63 0
+	.loc 1 70 0
 	addl	$44, %esp
 	popl	%ebx
 	popl	%ebp
@@ -248,7 +248,7 @@ print_dec:
 	.type	print_hex, @function
 print_hex:
 .LFB5:
-	.loc 1 66 0
+	.loc 1 74 0
 	.cfi_startproc
 	pushl	%ebp
 .LCFI10:
@@ -258,18 +258,18 @@ print_hex:
 .LCFI11:
 	.cfi_def_cfa_register 5
 	subl	$44, %esp
-	.loc 1 70 0
+	.loc 1 78 0
 	movl	$.LC1, (%esp)
 	call	print
-	.loc 1 72 0
+	.loc 1 80 0
 	movl	$19, -4(%ebp)
-	.loc 1 73 0
+	.loc 1 81 0
 	movl	-4(%ebp), %eax
 	movb	$0, -24(%ebp,%eax)
 .L18:
-	.loc 1 75 0
+	.loc 1 83 0
 	subl	$1, -4(%ebp)
-	.loc 1 76 0
+	.loc 1 84 0
 	movl	-4(%ebp), %edx
 	movl	8(%ebp), %eax
 	andl	$15, %eax
@@ -284,12 +284,12 @@ print_hex:
 	andl	$15, %ecx
 	addl	%ecx, %eax
 	movb	%al, -24(%ebp,%edx)
-	.loc 1 77 0
+	.loc 1 85 0
 	shrl	$4, 8(%ebp)
-	.loc 1 78 0
+	.loc 1 86 0
 	cmpl	$0, 8(%ebp)
 	jne	.L18
-	.loc 1 79 0
+	.loc 1 87 0
 	movl	$20, %eax
 	movl	%eax, %edx
 	subl	-4(%ebp), %edx
@@ -300,7 +300,7 @@ print_hex:
 	movl	%eax, 4(%esp)
 	movl	$1, (%esp)
 	call	_write
-	.loc 1 80 0
+	.loc 1 88 0
 	leave
 	ret
 	.cfi_endproc
@@ -308,35 +308,39 @@ print_hex:
 	.size	print_hex, .-print_hex
 	.section	.rodata
 .LC2:
-	.string	"tls-test start\n"
+	.string	"Testing "
 .LC3:
-	.string	"buff "
+	.string	"byte"
 .LC4:
-	.string	"\n"
+	.string	"page"
 .LC5:
-	.string	"error\n"
+	.string	" granularity\n"
 .LC6:
-	.string	"entry_num "
+	.string	"buff "
 .LC7:
-	.string	"selector "
+	.string	"\n"
 .LC8:
-	.string	"gs="
+	.string	"error\n"
 .LC9:
-	.string	"buff[13]="
+	.string	"entry_num "
 .LC10:
-	.string	",  "
+	.string	"selector "
 .LC11:
-	.string	"attempting write access\n"
+	.string	"gs="
 .LC12:
-	.string	"new buff[13]="
+	.string	"buff[13]="
 .LC13:
-	.string	"end\n"
+	.string	",  "
+.LC14:
+	.string	"attempting write access\n"
+.LC15:
+	.string	"new buff[13]="
 	.text
-.globl _start
-	.type	_start, @function
-_start:
+.globl test_TLS
+	.type	test_TLS, @function
+test_TLS:
 .LFB6:
-	.loc 1 83 0
+	.loc 1 95 0
 	.cfi_startproc
 	pushl	%ebp
 .LCFI12:
@@ -346,170 +350,150 @@ _start:
 .LCFI13:
 	.cfi_def_cfa_register 5
 	subl	$24, %esp
-	.loc 1 87 0
+	.loc 1 99 0
 	movl	$.LC2, (%esp)
 	call	print
-	.loc 1 89 0
-	movl	$0, -4(%ebp)
-	jmp	.L21
+	.loc 1 100 0
+	cmpl	$0, 8(%ebp)
+	jne	.L21
+	movl	$.LC3, %eax
+	jmp	.L22
+.L21:
+	movl	$.LC4, %eax
 .L22:
-	.loc 1 90 0
+	movl	%eax, (%esp)
+	call	print
+	.loc 1 101 0
+	movl	$.LC5, (%esp)
+	call	print
+	.loc 1 104 0
+	movl	$0, -4(%ebp)
+	jmp	.L23
+.L24:
+	.loc 1 105 0
 	movl	-4(%ebp), %eax
 	movl	-4(%ebp), %edx
 	movb	%dl, buff(%eax)
-	.loc 1 89 0
+	.loc 1 104 0
 	addl	$1, -4(%ebp)
-.L21:
+.L23:
 	movl	-4(%ebp), %eax
 	cmpl	$4095, %eax
-	jbe	.L22
-	.loc 1 92 0
-	movl	$.LC3, (%esp)
+	jbe	.L24
+	.loc 1 107 0
+	movl	$.LC6, (%esp)
 	call	print
-	.loc 1 93 0
+	.loc 1 108 0
 	movl	$buff, %eax
 	movl	%eax, (%esp)
 	call	print_hex
-	.loc 1 94 0
-	movl	$.LC4, (%esp)
+	.loc 1 109 0
+	movl	$.LC7, (%esp)
 	call	print
-	.loc 1 98 0
+	.loc 1 113 0
 	movl	$-1, ud
-	.loc 1 99 0
+	.loc 1 114 0
 	movl	$buff, %eax
 	movl	%eax, ud+4
-	.loc 1 100 0
+	.loc 1 115 0
 	movl	$4096, ud+8
-	.loc 1 101 0
+	.loc 1 116 0
+	movl	8(%ebp), %eax
+	andl	$1, %eax
+	andl	$1, %eax
+	movl	%eax, %edx
+	sall	$4, %edx
+	movzbl	ud+12, %eax
+	andl	$-17, %eax
+	orl	%edx, %eax
+	movb	%al, ud+12
+	.loc 1 117 0
 	movzbl	ud+12, %eax
 	orl	$1, %eax
 	movb	%al, ud+12
-	.loc 1 102 0
+	.loc 1 118 0
 	movzbl	ud+12, %eax
 	andl	$-7, %eax
 	movb	%al, ud+12
-	.loc 1 103 0
+	.loc 1 119 0
 	movzbl	ud+12, %eax
 	andl	$-9, %eax
 	movb	%al, ud+12
-	.loc 1 104 0
-	movzbl	ud+12, %eax
-	andl	$-17, %eax
-	movb	%al, ud+12
-	.loc 1 105 0
+	.loc 1 120 0
 	movzbl	ud+12, %eax
 	andl	$-33, %eax
 	movb	%al, ud+12
-	.loc 1 106 0
+	.loc 1 121 0
 	movzbl	ud+12, %eax
 	orl	$64, %eax
 	movb	%al, ud+12
-	.loc 1 108 0
+	.loc 1 123 0
 	movl	$ud, 4(%esp)
 	movl	$243, (%esp)
 	call	_syscall
 	movl	%eax, -4(%ebp)
-	.loc 1 109 0
+	.loc 1 124 0
 	cmpl	$0, -4(%ebp)
-	jns	.L23
-	.loc 1 110 0
-	movl	$.LC5, (%esp)
+	jns	.L25
+	.loc 1 125 0
+	movl	$.LC8, (%esp)
 	call	print
-	.loc 1 111 0
+	.loc 1 126 0
 	movl	$2, (%esp)
 	call	exit_n
-.L23:
-	.loc 1 113 0
-	movl	$.LC6, (%esp)
+.L25:
+	.loc 1 128 0
+	movl	$.LC9, (%esp)
 	call	print
-	.loc 1 114 0
+	.loc 1 129 0
 	movl	ud, %eax
 	movl	%eax, (%esp)
 	call	print_dec
-	.loc 1 115 0
-	movl	$.LC4, (%esp)
+	.loc 1 130 0
+	movl	$.LC7, (%esp)
 	call	print
-	.loc 1 118 0
+	.loc 1 133 0
 	movl	ud, %eax
 	sall	$3, %eax
 	orl	$3, %eax
 	movl	%eax, -8(%ebp)
-	.loc 1 119 0
-	movl	$.LC7, (%esp)
+	.loc 1 134 0
+	movl	$.LC10, (%esp)
 	call	print
-	.loc 1 120 0
+	.loc 1 135 0
 	movl	-8(%ebp), %eax
 	movl	%eax, (%esp)
 	call	print_hex
-	.loc 1 121 0
-	movl	$.LC4, (%esp)
+	.loc 1 136 0
+	movl	$.LC7, (%esp)
 	call	print
-	.loc 1 122 0
-	movl	-8(%ebp), %edx
+	.loc 1 137 0
+	movl	-8(%ebp), %eax
 #APP
-# 122 "tls-test.c" 1
-	movw %ds, %ax 
-	movw %ax, %fs 
-	movl %edx, %eax 
+# 137 "tls-test.c" 1
+	movl %eax, %eax 
 	movw %ax, %gs 
 	
 # 0 "" 2
-	.loc 1 131 0
+	.loc 1 144 0
 #NO_APP
-	movl	$.LC8, (%esp)
+	movl	$.LC11, (%esp)
 	call	print
-	.loc 1 132 0
+	.loc 1 145 0
 #APP
-# 132 "tls-test.c" 1
+# 145 "tls-test.c" 1
 	movw %gs, %ax
 # 0 "" 2
 #NO_APP
 	movl	%eax, -4(%ebp)
-	.loc 1 133 0
+	.loc 1 146 0
 	movl	-4(%ebp), %eax
 	movl	%eax, (%esp)
 	call	print_hex
-	.loc 1 134 0
-	movl	$.LC4, (%esp)
+	.loc 1 147 0
+	movl	$.LC7, (%esp)
 	call	print
-	.loc 1 138 0
-	movl	$.LC9, (%esp)
-	call	print
-	.loc 1 139 0
-	movzbl	buff+13, %eax
-	movzbl	%al, %eax
-	movl	%eax, (%esp)
-	call	print_hex
-	.loc 1 140 0
-	movl	$.LC10, (%esp)
-	call	print
-	.loc 1 141 0
-	movl	-8(%ebp), %edx
-#APP
-# 141 "tls-test.c" 1
-	movl %gs:13, %eax 
-	movl %eax, %edx 
-	
-# 0 "" 2
-#NO_APP
-	movl	%edx, -4(%ebp)
-	.loc 1 148 0
-	movl	-4(%ebp), %eax
-	movl	%eax, (%esp)
-	call	print_hex
-	.loc 1 149 0
-	movl	$.LC4, (%esp)
-	call	print
-	.loc 1 152 0
-	movl	$.LC11, (%esp)
-	call	print
-	.loc 1 153 0
-#APP
-# 153 "tls-test.c" 1
-	movb $0x91, %gs:13
-# 0 "" 2
 	.loc 1 154 0
-#NO_APP
 	movl	$.LC12, (%esp)
 	call	print
 	.loc 1 155 0
@@ -518,27 +502,93 @@ _start:
 	movl	%eax, (%esp)
 	call	print_hex
 	.loc 1 156 0
-	movl	$.LC4, (%esp)
-	call	print
-	.loc 1 160 0
 	movl	$.LC13, (%esp)
 	call	print
-	.loc 1 161 0
-	movl	$0, (%esp)
-	call	exit_n
-	.loc 1 163 0
+	.loc 1 157 0
 #APP
-# 163 "tls-test.c" 1
-	pop %gs 
-	 ret $16 
+# 157 "tls-test.c" 1
+	movl %gs:13, %eax 
+	movl %eax, %eax 
 	
 # 0 "" 2
-	.loc 1 164 0
 #NO_APP
+	movl	%eax, -4(%ebp)
+	.loc 1 162 0
+	movl	-4(%ebp), %eax
+	movl	%eax, (%esp)
+	call	print_hex
+	.loc 1 163 0
+	movl	$.LC7, (%esp)
+	call	print
+	.loc 1 166 0
+	movl	$.LC14, (%esp)
+	call	print
+	.loc 1 167 0
+#APP
+# 167 "tls-test.c" 1
+	movb $0x91, %gs:13
+# 0 "" 2
+	.loc 1 168 0
+#NO_APP
+	movl	$.LC15, (%esp)
+	call	print
+	.loc 1 169 0
+	movzbl	buff+13, %eax
+	movzbl	%al, %eax
+	movl	%eax, (%esp)
+	call	print_hex
+	.loc 1 170 0
+	movl	$.LC7, (%esp)
+	call	print
+	.loc 1 172 0
+	movl	$.LC7, (%esp)
+	call	print
+	.loc 1 173 0
 	leave
 	ret
 	.cfi_endproc
 .LFE6:
+	.size	test_TLS, .-test_TLS
+	.section	.rodata
+.LC16:
+	.string	"tls-test start\n"
+.LC17:
+	.string	"end\n"
+	.text
+.globl _start
+	.type	_start, @function
+_start:
+.LFB7:
+	.loc 1 176 0
+	.cfi_startproc
+	pushl	%ebp
+.LCFI14:
+	.cfi_def_cfa_offset 8
+	movl	%esp, %ebp
+	.cfi_offset 5, -8
+.LCFI15:
+	.cfi_def_cfa_register 5
+	subl	$4, %esp
+	.loc 1 177 0
+	movl	$.LC16, (%esp)
+	call	print
+	.loc 1 179 0
+	movl	$0, (%esp)
+	call	test_TLS
+	.loc 1 180 0
+	movl	$1, (%esp)
+	call	test_TLS
+	.loc 1 182 0
+	movl	$.LC17, (%esp)
+	call	print
+	.loc 1 183 0
+	movl	$0, (%esp)
+	call	exit_n
+	.loc 1 184 0
+	leave
+	ret
+	.cfi_endproc
+.LFE7:
 	.size	_start, .-_start
 .Letext0:
 	.section	.debug_loc,"",@progbits
@@ -669,17 +719,35 @@ _start:
 	.sleb128 8
 	.long	0x0
 	.long	0x0
+.LLST7:
+	.long	.LFB7-.Ltext0
+	.long	.LCFI14-.Ltext0
+	.value	0x2
+	.byte	0x74
+	.sleb128 4
+	.long	.LCFI14-.Ltext0
+	.long	.LCFI15-.Ltext0
+	.value	0x2
+	.byte	0x74
+	.sleb128 8
+	.long	.LCFI15-.Ltext0
+	.long	.LFE7-.Ltext0
+	.value	0x2
+	.byte	0x75
+	.sleb128 8
+	.long	0x0
+	.long	0x0
 	.file 2 "/usr/include/asm/ldt.h"
 	.section	.debug_info
-	.long	0x2f0
+	.long	0x313
 	.value	0x2
 	.long	.Ldebug_abbrev0
 	.byte	0x4
 	.uleb128 0x1
-	.long	.LASF28
-	.byte	0x1
 	.long	.LASF29
+	.byte	0x1
 	.long	.LASF30
+	.long	.LASF31
 	.long	.Ltext0
 	.long	.Letext0
 	.long	.Ldebug_line0
@@ -736,7 +804,7 @@ _start:
 	.byte	0x6
 	.long	.LASF9
 	.uleb128 0x7
-	.long	.LASF31
+	.long	.LASF32
 	.byte	0x10
 	.byte	0x2
 	.byte	0x14
@@ -836,7 +904,7 @@ _start:
 	.byte	0x1
 	.long	.LASF19
 	.byte	0x1
-	.byte	0xc
+	.byte	0xf
 	.byte	0x1
 	.long	0x4f
 	.long	.LFB0
@@ -846,7 +914,7 @@ _start:
 	.uleb128 0xb
 	.string	"fd"
 	.byte	0x1
-	.byte	0xc
+	.byte	0xf
 	.long	0x4f
 	.byte	0x2
 	.byte	0x91
@@ -854,7 +922,7 @@ _start:
 	.uleb128 0xb
 	.string	"s"
 	.byte	0x1
-	.byte	0xc
+	.byte	0xf
 	.long	0x70
 	.byte	0x2
 	.byte	0x91
@@ -862,7 +930,7 @@ _start:
 	.uleb128 0xb
 	.string	"n"
 	.byte	0x1
-	.byte	0xc
+	.byte	0xf
 	.long	0x4f
 	.byte	0x2
 	.byte	0x91
@@ -870,7 +938,7 @@ _start:
 	.uleb128 0xc
 	.string	"nr"
 	.byte	0x1
-	.byte	0xe
+	.byte	0x11
 	.long	0x4f
 	.byte	0x2
 	.byte	0x91
@@ -880,7 +948,7 @@ _start:
 	.byte	0x1
 	.long	.LASF20
 	.byte	0x1
-	.byte	0x17
+	.byte	0x1b
 	.byte	0x1
 	.long	0x4f
 	.long	.LFB1
@@ -890,7 +958,7 @@ _start:
 	.uleb128 0xb
 	.string	"n"
 	.byte	0x1
-	.byte	0x17
+	.byte	0x1b
 	.long	0x4f
 	.byte	0x2
 	.byte	0x91
@@ -898,7 +966,7 @@ _start:
 	.uleb128 0xb
 	.string	"p"
 	.byte	0x1
-	.byte	0x17
+	.byte	0x1b
 	.long	0x6e
 	.byte	0x2
 	.byte	0x91
@@ -908,7 +976,7 @@ _start:
 	.byte	0x1
 	.long	.LASF21
 	.byte	0x1
-	.byte	0x21
+	.byte	0x26
 	.byte	0x1
 	.long	.LFB2
 	.long	.LFE2
@@ -917,7 +985,7 @@ _start:
 	.uleb128 0xb
 	.string	"n"
 	.byte	0x1
-	.byte	0x21
+	.byte	0x26
 	.long	0x4f
 	.byte	0x2
 	.byte	0x91
@@ -927,7 +995,7 @@ _start:
 	.byte	0x1
 	.long	.LASF22
 	.byte	0x1
-	.byte	0x26
+	.byte	0x2c
 	.byte	0x1
 	.long	.LFB3
 	.long	.LFE3
@@ -936,7 +1004,7 @@ _start:
 	.uleb128 0xb
 	.string	"s"
 	.byte	0x1
-	.byte	0x26
+	.byte	0x2c
 	.long	0x70
 	.byte	0x2
 	.byte	0x91
@@ -944,7 +1012,7 @@ _start:
 	.uleb128 0xc
 	.string	"i"
 	.byte	0x1
-	.byte	0x28
+	.byte	0x2e
 	.long	0x4f
 	.byte	0x2
 	.byte	0x91
@@ -954,7 +1022,7 @@ _start:
 	.byte	0x1
 	.long	.LASF23
 	.byte	0x1
-	.byte	0x2d
+	.byte	0x34
 	.byte	0x1
 	.long	.LFB4
 	.long	.LFE4
@@ -963,7 +1031,7 @@ _start:
 	.uleb128 0xb
 	.string	"n"
 	.byte	0x1
-	.byte	0x2d
+	.byte	0x34
 	.long	0x64
 	.byte	0x2
 	.byte	0x91
@@ -971,7 +1039,7 @@ _start:
 	.uleb128 0xc
 	.string	"buf"
 	.byte	0x1
-	.byte	0x2f
+	.byte	0x36
 	.long	0x238
 	.byte	0x2
 	.byte	0x91
@@ -979,7 +1047,7 @@ _start:
 	.uleb128 0xc
 	.string	"i"
 	.byte	0x1
-	.byte	0x30
+	.byte	0x37
 	.long	0x4f
 	.byte	0x2
 	.byte	0x91
@@ -996,7 +1064,7 @@ _start:
 	.byte	0x1
 	.long	.LASF24
 	.byte	0x1
-	.byte	0x41
+	.byte	0x49
 	.byte	0x1
 	.long	.LFB5
 	.long	.LFE5
@@ -1005,7 +1073,7 @@ _start:
 	.uleb128 0xb
 	.string	"n"
 	.byte	0x1
-	.byte	0x41
+	.byte	0x49
 	.long	0x3a
 	.byte	0x2
 	.byte	0x91
@@ -1013,7 +1081,7 @@ _start:
 	.uleb128 0xc
 	.string	"buf"
 	.byte	0x1
-	.byte	0x43
+	.byte	0x4b
 	.long	0x238
 	.byte	0x2
 	.byte	0x91
@@ -1021,26 +1089,34 @@ _start:
 	.uleb128 0xc
 	.string	"i"
 	.byte	0x1
-	.byte	0x44
+	.byte	0x4c
 	.long	0x4f
 	.byte	0x2
 	.byte	0x91
 	.sleb128 -12
 	.byte	0x0
-	.uleb128 0x10
+	.uleb128 0xd
 	.byte	0x1
 	.long	.LASF25
 	.byte	0x1
-	.byte	0x52
-	.long	0x4f
+	.byte	0x5e
+	.byte	0x1
 	.long	.LFB6
 	.long	.LFE6
 	.long	.LLST6
-	.long	0x2bf
-	.uleb128 0x11
+	.long	0x2ca
+	.uleb128 0x10
 	.long	.LASF26
 	.byte	0x1
-	.byte	0x54
+	.byte	0x5e
+	.long	0x4f
+	.byte	0x2
+	.byte	0x91
+	.sleb128 0
+	.uleb128 0x11
+	.long	.LASF27
+	.byte	0x1
+	.byte	0x60
 	.long	0x4f
 	.byte	0x2
 	.byte	0x91
@@ -1048,32 +1124,41 @@ _start:
 	.uleb128 0xc
 	.string	"i"
 	.byte	0x1
-	.byte	0x55
+	.byte	0x61
 	.long	0x4f
 	.byte	0x2
 	.byte	0x91
 	.sleb128 -12
 	.byte	0x0
+	.uleb128 0x12
+	.byte	0x1
+	.long	.LASF33
+	.byte	0x1
+	.byte	0xaf
+	.long	0x4f
+	.long	.LFB7
+	.long	.LFE7
+	.long	.LLST7
 	.uleb128 0xe
 	.long	0x25
-	.long	0x2d0
-	.uleb128 0x12
+	.long	0x2f3
+	.uleb128 0x13
 	.long	0x6b
 	.value	0xfff
 	.byte	0x0
-	.uleb128 0x13
-	.long	.LASF27
+	.uleb128 0x14
+	.long	.LASF28
 	.byte	0x1
-	.byte	0x8
-	.long	0x2bf
+	.byte	0xb
+	.long	0x2e2
 	.byte	0x1
 	.byte	0x5
 	.byte	0x3
 	.long	buff
-	.uleb128 0x14
+	.uleb128 0x15
 	.string	"ud"
 	.byte	0x1
-	.byte	0x9
+	.byte	0xc
 	.long	0x7d
 	.byte	0x1
 	.byte	0x5
@@ -1295,8 +1380,38 @@ _start:
 	.byte	0x0
 	.byte	0x0
 	.uleb128 0x10
+	.uleb128 0x5
+	.byte	0x0
+	.uleb128 0x3
+	.uleb128 0xe
+	.uleb128 0x3a
+	.uleb128 0xb
+	.uleb128 0x3b
+	.uleb128 0xb
+	.uleb128 0x49
+	.uleb128 0x13
+	.uleb128 0x2
+	.uleb128 0xa
+	.byte	0x0
+	.byte	0x0
+	.uleb128 0x11
+	.uleb128 0x34
+	.byte	0x0
+	.uleb128 0x3
+	.uleb128 0xe
+	.uleb128 0x3a
+	.uleb128 0xb
+	.uleb128 0x3b
+	.uleb128 0xb
+	.uleb128 0x49
+	.uleb128 0x13
+	.uleb128 0x2
+	.uleb128 0xa
+	.byte	0x0
+	.byte	0x0
+	.uleb128 0x12
 	.uleb128 0x2e
-	.byte	0x1
+	.byte	0x0
 	.uleb128 0x3f
 	.uleb128 0xc
 	.uleb128 0x3
@@ -1313,26 +1428,9 @@ _start:
 	.uleb128 0x1
 	.uleb128 0x40
 	.uleb128 0x6
-	.uleb128 0x1
+	.byte	0x0
+	.byte	0x0
 	.uleb128 0x13
-	.byte	0x0
-	.byte	0x0
-	.uleb128 0x11
-	.uleb128 0x34
-	.byte	0x0
-	.uleb128 0x3
-	.uleb128 0xe
-	.uleb128 0x3a
-	.uleb128 0xb
-	.uleb128 0x3b
-	.uleb128 0xb
-	.uleb128 0x49
-	.uleb128 0x13
-	.uleb128 0x2
-	.uleb128 0xa
-	.byte	0x0
-	.byte	0x0
-	.uleb128 0x12
 	.uleb128 0x21
 	.byte	0x0
 	.uleb128 0x49
@@ -1341,7 +1439,7 @@ _start:
 	.uleb128 0x5
 	.byte	0x0
 	.byte	0x0
-	.uleb128 0x13
+	.uleb128 0x14
 	.uleb128 0x34
 	.byte	0x0
 	.uleb128 0x3
@@ -1358,7 +1456,7 @@ _start:
 	.uleb128 0xa
 	.byte	0x0
 	.byte	0x0
-	.uleb128 0x14
+	.uleb128 0x15
 	.uleb128 0x34
 	.byte	0x0
 	.uleb128 0x3
@@ -1377,10 +1475,10 @@ _start:
 	.byte	0x0
 	.byte	0x0
 	.section	.debug_pubnames,"",@progbits
-	.long	0x72
+	.long	0x7f
 	.value	0x2
 	.long	.Ldebug_info0
-	.long	0x2f4
+	.long	0x317
 	.long	0x11a
 	.string	"_write"
 	.long	0x16a
@@ -1394,10 +1492,12 @@ _start:
 	.long	0x248
 	.string	"print_hex"
 	.long	0x288
+	.string	"test_TLS"
+	.long	0x2ca
 	.string	"_start"
-	.long	0x2d0
+	.long	0x2f3
 	.string	"buff"
-	.long	0x2e2
+	.long	0x305
 	.string	"ud"
 	.long	0x0
 	.section	.debug_aranges,"",@progbits
@@ -1417,13 +1517,15 @@ _start:
 	.string	"seg_32bit"
 .LASF15:
 	.string	"read_exec_only"
-.LASF30:
-	.string	"/home/paul/src/keow/git/bootstrap/elf-tests"
 .LASF31:
+	.string	"/home/paul/src/keow/git/bootstrap/elf-tests"
+.LASF25:
+	.string	"test_TLS"
+.LASF32:
 	.string	"user_desc"
 .LASF10:
 	.string	"entry_number"
-.LASF26:
+.LASF27:
 	.string	"selector"
 .LASF14:
 	.string	"contents"
@@ -1439,9 +1541,9 @@ _start:
 	.string	"limit_in_pages"
 .LASF20:
 	.string	"_syscall"
-.LASF29:
+.LASF30:
 	.string	"tls-test.c"
-.LASF25:
+.LASF33:
 	.string	"_start"
 .LASF11:
 	.string	"base_addr"
@@ -1453,9 +1555,11 @@ _start:
 	.string	"limit"
 .LASF17:
 	.string	"seg_not_present"
+.LASF26:
+	.string	"granularity"
 .LASF6:
 	.string	"long long int"
-.LASF28:
+.LASF29:
 	.string	"GNU C 4.4.3"
 .LASF9:
 	.string	"char"
@@ -1473,7 +1577,7 @@ _start:
 	.string	"print_dec"
 .LASF8:
 	.string	"long int"
-.LASF27:
+.LASF28:
 	.string	"buff"
 .LASF4:
 	.string	"signed char"

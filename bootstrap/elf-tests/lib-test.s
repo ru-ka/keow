@@ -1,4 +1,4 @@
-	.file	"test.c"
+	.file	"lib-test.c"
 	.section	.debug_abbrev,"",@progbits
 .Ldebug_abbrev0:
 	.section	.debug_info,"",@progbits
@@ -10,13 +10,13 @@
 	.cfi_sections	.debug_frame
 	.section	.rodata
 .LC0:
-	.string	"Hello\n"
+	.string	"Hello with libraries\n"
 	.text
-.globl _start
-	.type	_start, @function
-_start:
+.globl main
+	.type	main, @function
+main:
 .LFB0:
-	.file 1 "test.c"
+	.file 1 "lib-test.c"
 	.loc 1 6 0
 	.cfi_startproc
 	pushl	%ebp
@@ -26,36 +26,19 @@ _start:
 	.cfi_offset 5, -8
 .LCFI1:
 	.cfi_def_cfa_register 5
-	pushl	%ebx
-	.loc 1 9 0
-	movl	$4, %eax
-	movl	$1, %ebx
-	.cfi_offset 3, -12
-	movl	$.LC0, %ecx
-	movl	$6, %edx
-#APP
-# 9 "test.c" 1
-	int $0x80 
-	
-# 0 "" 2
-	.loc 1 10 0
-#NO_APP
-	movl	$1, %eax
-	movl	$3, %edx
-	movl	%edx, %ebx
-#APP
-# 10 "test.c" 1
-	int $0x80 
-	
-# 0 "" 2
-	.loc 1 11 0
-#NO_APP
-	popl	%ebx
-	popl	%ebp
-	ret
+	andl	$-16, %esp
+	subl	$16, %esp
+	.loc 1 7 0
+	movl	$21, 8(%esp)
+	movl	$.LC0, 4(%esp)
+	movl	$1, (%esp)
+	call	write
+	.loc 1 8 0
+	movl	$3, (%esp)
+	call	exit
 	.cfi_endproc
 .LFE0:
-	.size	_start, .-_start
+	.size	main, .-main
 .Letext0:
 	.section	.debug_loc,"",@progbits
 .Ldebug_loc0:
@@ -91,44 +74,44 @@ _start:
 	.long	.Letext0
 	.long	.Ldebug_line0
 	.uleb128 0x2
-	.byte	0x1
-	.byte	0x8
+	.byte	0x4
+	.byte	0x7
 	.long	.LASF0
-	.uleb128 0x2
-	.byte	0x2
-	.byte	0x7
-	.long	.LASF1
-	.uleb128 0x2
-	.byte	0x4
-	.byte	0x7
-	.long	.LASF2
-	.uleb128 0x2
-	.byte	0x4
-	.byte	0x7
-	.long	.LASF3
-	.uleb128 0x2
-	.byte	0x1
-	.byte	0x6
-	.long	.LASF4
-	.uleb128 0x2
-	.byte	0x2
-	.byte	0x5
-	.long	.LASF5
 	.uleb128 0x3
 	.byte	0x4
 	.byte	0x5
 	.string	"int"
 	.uleb128 0x2
+	.byte	0x4
+	.byte	0x5
+	.long	.LASF1
+	.uleb128 0x2
 	.byte	0x8
 	.byte	0x5
+	.long	.LASF2
+	.uleb128 0x2
+	.byte	0x1
+	.byte	0x8
+	.long	.LASF3
+	.uleb128 0x2
+	.byte	0x2
+	.byte	0x7
+	.long	.LASF4
+	.uleb128 0x2
+	.byte	0x4
+	.byte	0x7
+	.long	.LASF5
+	.uleb128 0x2
+	.byte	0x1
+	.byte	0x6
 	.long	.LASF6
+	.uleb128 0x2
+	.byte	0x2
+	.byte	0x5
+	.long	.LASF7
 	.uleb128 0x2
 	.byte	0x8
 	.byte	0x7
-	.long	.LASF7
-	.uleb128 0x2
-	.byte	0x4
-	.byte	0x5
 	.long	.LASF8
 	.uleb128 0x4
 	.byte	0x4
@@ -142,7 +125,7 @@ _start:
 	.long	.LASF13
 	.byte	0x1
 	.byte	0x5
-	.long	0x4f
+	.long	0x2c
 	.long	.LFB0
 	.long	.LFE0
 	.long	.LLST0
@@ -221,12 +204,12 @@ _start:
 	.byte	0x0
 	.byte	0x0
 	.section	.debug_pubnames,"",@progbits
-	.long	0x19
+	.long	0x17
 	.value	0x2
 	.long	.Ldebug_info0
 	.long	0x8e
 	.long	0x75
-	.string	"_start"
+	.string	"main"
 	.long	0x0
 	.section	.debug_aranges,"",@progbits
 	.long	0x1c
@@ -241,33 +224,33 @@ _start:
 	.long	0x0
 	.long	0x0
 	.section	.debug_str,"MS",@progbits,1
-.LASF2:
-	.string	"unsigned int"
-.LASF3:
-	.string	"long unsigned int"
-.LASF4:
-	.string	"signed char"
-.LASF1:
-	.string	"short unsigned int"
-.LASF5:
-	.string	"short int"
-.LASF13:
-	.string	"_start"
-.LASF7:
-	.string	"long long unsigned int"
 .LASF0:
-	.string	"unsigned char"
-.LASF8:
-	.string	"long int"
+	.string	"unsigned int"
 .LASF11:
-	.string	"test.c"
+	.string	"lib-test.c"
+.LASF5:
+	.string	"long unsigned int"
+.LASF6:
+	.string	"signed char"
+.LASF4:
+	.string	"short unsigned int"
+.LASF7:
+	.string	"short int"
+.LASF8:
+	.string	"long long unsigned int"
+.LASF3:
+	.string	"unsigned char"
+.LASF1:
+	.string	"long int"
+.LASF13:
+	.string	"main"
 .LASF12:
 	.string	"/home/paul/src/keow/git/bootstrap/elf-tests"
 .LASF9:
 	.string	"char"
 .LASF10:
 	.string	"GNU C 4.4.3"
-.LASF6:
+.LASF2:
 	.string	"long long int"
 	.ident	"GCC: (Ubuntu 4.4.3-4ubuntu5) 4.4.3"
 	.section	.note.GNU-stack,"",@progbits

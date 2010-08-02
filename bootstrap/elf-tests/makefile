@@ -1,18 +1,19 @@
+CFLAGS= -O0 -g -static -nostartfiles -nodefaultlibs -fno-stack-protector
 
-all: test tls-test
+all: test tls-test lib-test
 
+#many of these creating the .s assembly file to aid in debugging
 
-CFLAGS_TEST= -g -nostartfiles
 test: test.c makefile
-# make .S file
-	cc -S $(CFLAGS_TEST) test.c
-# make elf
-	cc $(CFLAGS_TEST) test.s -o test
+	cc -S $(CFLAGS) test.c
+	cc $(CFLAGS) test.s -o test
 
 
-CFLAGS_TLS_TEST= -O0 -g -static -nostartfiles -nodefaultlibs -fno-stack-protector
 tls-test: tls-test.c makefile
-# make .S file
-	gcc -S $(CFLAGS_TLS_TEST) tls-test.c
-# make elf
-	gcc $(CFLAGS_TLS_TEST) tls-test.s -o tls-test
+	gcc -S $(CFLAGS) tls-test.c
+	gcc $(CFLAGS) tls-test.s -o tls-test
+
+
+lib-test: lib-test.c makefile
+	gcc -S -O0 -g lib-test.c
+	gcc -O0 -g lib-test.s -o lib-test
